@@ -25,6 +25,8 @@ from zelos.config_gen import generate_config, generate_config_from_cmdline
 from zelos.engine import Engine
 from zelos.hooks import HookInfo, HookType
 from zelos.plugin import Plugins
+from zelos.processes import Process
+from zelos.threads import Thread
 
 
 class Zelos:
@@ -311,7 +313,10 @@ class Zelos:
         self.internal_engine.close()
 
     def end_thread(self):
-        """ Stop the current thread. Mark as successfully completed."""
+        """
+        End the current thread. Marks current thread as successfully
+        completed and swaps to the next available thread, if one exists.
+        """
         self.internal_engine.thread_manager.complete_current_thread()
 
     def swap_thread(self, reason: str = "thread swap"):
@@ -528,7 +533,14 @@ class Zelos:
 
     @property
     def date(self):
-        """ Returns the date used internally during emulation. """
+        """
+        Returns the date string used internally during emulation. The
+        date string format is `YYYY-MM-DD`.
+
+        :getter: Returns the date string in YYYY-MM-DD format.
+        :setter: Sets the date string. Input must be YYYY-MM-DD format.
+        :type: str
+        """
         return self.internal_engine.date
 
     @date.setter
@@ -556,13 +568,25 @@ class Zelos:
         self.internal_engine.date = date_str
 
     @property
-    def process(self):
-        """ Returns the active process"""
+    def process(self) -> Process:
+        """
+        Returns the currently active process.
+
+        :getter: Return the current process object.
+        :type: Process
+
+        """
         return self.internal_engine.current_process
 
     @property
-    def thread(self):
-        """ Returns the active thread"""
+    def thread(self) -> Thread:
+        """
+        Returns the currently active thread.
+
+        :getter: Returns the current thread object.
+        :type: Thread
+
+        """
         return self.internal_engine.current_process.current_thread
 
 
