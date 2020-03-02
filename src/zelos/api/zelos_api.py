@@ -572,7 +572,6 @@ class Zelos:
         """
         Returns the currently active process.
 
-        :getter: Return the current process object.
         :type: Process
 
         """
@@ -583,7 +582,6 @@ class Zelos:
         """
         Returns the currently active thread.
 
-        :getter: Returns the current thread object.
         :type: Thread
 
         """
