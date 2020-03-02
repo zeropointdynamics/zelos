@@ -24,7 +24,7 @@ PROJECT_URLS = {
     "Source Code": "https://github.com/zeropointdynamics/zelos",
 }
 CLASSIFIERS = [
-    "Development Status :: 1 - Planning",
+    "Development Status :: 4 - Beta",
     "Natural Language :: English",
     "License :: OSI Approved :: GNU Affero General Public License v3",
     "Operating System :: OS Independent",
