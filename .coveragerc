@@ -1,0 +1,13 @@
+
+[run]
+branch = True
+source =
+    zelos
+
+[paths]
+source =
+   src
+   .tox/*/site-packages
+
+[report]
+show_missing = True

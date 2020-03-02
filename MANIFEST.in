@@ -1,0 +1,28 @@
+graft src/zelos
+
+include LICENSE *.md *.toml *.yml *.yaml *.ini .flake8
+graft .github
+
+# Tests
+include tox.ini .coveragerc conftest.py
+recursive-include tests *.py
+
+# Documentation
+include docs/Makefile docs/make.bat requirements.txt
+recursive-include docs *.png
+recursive-include docs *.svg
+recursive-include docs *.ico
+recursive-include docs *.py
+recursive-include docs *.rst
+recursive-include docs *.md
+prune docs/_build
+prune docs/api
+
+# added by check_manifest.py
+include Dockerfile
+recursive-include tests *.c
+recursive-include tests *.so
+
+# Ignore
+global-exclude *.py[co]
+global-exclude __pycache__
