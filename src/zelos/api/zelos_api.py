@@ -42,8 +42,8 @@ class Zelos:
 
     def _setup(self, config):
         self.config = config
-        self.regs = RegsApi(self)
-        self.memory = MemoryApi(self)
+        self._regs = RegsApi(self)
+        self._memory = MemoryApi(self)
 
         self._breakpoints = {}
         self._watchpoints = defaultdict(dict)
@@ -54,6 +54,22 @@ class Zelos:
         Engine(config=config, api=self)
         self.plugins = Plugins(self, ["plugins"])
         self.internal_engine.plugins = self.plugins
+
+    # **** Memory API ****
+    @property
+    def memory(self):
+        """
+        Returns the :py:class:`~zelos.api.memory_api.MemoryApi` object.
+        """
+        return self._memory
+
+    # **** Registers API ****
+    @property
+    def regs(self):
+        """
+        Returns the :py:class:`~zelos.api.regs_api.RegsApi` object.
+        """
+        return self._regs
 
     # **** Begin Hook API ****
     def hook_memory(
