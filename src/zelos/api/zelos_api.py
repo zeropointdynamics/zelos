@@ -28,7 +28,11 @@ from zelos.plugin import Plugins
 
 
 class Zelos:
-    """ API class that provides access to interal api wrappers. """
+    """
+    Class that provides access to core api wrappers. These core APIs
+    are event hooking, debugging, memory access, register access, and
+    emulation context.
+    """
 
     def __init__(self, filename, *cmdline_args, **flags):
         config = generate_config(filename, *cmdline_args, **flags)
@@ -254,7 +258,10 @@ class Zelos:
 
     def start(self, timeout: float = 0) -> None:
         """
-        Begin emulation, starting execution at the IP.
+        Begin emulation. When called for the first time, begins
+        execution at the binary entry point. If the emulation is
+        stopped (for example, after calling :py:meth:`stop()`) this
+        will resume execution from the current IP.
 
         Args:
             timeout: Stops execution after `timeout` seconds.
@@ -266,6 +273,7 @@ class Zelos:
 
                 z = ("binary_to_emulate")
 
+                # Start execution from the entry point
                 z.start()
 
         """
@@ -283,7 +291,9 @@ class Zelos:
 
     def stop(self, reason: str = "plugin"):
         """
-        Stop the Zelos run loop and end execution.
+        Stop the Zelos run loop. After a call to
+        :py:meth:`stop()`, execution can be resumed from the
+        current IP with a call to :py:meth:`start()`.
 
         Args:
             reason: An optional identifier that specifies a reason for
