@@ -1,6 +1,7 @@
 ## Scripting Tutorial - Bypass
 
-The source code and test program for this tutorial can be found in the [examples/script_bypass](https://github.com/zeropointdynamics/zelos/tree/master/examples/script_bypass) directory.
+The source code and test program for this tutorial can be found in the
+[examples/script_bypass](https://github.com/zeropointdynamics/zelos/tree/master/examples/script_bypass) directory.
 
 Consider the following example binary:
 
