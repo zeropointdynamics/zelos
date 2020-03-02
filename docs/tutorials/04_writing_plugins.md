@@ -47,7 +47,7 @@ class MinimalPlugin(IPlugin):
         print("Minimal plugin is created.")
 ```
 ```eval_rst
-Now, we add the :py:class:`zelos.CommandLineOption` to change behavior at run time. The option can then be accessed using :py:class`zelos.Zelos`'s :code:`config` field.
+Now, we add the :py:class:`zelos.CommandLineOption` to change behavior at run time. The option can then be accessed using :py:class:`zelos.Zelos`'s :code:`config` field.
 ```
 
 ```python
