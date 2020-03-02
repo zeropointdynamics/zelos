@@ -9,6 +9,10 @@
 # Zelos
 Zelos is a Python-based binary emulation platform. Linux x86, x86_64, ARMv7 and MIPS binaries are supported.
 
+## Documentation
+
+All of the documentation can be found on [readthedocs](https://zelos.readthedocs.io/en/latest/index.html)
+
 ## Installation
 
 Use the package manager [pip](https://pip.pypa.io/en/stable/) to install zelos.
