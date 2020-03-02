@@ -12,7 +12,7 @@ Hooks are a way to invoke your code whenever certain events occur during executi
 *  Invocations of syscalls use :py:meth:`~zelos.Zelos.hook_syscalls`
 *  Execution of an instruction :py:meth:`~zelos.Zelos.hook_execution`
 
-Each hook offers different configuration options and requires a different type of callback. For more details, as well as examples, for each type of hook, look at the :py:class:`~zelos.Zelos`.
+Each hook offers different configuration options and requires a different type of callback. For more details, as well as examples, for each type of hook, take a look at :py:class:`~zelos.Zelos`.
 ```
 
 ## Pwnable.kr Challenge

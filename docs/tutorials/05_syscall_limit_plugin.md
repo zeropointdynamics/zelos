@@ -77,7 +77,7 @@ class SyscallLimiter(IPlugin):
 ## Implementing the Syscall Hook
 
 ```eval_rst
-In order to implement the desired behavior of SyscallLimiter, we create a syscall hook using the :py:meth:`~zelos.Zelos.hook_syscalls` function. As noted in the previous tutorial, we can access our command line options through :py:class`zelos.Zelos`'s :code:`config` field. Additionally, we create a callback function that keeps track of the number of syscalls executed overall and per thread.
+In order to implement the desired behavior of SyscallLimiter, we create a syscall hook using the :py:meth:`~zelos.Zelos.hook_syscalls` function. As noted in the previous tutorial, we can access our command line options through :py:class:`zelos.Zelos`'s :code:`config` field. Additionally, we create a callback function that keeps track of the number of syscalls executed overall and per thread.
 ```
 
 ```python

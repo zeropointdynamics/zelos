@@ -251,7 +251,7 @@ Yet again, to check our script, we can see that the last four lines of the outpu
 ## Scripting Tutorial - Brute
 
 The source code and test program for this tutorial can be found at
-https://github.com/zeropointdynamics/zelos/tree/master/examples/simple_brute
+[examples/script_brute](https://github.com/zeropointdynamics/zelos/tree/master/examples/script_brute)
 
 This example demonstrates some more of the dynamic capabilities of zelos. Consider the following example binary:
 

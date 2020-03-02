@@ -1,9 +1,9 @@
-## Simple Brute Tutorial
+## Scripting Tutorial - Brute
 
 The source code and test program for this tutorial can be found at
-https://github.com/zeropointdynamics/zelos/tree/master/examples/script_brute
+[examples/script_brute](https://github.com/zeropointdynamics/zelos/tree/master/examples/script_brute)
 
-This example demonstrates some of the dynamic capabilities of zelos. Consider the following example binary:
+This example demonstrates some more of the dynamic capabilities of zelos. Consider the following example binary:
 
 ```sh
 $ ./password.bin
@@ -33,13 +33,10 @@ We start with a script that loads the binary and emulates normal behavior:
 ```python
 from zelos import Zelos
 
-
 def brute():
-    z = Zelos("password.bin")
-    z.set_verbose(True)
+    z = Zelos("password.bin", verbosity=1)
     # Start execution
     z.start()
-
 
 if __name__ == "__main__":
     brute()
@@ -71,23 +68,19 @@ from zelos import Zelos
 
 
 def brute():
-    z = Zelos("password.bin")
-    z.set_verbose(True)
+    z = Zelos("password.bin", verbosity=1)
     # The address of strcmp observed above
     strcmp_address = 0x00400BB6
     # run to the address of call to strcmp and stop
     z.plugins.runner.run_to_addr(strcmp_address)
-
     # Execution is now STOPPED at address 0x00400BB6
 
-    # Get the current process
-    p = z.current_process
     # get initial reg values of rdi & rsi before strcmp is called
-    rdi = p.emu.get_reg("rdi") # user input
-    rsi = p.emu.get_reg("rsi") # 'real' password
+    rdi = z.regs.rdi # user input
+    rsi = z.regs.rsi # 'real' password
 
     # Write the string "our best guess" to address in rdi
-    p.memory.write_string(rdi, "our best guess")
+    z.memory.write_string(rdi, "our best guess")
 
     # Resume execution
     z.start()
@@ -140,26 +133,22 @@ from zelos import Zelos
 
 
 def brute():
-    z = Zelos("password.bin")
-    z.set_verbose(True)
+    z = Zelos("password.bin", verbosity=1)
     # The address of strcmp observed above
     strcmp_address = 0x00400BB6
     # run to the address of call to strcmp and stop
     z.plugins.runner.run_to_addr(strcmp_address)
-
     # Execution is now STOPPED at address 0x00400BB6
 
-    # Get the current process
-    p = z.current_process
     # get initial reg values of rdi & rsi before strcmp is called
-    rdi = p.current_thread.get_reg("rdi")  # user input
-    rsi = p.current_thread.get_reg("rsi")  # 'real' password
+    rdi = z.regs.rdi # user input
+    rsi = z.regs.rsi # 'real' password
 
     # 'brute force' the correct string
     for i in range(9, -1, -1):
 
         # write our bruteforced guess to memory
-        p.memory.write_string(rdi, str(i) + "point")
+        z.memory.write_string(rdi, str(i) + "point")
 
         # Address of the test instr
         test_address = 0x00400BBB
@@ -169,7 +158,7 @@ def brute():
         z.step()
 
         # check the zf bit for result of test
-        flags = p.current_thread.get_reg("flags")
+        flags = z.regs.flags
         zf = (flags & 0x40) >> 6
         if zf == 1:
             # if correct, run to completion
@@ -177,9 +166,9 @@ def brute():
             return
 
         # otherwise, reset ip to strcmp func & set regs
-        p.current_thread.setIP(strcmp_address)
-        p.current_thread.set_reg("rdi", rdi)
-        p.current_thread.set_reg("rsi", rsi)
+        z.regs.setIP(strcmp_address)
+        z.regs.rdi = rdi
+        z.regs.rsi = rsi
 
 
 if __name__ == "__main__":

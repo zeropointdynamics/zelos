@@ -1,7 +1,7 @@
 ## Scripting Tutorial - Bypass
 
-The source code for this tutorial can be found at
-https://github.com/zeropointdynamics/zelos/tree/master/examples/script_bypass
+The source code and test program for this tutorial can be found in the
+[examples/script_bypass](https://github.com/zeropointdynamics/zelos/tree/master/examples/script_bypass) directory.
 
 Consider the following example binary:
 
@@ -22,24 +22,20 @@ entry of the correct password, the program will output "Correct!" to
 stdout and exit. Upon entry of an incorrect password, however, the
 program will output "Incorrect" to stdout.
 
-Let's say that our objective is to bypass the password check, such that
+Our objective is to bypass the password check, such that
 any password can be entered and the program will always print "Correct!"
 to stdout. For this tutorial we will accomplish this in three different ways,
 by dynamically writing directly to memory, setting registers, and patching code.
 
-For each of these, we start with a script that loads the binary
+For each of these, we start with a boilerplate script that loads the binary
 and emulates normal behavior:
 
 ```python
 from zelos import Zelos
 
-
 def main():
-    z = Zelos("password_check.bin")
-    z.set_verbose(True)
-    # Start execution
+    z = Zelos("password_check.bin", verbosity=1)
     z.start()
-
 
 if __name__ == "__main__":
     main()
@@ -96,8 +92,7 @@ To bypass this, we can ensure that this jump is never taken by writing
 
 ```python
 def patch_mem():
-    z = Zelos("password_check.bin")
-    # z.set_verbose(True)
+    z = Zelos("password_check.bin", verbosity=1)
     # The address cmp instr observed above
     target_address = 0x0040107C
     # run to the target address and stop
@@ -105,12 +100,8 @@ def patch_mem():
 
     # Execution is now STOPPED at address 0x0040107C
 
-    # Get the current process
-    p = z.current_process
-    # Get the value of rbp
-    rbp = p.emu.get_reg("rbp")
     # Write 0x0 to address [rbp - 0x38]
-    p.memory.write_int(rbp - 0x38, 0x0)
+    z.memory.write_int(z.regs.rbp - 0x38, 0x0)
     # resume execution
     z.start()
 
@@ -136,19 +127,15 @@ it is used.
 
 ```python
 def patch_reg():
-    z = Zelos("password_check.bin")
-    # z.set_verbose(True)
+    z = Zelos("password_check.bin", verbosity=1)
     # The address of the first time eax is used above
     target_address = 0x00401810
     # run to the target address and stop
     z.plugins.runner.run_to_addr(target_address)
-
     # Execution is now STOPPED at address 0x00401810
 
-    # Get the current process
-    p = z.current_process
     # Set eax to 0x0
-    p.current_thread.set_reg("eax", 0x0)
+    z.eax = 0x0
     # Resume execution
     z.start()
 
@@ -179,8 +166,7 @@ also includes two NOP instructions since we are replacing a 4 byte instruction.
 
 ```python
 def patch_code():
-    z = Zelos("password_check.bin")
-    # z.set_verbose(True)
+    z = Zelos("password_check.bin", verbosity=1)
     # The address of the cmp instr
     target_address = 0x0040107C
     # run to the address of cmp and stop
@@ -188,8 +174,6 @@ def patch_code():
 
     # Execution is now STOPPED at address 0x0040107C
 
-    # Get the current process
-    p = z.current_process
 
     # Code we want to insert
     code = b"NOP; NOP; CMP eax, eax"
@@ -199,7 +183,7 @@ def patch_code():
 
     # replace the four bytes at this location with our code
     for i in range(len(encoding)):
-        p.memory.write_uint8(target_address + i, encoding[i])
+        z.memory.write_uint8(target_address + i, encoding[i])
 
     # resume execution
     z.start()

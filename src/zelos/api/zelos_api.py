@@ -25,10 +25,16 @@ from zelos.config_gen import generate_config, generate_config_from_cmdline
 from zelos.engine import Engine
 from zelos.hooks import HookInfo, HookType
 from zelos.plugin import Plugins
+from zelos.processes import Process
+from zelos.threads import Thread
 
 
 class Zelos:
-    """ API class that provides access to interal api wrappers. """
+    """
+    Class that provides access to core api wrappers. These core APIs
+    are event hooking, debugging, memory access, register access, and
+    emulation context.
+    """
 
     def __init__(self, filename, *cmdline_args, **flags):
         config = generate_config(filename, *cmdline_args, **flags)
@@ -36,8 +42,8 @@ class Zelos:
 
     def _setup(self, config):
         self.config = config
-        self.regs = RegsApi(self)
-        self.memory = MemoryApi(self)
+        self._regs = RegsApi(self)
+        self._memory = MemoryApi(self)
 
         self._breakpoints = {}
         self._watchpoints = defaultdict(dict)
@@ -48,6 +54,22 @@ class Zelos:
         Engine(config=config, api=self)
         self.plugins = Plugins(self, ["plugins"])
         self.internal_engine.plugins = self.plugins
+
+    # **** Memory API ****
+    @property
+    def memory(self):
+        """
+        Returns the :py:class:`~zelos.api.memory_api.MemoryApi` object.
+        """
+        return self._memory
+
+    # **** Registers API ****
+    @property
+    def regs(self):
+        """
+        Returns the :py:class:`~zelos.api.regs_api.RegsApi` object.
+        """
+        return self._regs
 
     # **** Begin Hook API ****
     def hook_memory(
@@ -254,7 +276,10 @@ class Zelos:
 
     def start(self, timeout: float = 0) -> None:
         """
-        Begin emulation, starting execution at the IP.
+        Begin emulation. When called for the first time, begins
+        execution at the binary entry point. If the emulation is
+        stopped (for example, after calling :py:meth:`stop()`) this
+        will resume execution from the current IP.
 
         Args:
             timeout: Stops execution after `timeout` seconds.
@@ -266,6 +291,7 @@ class Zelos:
 
                 z = ("binary_to_emulate")
 
+                # Start execution from the entry point
                 z.start()
 
         """
@@ -283,7 +309,9 @@ class Zelos:
 
     def stop(self, reason: str = "plugin"):
         """
-        Stop the Zelos run loop and end execution.
+        Stop the Zelos run loop. After a call to
+        :py:meth:`stop()`, execution can be resumed from the
+        current IP with a call to :py:meth:`start()`.
 
         Args:
             reason: An optional identifier that specifies a reason for
@@ -301,7 +329,10 @@ class Zelos:
         self.internal_engine.close()
 
     def end_thread(self):
-        """ Stop the current thread. Mark as successfully completed."""
+        """
+        End the current thread. Marks current thread as successfully
+        completed and swaps to the next available thread, if one exists.
+        """
         self.internal_engine.thread_manager.complete_current_thread()
 
     def swap_thread(self, reason: str = "thread swap"):
@@ -518,7 +549,14 @@ class Zelos:
 
     @property
     def date(self):
-        """ Returns the date used internally during emulation. """
+        """
+        Returns the date string used internally during emulation. The
+        date string format is `YYYY-MM-DD`.
+
+        :getter: Returns the date string in YYYY-MM-DD format.
+        :setter: Sets the date string. Input must be YYYY-MM-DD format.
+        :type: str
+        """
         return self.internal_engine.date
 
     @date.setter
@@ -546,13 +584,23 @@ class Zelos:
         self.internal_engine.date = date_str
 
     @property
-    def process(self):
-        """ Returns the active process"""
+    def process(self) -> Process:
+        """
+        Returns the currently active process.
+
+        :type: Process
+
+        """
         return self.internal_engine.current_process
 
     @property
-    def thread(self):
-        """ Returns the active thread"""
+    def thread(self) -> Thread:
+        """
+        Returns the currently active thread.
+
+        :type: Thread
+
+        """
         return self.internal_engine.current_process.current_thread
 
 
