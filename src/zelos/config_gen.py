@@ -69,7 +69,7 @@ def _generate_without_binary(**kwargs):
     return config
 
 
-def generate_config_from_cmdline(cmdline_string):
+def generate_parser():
     parser = configargparse.ArgumentParser()
     group_logging = parser.add_argument_group("logging")
     group_reporting = parser.add_argument_group("reporting")
@@ -220,6 +220,11 @@ def generate_config_from_cmdline(cmdline_string):
     parser.add_argument(
         "cmdline_args", type=str, nargs="*", help="Arguments to the executable"
     )
+    return parser
+
+
+def generate_config_from_cmdline(cmdline_string):
+    parser = generate_parser()
     config = parser.parse_args(cmdline_string)
 
     return config

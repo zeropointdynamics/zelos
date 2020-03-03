@@ -56,6 +56,7 @@ EXTRAS_REQUIRE = {
         "sphinx_rtd_theme",
         "sphinxcontrib-apidoc",
         "recommonmark",
+        "sphinx-argparse",
     ],
     "tests": [
         "coverage",

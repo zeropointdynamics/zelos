@@ -23,6 +23,7 @@ Zelos Documentation
   :maxdepth: 1
 
   api/zelos.api
+  args/args
 
 .. toctree::
   :caption: Internal Package Docs
