@@ -7,7 +7,7 @@
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 
 # Zelos
-Zelos (**Z**eropoint **E**mulated **L**ightweight **O**perating **S**ystem) is a python-based binary emulation platform. One use of zelos is for quickly assessing the dynamic behavior of binaries via command-line or python scripts. All syscalls are emulated to isolate the target binary. Linux x86_64 (32- and 64-bit), ARM and MIPSEL binaries are supported.
+Zelos (**Z**eropoint **E**mulated **L**ightweight **O**perating **S**ystem) is a python-based binary emulation platform. One use of zelos is to quickly assess the dynamic behavior of binaries via command-line or python scripts. All syscalls are emulated to isolate the target binary. Linux x86_64 (32- and 64-bit), ARM and MIPS binaries are supported.
 
 ![Image](/docs/_static/hello_zelos.png)
 
