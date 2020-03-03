@@ -185,7 +185,7 @@ class Zelos:
                 def exec_hook(zelos, address, size):
                     print(address)
 
-                z = ("binary_to_emulate")
+                z = Zelos("binary_to_emulate")
                 z.hook_execution(
                     HookType.EXEC.BLOCK, exec_hook
                 )
@@ -219,7 +219,7 @@ class Zelos:
                 def close_cleanup():
                     file.close()
 
-                z = ("binary_to_emulate")
+                z = Zelos("binary_to_emulate")
                 z.hook_close(close_cleanup)
                 z.start()
 
@@ -258,7 +258,7 @@ class Zelos:
                 def syscall_hook(zelos, sys_name, args, ret_val):
                     syscall_return_values.append((sys_name, ret_val))
 
-                z = ("binary_to_emulate")
+                z = Zelos("binary_to_emulate")
                 z.hook_syscalls(
                     HookType.SYSCALL.AFTER, syscall_hook
                 )
@@ -289,7 +289,7 @@ class Zelos:
 
                 from zelos import Zelos
 
-                z = ("binary_to_emulate")
+                z = Zelos("binary_to_emulate")
 
                 # Start execution from the entry point
                 z.start()
@@ -365,7 +365,7 @@ class Zelos:
 
                 from zelos import Zelos
 
-                z = ("binary_to_emulate")
+                z = Zelos("binary_to_emulate")
 
                 z.set_breakpoint(0xdeadbeef)
 
@@ -401,7 +401,7 @@ class Zelos:
 
                 from zelos import Zelos
 
-                z = ("binary_to_emulate")
+                z = Zelos("binary_to_emulate")
 
                 z.set_breakpoint(0xdeadbeef)
 
@@ -425,7 +425,7 @@ class Zelos:
 
                 from zelos import Zelos
 
-                z = ("binary_to_emulate")
+                z = Zelos("binary_to_emulate")
 
                 z.set_syscall_breakpoint("write")
 
@@ -446,7 +446,7 @@ class Zelos:
 
                 from zelos import Zelos
 
-                z = ("binary_to_emulate")
+                z = Zelos("binary_to_emulate")
 
                 z.set_syscall_breakpoint("write")
 
@@ -477,7 +477,7 @@ class Zelos:
 
                 from zelos import Zelos
 
-                z = ("binary_to_emulate")
+                z = Zelos("binary_to_emulate")
 
                 # Break at any read or write to memory address 0xdeadbeef
                 z.set_watchpoint(0xdeadbeef, True, True)
@@ -530,7 +530,7 @@ class Zelos:
 
                 from zelos import Zelos
 
-                z = ("binary_to_emulate")
+                z = Zelos("binary_to_emulate")
 
                 z.set_watchpoint(0xdeadbeef, True, True)
 
@@ -574,7 +574,7 @@ class Zelos:
 
                 from zelos import Zelos
 
-                z = ("binary_to_emulate")
+                z = Zelos("binary_to_emulate")
 
                 z.date = "2020-03-04"
 
