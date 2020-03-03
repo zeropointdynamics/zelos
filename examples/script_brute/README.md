@@ -71,8 +71,10 @@ def brute():
     z = Zelos("password.bin", verbosity=1)
     # The address of strcmp observed above
     strcmp_address = 0x00400BB6
-    # run to the address of call to strcmp and stop
-    z.plugins.runner.run_to_addr(strcmp_address)
+    # run to the address of call to strcmp and break
+    z.set_breakpoint(strcmp_address, True)
+    z.start()
+
     # Execution is now STOPPED at address 0x00400BB6
 
     # get initial reg values of rdi & rsi before strcmp is called
@@ -136,8 +138,10 @@ def brute():
     z = Zelos("password.bin", verbosity=1)
     # The address of strcmp observed above
     strcmp_address = 0x00400BB6
-    # run to the address of call to strcmp and stop
-    z.plugins.runner.run_to_addr(strcmp_address)
+    # run to the address of call to strcmp and break
+    z.set_breakpoint(strcmp_address, True)
+    z.start()
+
     # Execution is now STOPPED at address 0x00400BB6
 
     # get initial reg values of rdi & rsi before strcmp is called
@@ -152,8 +156,10 @@ def brute():
 
         # Address of the test instr
         test_address = 0x00400BBB
-        # run to the address of test instr and stop
-        z.plugins.runner.run_to_addr(test_address)
+        # run to the address of test instr and break
+        z.set_breakpoint(test_address, True)
+        z.start()
+
         # execute one step, in this case the test instr
         z.step()
 
