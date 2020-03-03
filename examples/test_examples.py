@@ -86,15 +86,15 @@ class ExamplesTest(unittest.TestCase):
         )
         self.assertTrue("Correct!" in str(output))
 
-    # def test_bypass_code(self):
-    #     output = subprocess.check_output(
-    #         [
-    #             "python",
-    #             path.join(DATA_DIR, "script_bypass", "bypass.py"),
-    #             "code",
-    #         ]
-    #     )
-    #     self.assertTrue("Correct!" in str(output))
+    def test_bypass_code(self):
+        output = subprocess.check_output(
+            [
+                "python",
+                path.join(DATA_DIR, "script_bypass", "bypass.py"),
+                "code",
+            ]
+        )
+        self.assertTrue("Correct!" in str(output))
 
 
 def main():
