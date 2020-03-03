@@ -55,21 +55,54 @@ class RegsApi:
         self._current_thread.set_reg(attr, value)
 
     def getIP(self) -> int:
+        """
+        Returns the platform-agnostic instruction pointer. On x86, this
+        returns the value of the EIP register. On ARM, this returns the
+        value of register R15. On MIPS, this returns the value of the
+        PC register.
+        """
         return self._current_thread.getIP()
 
     def setIP(self, new_ip: int) -> None:
+        """
+        Sets the instruction pointer. On x86, this sets the value of the
+        EIP register. On ARM, this sets the value of register R15. On
+        MIPS this sets the value of the PC register.
+        """
         self._current_thread.setIP(new_ip)
 
     def getSP(self) -> int:
+        """
+        Returns the platform-agnostic stack pointer. On x86, this
+        returns the value of the ESP register. On ARM, this returns the
+        value of register R13. On MIPS, this returns the value of the
+        SP register.
+        """
         return self._current_thread.getSP()
 
     def setSP(self, new_sp: int) -> None:
+        """
+        Sets the stack pointer. On x86, this sets the value of the
+        ESP register. On ARM, this sets the value of register R13. On
+        MIPS this sets the value of the SP register.
+        """
         self._current_thread.setSP(new_sp)
 
     def getFP(self) -> int:
+        """
+        Returns the platform-agnostic frame pointer. On x86, this
+        returns the value of the EBP register. On ARM, this returns the
+        value of register R11. On MIPS, this returns the value of
+        register $30.
+        """
         return self._current_thread.getFP()
 
     def setFP(self, new_fp: int) -> None:
+        """
+        Sets the frame pointer. On x86, this sets the value of the
+        EBP register. On ARM, this sets the value of register R11. On
+        MIPS this sets the value of register $30.
+        """
         return self._current_thread.setFP(new_fp)
 
     def getstack(self, offset: int) -> int:
@@ -87,7 +120,13 @@ class RegsApi:
         self._current_thread.setstack(offset, val)
 
     def popstack(self) -> int:
+        """
+        Pop an item from the top of the stack.
+        """
         return self._current_thread.popstack()
 
     def pushstack(self, data: int) -> None:
+        """
+        Push an item to the top of the stack.
+        """
         return self._current_thread.pushstack(data)

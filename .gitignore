@@ -59,6 +59,7 @@ __pycache__/
 /docs/_build/
 /docs/api/
 /docs/log.txt
+/docs/README.md
 
 # PyBuilder
 /target/

@@ -62,7 +62,7 @@ class SyscallLimiter(IPlugin):
         if zelos.thread is None:
             return
 
-        thread_name = zelos.internal_engine.current_thread.name
+        thread_name = zelos.thread.name
 
         self.syscall_cnt += 1
         self.syscall_thread_cnt[thread_name] += 1
