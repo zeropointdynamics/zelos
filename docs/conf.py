@@ -10,6 +10,8 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+
+import fileinput
 import os
 import shutil
 import sys
@@ -26,7 +28,11 @@ sys.path.insert(0, os.path.abspath("../"))
 
 
 shutil.copyfile(os.path.join("..", "README.md"), "README.md")
-
+for line in fileinput.input("README.md", inplace=True):
+    if "![Image](/docs/_static/hello_zelos.png)" in line:
+        print("![Image](_static/hello_zelos.png)")
+    else:
+        print(line, end="")
 
 # -- Project information -----------------------------------------------------
 

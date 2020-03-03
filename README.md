@@ -23,7 +23,7 @@ pip install zelos
 
 ## Basic Usage
 
-![Image](/docs/_static/hello_zelos.png?raw=true)
+![Image](/docs/_static/hello_zelos.png)
 
 ### Command-line
 To emulate a binary with default options:
