@@ -51,6 +51,7 @@ extensions = [
     "sphinx.ext.doctest",
     "sphinx.ext.todo",
     "sphinx.ext.intersphinx",
+    "sphinxarg.ext",
 ]
 
 intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}

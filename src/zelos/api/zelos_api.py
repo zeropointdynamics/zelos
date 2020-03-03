@@ -31,9 +31,29 @@ from zelos.threads import Thread
 
 class Zelos:
     """
-    Class that provides access to core api wrappers. These core APIs
+    Class that provides access to the core APIs. These core APIs
     are event hooking, debugging, memory access, register access, and
     emulation context.
+
+    Args:
+        filename: Specifies the name of the file to emulate.
+        cmdline_args: Arguments that are passed to the emulated binary.
+        flags: Parameters for zelos. To see the list of all flags, refer
+            to :ref:`flag-label`
+
+    Example:
+        .. code-block:: python
+
+            from zelos import Zelos
+
+            # initialize zelos with binary name, 2 cmdline args, and
+            # verbosity flag set to 1
+            z = Zelos(
+                "binary_to_emulate"
+                "ARG1",
+                "ARG2",
+                verbosity=1,
+            )
     """
 
     def __init__(self, filename, *cmdline_args, **flags):
