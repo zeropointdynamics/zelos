@@ -21,9 +21,9 @@ Use the package manager [pip](https://pip.pypa.io/en/stable/) to install zelos.
 pip install zelos
 ```
 
-![Image](/docs/_static/hello_zelos.png?raw=true)
-
 ## Basic Usage
+
+![Image](/docs/_static/hello_zelos.png?raw=true)
 
 ### Command-line
 To emulate a binary with default options:
