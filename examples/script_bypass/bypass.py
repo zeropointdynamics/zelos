@@ -29,8 +29,9 @@ def patch_mem():
     z = Zelos(path.join(DATA_DIR, "password_check.bin"))
     # The address of the cmp instr
     target_address = 0x0040107C
-    # run to the address of cmp and stop
-    z.internal_engine.plugins.runner.run_to_addr(target_address)
+    # run to the address of cmp and break
+    z.set_breakpoint(target_address, True)
+    z.start()
 
     # Execution is now STOPPED at address 0x0040107C
 
@@ -44,8 +45,9 @@ def patch_reg():
     z = Zelos(path.join(DATA_DIR, "password_check.bin"))
     # The address of the first time eax is used above
     target_address = 0x00401810
-    # run to the target address and stop
-    z.internal_engine.plugins.runner.run_to_addr(target_address)
+    # run to the target address and break
+    z.set_breakpoint(target_address, True)
+    z.start()
 
     # Execution is now STOPPED at address 0x00401810
 
@@ -56,21 +58,20 @@ def patch_reg():
 
 
 def patch_code():
-    from keystone import KS_ARCH_X86, KS_MODE_64, Ks
-
     z = Zelos(path.join(DATA_DIR, "password_check.bin"))
     # The address of the cmp instr
     target_address = 0x0040107C
-    # run to the address of cmp and stop
-    z.internal_engine.plugins.runner.run_to_addr(target_address)
+    # run to the address of cmp and break
+    z.set_breakpoint(target_address, True)
+    z.start()
 
     # Execution is now STOPPED at address 0x0040107C
 
-    # Code we want to insert
-    code = b"NOP; NOP; CMP eax, eax"
-    # Assemble with keystone
-    ks = Ks(KS_ARCH_X86, KS_MODE_64)
-    encoding, count = ks.asm(code)
+    # Code we want to insert is:
+    # NOP; NOP; CMP eax, eax;
+    #
+    # The assembled code is:
+    encoding = [144, 144, 57, 192]
 
     # replace the four bytes at this location with our code
     for i in range(len(encoding)):
