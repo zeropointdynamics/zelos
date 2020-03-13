@@ -20,6 +20,7 @@ import unittest
 
 from collections import defaultdict
 from os import path
+from unittest.mock import Mock
 
 from zelos import HookType, Zelos
 
@@ -71,6 +72,19 @@ class ZelosTest(unittest.TestCase):
 
         self.assertGreater(len(read_addresses), 0)
         self.assertGreater(len(write_addresses), 0)
+
+    def test_unmapped_memory_hook(self):
+        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
+        z.regs.setIP(0xDEAD0000)
+        z.memory.map(0xDEAD0000, 0x1000)
+        z.memory.write(
+            0xDEAD0000, b"\xA1\x00\x20\xad\xde"
+        )  # mov eax, [0xdead2000], which is an unmapped read
+        hook = Mock()
+        z.hook_memory(HookType.MEMORY.UNMAPPED, hook)
+        z.step()
+
+        hook.assert_called_once()
 
     def test_exec_hook(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
