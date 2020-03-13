@@ -385,7 +385,7 @@ class Hooks:
             "Missing memory at 0x%x, IP = 0x%x data size = %u, "
             "data value = 0x%x" % (address, eip, size, value)
         )
-        return True  # Stop executing
+        return False  # Returning False allows other hooks to execute.
 
     def add_hook(
         self,
