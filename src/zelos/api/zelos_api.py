@@ -327,6 +327,17 @@ class Zelos:
         """
         self.internal_engine.step(count=count)
 
+    def next(self, count=1) -> None:
+        """
+        Begin emulation, executing `count` instructions not including
+        instructions inside function calls.
+
+        Args:
+            count: Maximum number of instructions to execute before
+                stopping.
+        """
+        self.internal_engine.step_over(count=count)
+
     def stop(self, reason: str = "plugin"):
         """
         Stop the Zelos run loop. After a call to

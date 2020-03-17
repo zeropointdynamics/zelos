@@ -160,11 +160,27 @@ class ZelosTest(unittest.TestCase):
 
     def test_step(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
-        addr = 0x0816348F
+        addr = 0x080EC3F0  # Call, should step into it
         z.plugins.runner.run_to_addr(addr)
         self.assertEqual(z.thread.getIP(), addr)
         z.step()
-        self.assertEqual(z.thread.getIP(), 0x08163492)
+        self.assertEqual(
+            z.thread.getIP(),
+            0x08048DBD,
+            f"{z.thread.getIP():x} vs. {0x08048DBD:x}",
+        )
+
+    def test_next(self):
+        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
+        addr = 0x080EC3F0  # Call, should step over it.
+        z.plugins.runner.run_to_addr(addr)
+        self.assertEqual(z.thread.getIP(), addr)
+        z.next()
+        self.assertEqual(
+            z.thread.getIP(),
+            0x080EC3F5,
+            f"{z.thread.getIP():x} vs. {0x080EC3F5:x}",
+        )
 
     def test_stop(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))

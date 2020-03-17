@@ -475,10 +475,6 @@ class Engine:
     def step(self, count: int = 1) -> None:
         """ Steps one assembly level instruction """
         self.start(count=count, swap_threads=False)
-        if self.last_instruction is not None:
-            self.trace.bb(self.last_instruction, self.last_instruction_size)
-        else:
-            self.trace.bb()
 
     def step_over(self, count: int = 1) -> None:
         """
