@@ -14,6 +14,8 @@
 # License along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
+
+import functools
 import logging
 
 from collections import defaultdict
@@ -93,6 +95,11 @@ class HookManager:
         self._hooks = defaultdict(dict)
 
         self._cross_process_hooks = {}
+
+        # Used to keep track of hook deletions that need to occur once
+        # unicorn is done running (since they can't safely occur while
+        # unicorn is running).
+        self._to_delete_closures = []
 
     def register_mem_hook(
         self,
@@ -257,11 +264,18 @@ class HookManager:
 
     def delete_hook(self, hook_info: HookInfo) -> None:
         """
-        Deletes a hook
+        Deletes a hook. Keep in mind that deletion is slightly delayed.
+        If you delete a hook before it has run on the current address,
+        the hook will still run.
 
         Args:
             hook_info:
         """
+        if self.z.emu.is_running:
+            closure = functools.partial(self.delete_hook, hook_info)
+            self._to_delete_closures.append(closure)
+            return
+
         if self._is_unicorn_hook(hook_info.type):
             self._delete_unicorn_hook(hook_info.handle)
         else:
@@ -273,7 +287,29 @@ class HookManager:
                     f"hook type {hook_info.type}"
                 )
 
+    def _clear_deleted_hooks(self):
+        """
+        Removes hooks that were deleted while running zelos.
+        """
+        if self.z.emu.is_running:
+            self.logger.critical(
+                "Attempting to clear hooks while unicorn is running. "
+                "You might have a bad time."
+            )
+        for closure in self._to_delete_closures:
+            closure()
+        self._to_delete_closures.clear()
+
     def _delete_unicorn_hook(self, handle):
+        """
+        Deleting unicorn hooks can cause issues if done while unicorn
+        is running. To get around this, we should register the deletions
+        and then stop unicorn to trigger them.
+        """
+        if self.z.emu.is_running:
+            closure = functools.partial(self._delete_unicorn_hook, handle)
+            self._to_delete_closures.append(closure)
+            return
         for p in self.z.processes.process_list:
             p.hooks._delete_unicorn_hook(handle)
 
@@ -309,6 +345,7 @@ class HookManager:
         def wrapper(*args):
             nonlocal done
             if done:
+                self.logger.error(f"Attempted to run deleted hook {name}.")
                 return
             try:
                 callback(*args)
@@ -317,7 +354,7 @@ class HookManager:
                     self._delete_unicorn_hook(handle)
             except Exception:
                 self.logger.exception(
-                    "Hook %s failed to execute. Deleting now", name
+                    f"Hook {name} failed to execute. Deleting now"
                 )
                 done = True
                 self._delete_unicorn_hook(handle)
@@ -451,15 +488,13 @@ class Hooks:
         self._hook_dict[handle] = unicorn_handle
 
     def _delete_unicorn_hook(self, zelos_handle):
-        unicorn_handle = self._hook_dict[zelos_handle]
         if self.emu.is_running:
-
-            def cleanup():
-                self.emu.hook_del(unicorn_handle)
-
-            self.threads.scheduler.stop_and_exec("cleanup hooks", cleanup)
-        else:
-            self.emu.hook_del(unicorn_handle)
+            self.logger.critical(
+                "Attempting to delete hooks while unicorn is running. "
+                "You might have a bad time."
+            )
+        unicorn_handle = self._hook_dict[zelos_handle]
+        self.emu.hook_del(unicorn_handle)
 
     def del_hook(self, name):
         if name not in self._hook_dict:
