@@ -297,6 +297,33 @@ class HookManager:
         self._hook_index += 1
         return hook_info
 
+    def _wrap_callback(self, name, callback, handle, end_condition):
+        """
+        Incorporates the self deletion triggered by the end_condition
+        into the callback.
+        """
+        # TODO(v): Make this function generic so non-unicorn hooks can
+        # also have an end condition argument.
+        done = False
+
+        def wrapper(*args):
+            nonlocal done
+            if done:
+                return
+            try:
+                callback(*args)
+                if end_condition():
+                    done = True
+                    self._delete_unicorn_hook(handle)
+            except Exception:
+                self.logger.exception(
+                    "Hook %s failed to execute. Deleting now", name
+                )
+                done = True
+                self._delete_unicorn_hook(handle)
+
+        return wrapper
+
     def _add_unicorn_hook(
         self,
         hook_type,
@@ -317,19 +344,9 @@ class HookManager:
             wrapped_callback = callback
         else:
             name = f"{name}_{start_addr}"
-
-            def hook_end_wrapper(*args):
-                try:
-                    callback(*args)
-                    if end_condition():
-                        self._delete_unicorn_hook(handle)
-                except Exception:
-                    self.logger.exception(
-                        "Hook %s failed to execute. Deleting now", name
-                    )
-                    self._delete_unicorn_hook(handle)
-
-            wrapped_callback = hook_end_wrapper
+            wrapped_callback = self._wrap_callback(
+                name, callback, handle, end_condition
+            )
 
         if hasattr(self.z, "processes"):
             for p in self.z.processes.process_list:
