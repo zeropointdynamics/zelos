@@ -273,7 +273,7 @@ class HookManager:
         """
         if self.z.emu.is_running:
             closure = functools.partial(self.delete_hook, hook_info)
-            self._to_delete_closures.append(closure)
+            self._stop_to_delete_hook(closure)
             return
 
         if self._is_unicorn_hook(hook_info.type):
@@ -286,6 +286,10 @@ class HookManager:
                     f"Hook handle {hook_info.handle} does not exist for"
                     f"hook type {hook_info.type}"
                 )
+
+    def _stop_to_delete_hook(self, closure):
+        self._to_delete_closures.append(closure)
+        self.z.scheduler.stop_and_exec("delete hook", lambda: True)
 
     def _clear_deleted_hooks(self):
         """
@@ -308,7 +312,7 @@ class HookManager:
         """
         if self.z.emu.is_running:
             closure = functools.partial(self._delete_unicorn_hook, handle)
-            self._to_delete_closures.append(closure)
+            self._stop_to_delete_hook(closure)
             return
         for p in self.z.processes.process_list:
             p.hooks._delete_unicorn_hook(handle)

@@ -43,6 +43,7 @@ from capstone import (
 from unicorn import UcError
 
 from zelos import util
+from zelos.breakpoints import BreakpointManager
 from zelos.config_gen import _generate_without_binary, generate_config
 from zelos.exceptions import UnsupportedBinaryError, ZelosLoadException
 from zelos.file_system import FileSystem
@@ -115,6 +116,7 @@ class Engine:
         self.timer = util.Timer()
 
         self.hook_manager = HookManager(self, self.api)
+        self.breakpoints = BreakpointManager(self.hook_manager)
         self.interrupt_handler = InterruptHooks(self.hook_manager, self)
         self.exception_handler = ExceptionHooks(self)
         self.processes = Processes(
@@ -603,6 +605,7 @@ class Engine:
             t is not None
         ), "Current thread is None. Something has gone horribly wrong."
 
+        self.breakpoints._disable_breakpoints_on_start(t.getIP())
         if t.emu.is_running:
             self.logger.critical(
                 "Trying to run unicorn while unicorn is already running. "
