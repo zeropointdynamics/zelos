@@ -407,7 +407,9 @@ class Engine:
 
         self.last_instruction = None
         self.last_instruction_size = None
-        self.should_print_last_instruction = True
+        # Instruction hook runs before the instruction, so wait for the
+        # hook to run once before printing instructions.
+        self.should_print_last_instruction = False
 
         self.triggers = Triggers(self)
         self.processes.set_architecture(self.state)
@@ -474,7 +476,41 @@ class Engine:
 
     def step(self, count: int = 1) -> None:
         """ Steps one assembly level instruction """
-        self.start(count=count, swap_threads=False)
+        # You might be tempted to use unicorn's "count" argument to
+        # step. However, printing instruction comments relies on an
+        # ad-hoc "post instruction" method.
+        #
+        # Using unicorn's emu_start count argument
+        #   run INST hook
+        #   run instruction
+        #   unicorn stops
+        #
+        # Current method:
+        #   run INST hook (don't print)
+        #   run instruction
+        #   run INST hook (do print) then stop before next instruction
+        #   unicorn stops
+        #
+        # Of course, we can simplify when we get a post instruction
+        # hook working properly.
+
+        self.should_print_last_instruction = False
+        inst_count = 0
+
+        def step_n(zelos, addr, size):
+            nonlocal inst_count
+            inst_count += 1
+            if inst_count > count:
+                self.scheduler.stop("step")
+
+        def quit_step_n():
+            nonlocal inst_count
+            return inst_count > count
+
+        self.hook_manager.register_exec_hook(
+            HookType.EXEC.INST, step_n, end_condition=quit_step_n
+        )
+        self.start(swap_threads=False)
 
     def step_over(self, count: int = 1) -> None:
         """
@@ -498,7 +534,7 @@ class Engine:
             self.step()
         return True
 
-    def start(self, count=0, timeout=0, swap_threads=True) -> None:
+    def start(self, timeout=0, swap_threads=True) -> None:
         """
         Starts execution of the program at the given offset or entry
         point.
@@ -527,6 +563,7 @@ class Engine:
             if self.current_thread is None:
                 self.processes.swap_with_next_thread()
 
+            self.should_print_last_instruction = False
             self.last_instruction = self.emu.getIP()
             self.last_instruction_size = 1
             try:
@@ -536,7 +573,7 @@ class Engine:
                     )
                 else:
                     # Execute until emulator exception
-                    self._run(self.current_process, count)
+                    self._run(self.current_process)
             except UcError as e:
                 # TODO: This is a special case for forcing a stop.
                 # Sometimes setting a stop reason doesn't stop
@@ -560,7 +597,7 @@ class Engine:
 
         return
 
-    def _run(self, p, count):
+    def _run(self, p):
         t = p.current_thread
         assert (
             t is not None
@@ -574,7 +611,7 @@ class Engine:
 
         t.emu.is_running = True
         try:
-            t.emu.emu_start(t.getIP(), 0, count=count)
+            t.emu.emu_start(t.getIP(), 0)
         finally:
             stop_addr = p.threads.scheduler._pop_stop_addr(t.id)
             t.emu.is_running = False
