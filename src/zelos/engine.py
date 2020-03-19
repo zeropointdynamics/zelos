@@ -534,7 +534,7 @@ class Engine:
             self.step()
         return True
 
-    def start(self, count=0, timeout=0, swap_threads=True) -> None:
+    def start(self, timeout=0, swap_threads=True) -> None:
         """
         Starts execution of the program at the given offset or entry
         point.
@@ -573,7 +573,7 @@ class Engine:
                     )
                 else:
                     # Execute until emulator exception
-                    self._run(self.current_process, count)
+                    self._run(self.current_process)
             except UcError as e:
                 # TODO: This is a special case for forcing a stop.
                 # Sometimes setting a stop reason doesn't stop
@@ -597,7 +597,7 @@ class Engine:
 
         return
 
-    def _run(self, p, count):
+    def _run(self, p):
         t = p.current_thread
         assert (
             t is not None
@@ -611,7 +611,7 @@ class Engine:
 
         t.emu.is_running = True
         try:
-            t.emu.emu_start(t.getIP(), 0, count=count)
+            t.emu.emu_start(t.getIP(), 0)
         finally:
             stop_addr = p.threads.scheduler._pop_stop_addr(t.id)
             t.emu.is_running = False
