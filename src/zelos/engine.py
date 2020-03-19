@@ -496,15 +496,11 @@ class Engine:
 
         self.should_print_last_instruction = False
         inst_count = 0
-        print("Starting step ", inst_count)
-        start_address = self.current_thread.id
 
         def step_n(zelos, addr, size):
-            nonlocal inst_count, start_address
+            nonlocal inst_count
             inst_count += 1
-            print(f"step {start_address:x} {zelos.thread} {inst_count}")
             if inst_count > count:
-                print(f"stop {addr:x}")
                 self.scheduler.stop("step")
 
         def quit_step_n():
