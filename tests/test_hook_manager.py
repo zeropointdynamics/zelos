@@ -17,7 +17,7 @@
 import unittest
 
 from os import path
-from unittest.mock import ANY, Mock
+from unittest.mock import Mock, call
 
 from zelos import Zelos
 from zelos.hooks import HookType
@@ -171,10 +171,11 @@ class HookManagerTest(unittest.TestCase):
         hook_info = z.hook_execution(
             HookType.EXEC.INST, mock_hook, name="test_hook"
         )
-
         mock_hook.assert_not_called()
         z.step()
-        mock_hook.assert_called_once()
+        mock_hook.assert_has_calls(
+            [call(z, 0x8048B70, 2), call(z, 0x8048B72, 1)]
+        )
         mock_hook.reset_mock()
 
         pid = z.internal_engine.processes.new_process("test_process")
@@ -188,7 +189,9 @@ class HookManagerTest(unittest.TestCase):
         )
         mock_hook.assert_not_called()
         z.step()
-        mock_hook.assert_called_once_with(z, ANY, ANY)
+        mock_hook.assert_has_calls(
+            [call(z, 0x8048B70, 2), call(z, 0x8048B72, 1)]
+        )
         mock_hook.reset_mock()
 
         z.delete_hook(hook_info)
@@ -222,7 +225,9 @@ class HookManagerTest(unittest.TestCase):
         )
         mock_hook.assert_not_called()
         z.step()
-        mock_hook.assert_called_once_with(z, ANY, ANY)
+        mock_hook.assert_has_calls(
+            [call(z, 0x8048B70, 2), call(z, 0x8048B72, 1)]
+        )
         mock_hook.reset_mock()
 
         z.internal_engine.processes.load_next_process()
@@ -231,7 +236,9 @@ class HookManagerTest(unittest.TestCase):
         )
         mock_hook.assert_not_called()
         z.step()
-        mock_hook.assert_called_once_with(z, ANY, ANY)
+        mock_hook.assert_has_calls(
+            [call(z, 0x8048B70, 2), call(z, 0x8048B72, 1)]
+        )
         mock_hook.reset_mock()
 
         z.delete_hook(hook_info)

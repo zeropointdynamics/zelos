@@ -407,7 +407,9 @@ class Engine:
 
         self.last_instruction = None
         self.last_instruction_size = None
-        self.should_print_last_instruction = True
+        # Instruction hook runs before the instruction, so wait for the
+        # hook to run once before printing instructions.
+        self.should_print_last_instruction = False
 
         self.triggers = Triggers(self)
         self.processes.set_architecture(self.state)
@@ -474,7 +476,45 @@ class Engine:
 
     def step(self, count: int = 1) -> None:
         """ Steps one assembly level instruction """
-        self.start(count=count, swap_threads=False)
+        # You might be tempted to use unicorn's "count" argument to
+        # step. However, printing instruction comments relies on an
+        # ad-hoc "post instruction" method.
+        #
+        # Using unicorn's emu_start count argument
+        #   run INST hook
+        #   run instruction
+        #   unicorn stops
+        #
+        # Current method:
+        #   run INST hook (don't print)
+        #   run instruction
+        #   run INST hook (do print) then stop before next instruction
+        #   unicorn stops
+        #
+        # Of course, we can simplify when we get a post instruction
+        # hook working properly.
+
+        self.should_print_last_instruction = False
+        inst_count = 0
+        print("Starting step ", inst_count)
+        start_address = self.current_thread.id
+
+        def step_n(zelos, addr, size):
+            nonlocal inst_count, start_address
+            inst_count += 1
+            print(f"step {start_address:x} {zelos.thread} {inst_count}")
+            if inst_count > count:
+                print(f"stop {addr:x}")
+                self.scheduler.stop("step")
+
+        def quit_step_n():
+            nonlocal inst_count
+            return inst_count > count
+
+        self.hook_manager.register_exec_hook(
+            HookType.EXEC.INST, step_n, end_condition=quit_step_n
+        )
+        self.start(swap_threads=False)
 
     def step_over(self, count: int = 1) -> None:
         """
@@ -527,6 +567,7 @@ class Engine:
             if self.current_thread is None:
                 self.processes.swap_with_next_thread()
 
+            self.should_print_last_instruction = False
             self.last_instruction = self.emu.getIP()
             self.last_instruction_size = 1
             try:
