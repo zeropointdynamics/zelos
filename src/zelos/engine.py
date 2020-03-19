@@ -566,12 +566,19 @@ class Engine:
             t is not None
         ), "Current thread is None. Something has gone horribly wrong."
 
+        if t.emu.is_running:
+            self.logger.critical(
+                "Trying to run unicorn while unicorn is already running. "
+                "You are entering untested waters"
+            )
+
         t.emu.is_running = True
         try:
             t.emu.emu_start(t.getIP(), 0, count=count)
         finally:
             stop_addr = p.threads.scheduler._pop_stop_addr(t.id)
             t.emu.is_running = False
+            self.hook_manager._clear_deleted_hooks()
 
         # Only set the stop addr if you stopped benignly
         if stop_addr is not None:
@@ -653,7 +660,7 @@ class Engine:
         # TCG Dump example usage:
         # self.emu.get_tcg(0, 0)
         if current_thread is None:
-            self.emu.emu_stop()
+            self.scheduler.stop("hook_code_null_thread")
             return
 
         # Log the total number of blocks executed per thread. Swap

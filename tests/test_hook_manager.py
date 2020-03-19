@@ -247,6 +247,30 @@ class HookManagerTest(unittest.TestCase):
         z.step()
         mock_hook.assert_not_called()
 
+    def test_stepping_with_temporary_hook(self):
+        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
+        insts_seen = []
+
+        def step_and_return_false():
+            z.step()
+            return False
+
+        def inst_hook(zelos, address, size):
+            insts_seen.append(address)
+            z.internal_engine.scheduler.stop_and_exec(
+                "testing", step_and_return_false
+            )
+
+        # This hook should only run once due to the end_condition
+        z.hook_execution(
+            HookType.EXEC.INST, inst_hook, end_condition=lambda: True
+        )
+        # we stop at a later address in case the test fails
+        z.plugins.runner.stop_at(0x08048B75)
+
+        z.start()
+        self.assertEqual(z.regs.getIP(), 0x8048B72)
+
 
 def main():
     unittest.main()
