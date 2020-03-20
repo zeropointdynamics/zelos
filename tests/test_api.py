@@ -213,18 +213,32 @@ class ZelosTest(unittest.TestCase):
 
     def test_breakpoint(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
-        addr = 0x0816348F
+        addr = 0x8048B72
         z.set_breakpoint(addr)
         z.start()
 
         tm = z.internal_engine.thread_manager
         self.assertEqual(tm.num_active_threads(), 1)
-        self.assertEqual(z.regs.getIP(), addr)
+        self.assertEqual(
+            z.regs.getIP(), addr, f"{z.regs.getIP():x} vs. {addr:x}"
+        )
 
+        z.step()
+        self.assertEqual(
+            z.regs.getIP(), 0x8048B73, f"{z.regs.getIP():x} vs. {0x8048b73:x}"
+        )
+
+    def test_remove_breakpoint(self):
+        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
+        addr = 0x8048B72
+        z.set_breakpoint(addr)
         z.remove_breakpoint(addr)
+        z.set_breakpoint(0x8048B73)
         z.start()
 
-        self.assertEqual(1, len(tm.completed_threads))
+        self.assertEqual(
+            z.regs.getIP(), 0x8048B73, f"{z.regs.getIP():x} vs. {0x8048b73:x}"
+        )
 
     def test_syscall_breakpoint(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))

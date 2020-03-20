@@ -16,6 +16,8 @@
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
 
+import logging
+
 from collections import defaultdict
 from typing import Any, Callable, Optional
 
@@ -71,8 +73,9 @@ class Zelos:
         # If you need to access data that is not exposed through the api
         # yet, access the internal_engine representation at your own
         # risk.
-        Engine(config=config, api=self)
+        e = Engine(config=config, api=self)
         self.plugins = Plugins(self, ["plugins"])
+        self.internal_engine = e  # Used to inform what type this is.
         self.internal_engine.plugins = self.plugins
 
     # **** Memory API ****
@@ -90,6 +93,14 @@ class Zelos:
         Returns the :py:class:`~zelos.api.regs_api.RegsApi` object.
         """
         return self._regs
+
+    @property
+    def logger(self):
+        """
+        Returns a logger that will behave in accordance to the --log
+        config/cmdline option.
+        """
+        return logging.getLogger(__name__)
 
     # **** Begin Hook API ****
     def hook_memory(
@@ -403,22 +414,9 @@ class Zelos:
                 z.start()
 
         """
-
-        def hook(zelos, access, size):
-            zelos.stop("breakpoint")
-
-        hook_info = self.internal_engine.hook_manager.register_exec_hook(
-            HookType.EXEC.INST,
-            hook,
-            ip_low=address,
-            ip_high=address,
-            name=f"breakpoint_{address:x}",
-            end_condition=lambda: temporary,
+        self.internal_engine.breakpoints.set_breakpoint(
+            address, temporary=temporary
         )
-
-        self._breakpoints[address] = hook_info
-
-        return True
 
     def remove_breakpoint(self, address: int):
         """
@@ -441,8 +439,7 @@ class Zelos:
                 z.start()
 
         """
-        hook_info = self._breakpoints[address]
-        self.internal_engine.hook_manager.delete_hook(hook_info)
+        self.internal_engine.breakpoints.remove_breakpoint(address)
 
     def set_syscall_breakpoint(self, syscall_name: str):
         """
