@@ -131,7 +131,10 @@ class ZelosTest(unittest.TestCase):
         self.assertIn("passed   1", str(buffer))
         # buffer = self._ltp_run('ltp_x64/syscalls/read02')
         # buffer = self._ltp_run('ltp_x64/syscalls/read03')
-        # buffer = self._ltp_run('ltp_x64/syscalls/read04')
+        buffer = self._ltp_run("ltp_x64/syscalls/read04")
+
+    def test_pread(self):
+        self._ltp_run("ltp_x64/syscalls/pread01")
 
     def test_rmdir(self):
         buffer = self._ltp_run("ltp_x64/syscalls/rmdir01")

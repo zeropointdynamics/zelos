@@ -459,6 +459,31 @@ def sys_read(sm, p):
     return len(data)
 
 
+def sys_pread64(sm, p):
+    args = sm.get_args(
+        [
+            ("int", "fd"),
+            ("void*", "buf"),
+            ("size_t", "count"),
+            ("off_t", "offset"),
+        ]
+    )
+    handle = sm.z.handles.get(args.fd)
+
+    if handle is None:
+        return 0
+    current_location = handle.seek(0, 1)
+    handle.seek(args.offset)
+    try:
+        data = handle.read(args.count)
+    except PermissionError:
+        return SysError.EACCES
+
+    handle.seek(current_location)  # Reset the seek to before the read
+    p.memory.write(args.buf, data)
+    return len(data)
+
+
 def sys_geteuid32(sm, p):
     sm.get_args([])
     return 1000
@@ -938,6 +963,37 @@ def sys_write(sm, p):
             return sent_bytes
         sm.print(s)
     return len(s)
+
+
+def sys_pwrite64(sm, p):
+    def print_buf(args):
+        s = repr(bytes(p.memory.read(args.buf, size=args.count)))[2:-1]
+        return f'buf=0x{args.buf:x} ("{s}")'
+
+    args = sm.get_args(
+        [
+            ("int", "fd"),
+            ("const void*", "buf"),
+            ("size_t", "count"),
+            ("off_t", "offset"),
+        ],
+        arg_string_overrides={"buf": print_buf},
+    )
+    s = p.memory.read(args.buf, args.count)
+
+    handle = sm.z.handles.get(args.fd)
+    # Just fake the write if we don't have the handle
+    if handle is None:
+        return len(s)
+    elif isinstance(handle, handles.PipeOutHandle):
+        return SysError.EBADF
+    current_location = handle.seek(0, 1)
+    handle.seek(args.offset)
+    if hasattr(handle, "write"):
+        size_of_write = handle.write(s)
+    handle.seek(current_location)
+
+    return size_of_write
 
 
 def sys_dup2(sm, p):
