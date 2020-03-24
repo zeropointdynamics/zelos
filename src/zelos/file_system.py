@@ -246,7 +246,7 @@ class FileSystem(PathTranslator):
             os.makedirs(self.sandbox_path)
         if os.path.exists(filename):
             return self.unsafe_open(filename, "r+b")
-        return self.unsafe_open(filename, "wb")
+        return self.unsafe_open(filename, "w+b")
 
     def write_to_sandbox(self, orig_filename, data, offset=0):
         self.z.triggers.tr_file_write(orig_filename, data)

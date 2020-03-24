@@ -17,6 +17,7 @@
 import ctypes
 import datetime
 import enum
+import io
 import os
 import time
 
@@ -447,6 +448,10 @@ def sys_read(sm, p):
         data = handle.read(args.count)
     except PermissionError:
         return SysError.EACCES
+    except io.UnsupportedOperation:
+        sm.logger.error(f"Unable to read file {handle.Name}")
+        return SysError.EACCES
+
     if len(data) == 0:
         return 0
 
