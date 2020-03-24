@@ -18,8 +18,13 @@ import os
 import tempfile
 import unittest
 
+from os import path
+
 from zelos import Zelos
 from zelos.file_system import PathTranslator
+
+
+DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 
 
 def path_leaf(path):
@@ -114,21 +119,20 @@ class TestPathTranslator(unittest.TestCase):
 class FileSystemTest(unittest.TestCase):
     def test_get_file(self):
         z = Zelos(None)
+        z.internal_engine.files.setup(DATA_DIR)
         file_system = z.internal_engine.files
         handle = file_system.create_file("test_file1")
         self.assertEqual(file_system.get_filename(handle), "test_file1")
 
     def test_offsets(self):
-        z = Zelos(None)
+        z = Zelos(None, log="debug")
+        z.internal_engine.files.setup(DATA_DIR)
         file_system = z.internal_engine.files
         handle_num = file_system.create_file("test_file1")
         h = z.internal_engine.handles.get(handle_num)
-
-        self.assertEqual(0, h.Offset)
-        h.Offset = 100
-        h = z.internal_engine.handles.get(handle_num)
-
-        self.assertEqual(100, h.Offset)
+        self.assertEqual(0, h._file.tell())
+        h.seek(100)
+        self.assertEqual(100, h._file.tell())
 
 
 def main():

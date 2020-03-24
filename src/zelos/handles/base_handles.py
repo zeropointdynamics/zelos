@@ -52,7 +52,16 @@ class Handle(object):
             )
             return
         self.Refs -= 1
+        if self.Refs == 0:
+            self.cleanup()
         return
+
+    def cleanup(self) -> None:
+        """
+        Override this if there is an action that needs to be taken when
+        there are no more references to the underlying object.
+        """
+        pass
 
     def category(self) -> str:
         """
@@ -64,20 +73,44 @@ class Handle(object):
 
 
 class FileHandle(Handle):
-    def __init__(self, name, parent_thread, access=0, is_dir=False):
+    def __init__(
+        self, name, file_system, parent_thread, access=0, is_dir=False
+    ):
         super().__init__(name, parent_thread, access)
-        self.Offset = 0
-        self.Size = 0
+        self._file_system = file_system
+        # Keep in mind that only files that are in the sandbox are writable.
+        self._file = file_system.open_library(name)
+        if self._file is None:
+            self._file = self._file_system.open_sandbox_file(name)
+
         self.is_dir = is_dir
 
     def seek(self, offset: int, whence: int = 0) -> None:
-        if whence == 0:  # SEEK_SET
-            self.Offset = offset
-        elif whence == 1:  # SEEK_CUR
-            self.Offset += offset
-        elif whence == 2:  # SEEK_END
-            pass
-            # self.Offset = self.Size - offset
+        if self._file is None:
+            return
+        self._file.seek(offset, whence)
+        return self._file.tell()
+        # if whence == 0:  # SEEK_SET
+        #     self.Offset = offset
+        # elif whence == 1:  # SEEK_CUR
+        #     self.Offset += offset
+        # elif whence == 2:  # SEEK_END
+        #     self.Offset = self.Size - offset
+
+    def write(self, data: bytes) -> int:
+        if self._file is None:
+            return 0
+        self._file.write(data)
+        return len(data)
+
+    def read(self, size: int) -> bytes:
+        if self._file is None:
+            return bytes()
+        return self._file.read(size)
+
+    def cleanup(self) -> None:
+        if self._file is not None:
+            self._file.close()
 
 
 class SocketHandle(Handle):
@@ -85,8 +118,7 @@ class SocketHandle(Handle):
         super().__init__(name, parent_thread, access)
         self.socket = socket
 
-    def close(self) -> None:
-        super().close()
+    def cleanup(self) -> None:
         self.socket.close()
 
 
@@ -163,10 +195,8 @@ class PipeInHandle(Handle):
         bytes_written = self.pipe.write(data)
         return bytes_written
 
-    def close(self) -> None:
-        super().close()
-        if self.Refs == 0:
-            self.pipe.write_end_closed = True
+    def cleanup(self) -> None:
+        self.pipe.write_end_closed = True
 
 
 class PipeOutHandle(Handle):
@@ -177,15 +207,16 @@ class PipeOutHandle(Handle):
     def read(self, size: int) -> bytes:
         return self.pipe.read(size)
 
-    def close(self) -> None:
-        super().close()
-        if self.Refs == 0:
-            self.pipe.read_end_closed = True
+    def cleanup(self) -> None:
+        self.pipe.read_end_closed = True
 
 
 class StdIn(Handle):
     def __init__(self, parent_thread="unknown"):
         super().__init__("StdIn", parent_thread)
+
+    def read(self, size: int) -> bytes:
+        return b""
 
 
 class StdOut(Handle):
@@ -205,8 +236,9 @@ class StdErr(Handle):
 
 
 class Handles:
-    def __init__(self, processes, hook_manager):
+    def __init__(self, processes, hook_manager, file_system):
         self.processes = processes
+        self.file_system = file_system
         self.logger = logging.getLogger(__name__)
         self.handle_dict = defaultdict(dict)
         self.closed_handles = dict()
@@ -279,7 +311,9 @@ class Handles:
 
     def new_file(self, name, access=0, handle_num=None, is_dir=False):
         parent_thread = self._current_thread_name()
-        handle = FileHandle(name, parent_thread, access, is_dir)
+        handle = FileHandle(
+            name, self.file_system, parent_thread, access, is_dir
+        )
         handle_num = self.add_handle(handle, handle_num=handle_num)
         return handle_num
 

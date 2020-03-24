@@ -119,15 +119,15 @@ class Engine:
         self.breakpoints = BreakpointManager(self.hook_manager)
         self.interrupt_handler = InterruptHooks(self.hook_manager, self)
         self.exception_handler = ExceptionHooks(self)
+        self.files = FileSystem(self, self.hook_manager)
         self.processes = Processes(
             self.hook_manager,
             self.interrupt_handler,
+            self.files,
             self.original_binary,
             self.STACK_SIZE,
             disableNX=self.config.disableNX,
         )
-
-        self.files = FileSystem(self, self.processes, self.hook_manager)
 
         self.os_plugins = OSPlugins(self)
 

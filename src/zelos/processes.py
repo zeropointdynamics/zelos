@@ -24,6 +24,7 @@ from zelos.emulator import create_emulator
 from zelos.emulator.base import IEmuHelper
 from zelos.emulator.x86_gdt import GDT_32
 from zelos.exceptions import ZelosLoadException
+from zelos.file_system import FileSystem
 from zelos.handles import Handles
 from zelos.hooks import HookManager, Hooks, HookType, InterruptHooks
 from zelos.memory import Memory
@@ -53,8 +54,6 @@ class Process:
         environment_variables: List = None,
         virtual_filename: str = None,
         virtual_path: str = None,
-        last_instruction: str = None,
-        last_instruction_size: int = 0,
         disableNX: bool = False,
     ):
         # OS plugins place OS-specific, process-level, functionality
@@ -81,8 +80,6 @@ class Process:
         self.virtual_filename = virtual_filename
         self.virtual_path = virtual_path
         self.original_file_name = orig_file_name
-        self.last_instruction = last_instruction
-        self.last_instruction_size = last_instruction_size
 
         self.modules = Modules()
 
@@ -221,6 +218,7 @@ class Processes:
         self,
         hook_manager: HookManager,
         interrupt_handler: InterruptHooks,
+        file_system: FileSystem,
         main_module_name: str,
         thread_stack_size: int,
         disableNX: bool = False,
@@ -240,7 +238,7 @@ class Processes:
         # Counter to keep track of which process we are at.
         self.process_counter = 0
 
-        self.handles = Handles(self, hook_manager)
+        self.handles = Handles(self, hook_manager, file_system)
 
         def apply_cross_process_hooks(p):
             for hook in self._hook_manager._cross_process_hooks.values():
