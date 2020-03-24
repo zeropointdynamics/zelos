@@ -17,6 +17,7 @@
 import ctypes
 import datetime
 import enum
+import io
 import os
 import time
 
@@ -164,7 +165,6 @@ def xopen(sm, p, args):
         handle_num = sm.z.handles.new_file(pathname_s)
         retval = handle_num
     elif args.flags & 0x200 != 0 or args.flags & 0x40 != 0:
-        sm.z.files.write_to_sandbox(pathname_s, b"")
         handle_num = sm.z.handles.new_file(pathname_s)
         retval = handle_num
     else:
@@ -190,10 +190,7 @@ def sys_readv(sm, p):
         if isinstance(handle, handles.SocketHandle):
             bread = socketcall._recv(sm, p, args.fd, iovec, iov_len)
         elif isinstance(handle, handles.FileHandle):
-            with sm.z.files.open_library(handle.Name) as f:
-                f.seek(handle.Offset)
-                data = f.read(iov_len)
-                handle.seek(iov_len, os.SEEK_CUR)
+            data = handle.read(iov_len)
             p.memory.write(iovec, data)
             bread = len(data)
         else:
@@ -448,14 +445,17 @@ def sys_read(sm, p):
         return SysError.EBADF
 
     try:
-        f = sm.z.files.open_library(handle.Name)
+        data = handle.read(args.count)
     except PermissionError:
         return SysError.EACCES
-    if f is not None:
-        f.seek(sm.offset_dict.get(args.fd, 0))
-        data = f.read(args.count)
-        p.memory.write(args.buf, data)
-        sm.offset_dict[args.fd] += len(data)
+    except io.UnsupportedOperation:
+        sm.logger.error(f"Unable to read file {handle.Name}")
+        return SysError.EACCES
+
+    if len(data) == 0:
+        return 0
+
+    p.memory.write(args.buf, data)
     return len(data)
 
 
@@ -524,9 +524,8 @@ def sys_getgroups(sm, p):
     return 0
 
 
-def sys__llseek(
-    sm, p
-):  # There may be a bug in gcc_coreutils_32_o0_tail with this function
+# There may be a bug in gcc_coreutils_32_o0_tail with this function
+def sys__llseek(sm, p):
     args = sm.get_args(
         [
             ("unsigned int", "fd"),
@@ -539,13 +538,11 @@ def sys__llseek(
     offset = sys_utils.twos_comp(
         (args.offset_high << 32) | args.offset_low, 64
     )
-    xlseek(sm, args.fd, offset, args.whence)
-    sm.offset_dict[args.fd] &= 0xFFFFFFFF
+    file_position = xlseek(sm, args.fd, offset, args.whence)
+    file_position &= 0xFFFFFFFF
     handle = sm.z.handles.get(args.fd)
-    sm.z.logger.debug(
-        f"File {handle.Name} ({args.fd:x}) to {sm.offset_dict[args.fd]}"
-    )
-    p.memory.write_int(args.result, sm.offset_dict[args.fd])
+    sm.z.logger.debug(f"File {handle.Name} ({args.fd:x}) to {file_position}")
+    p.memory.write_int(args.result, file_position)
     return 0
 
 
@@ -554,19 +551,18 @@ def sys_lseek(sm, p):
         [("unsigned int", "fd"), ("off_t", "offset"), ("int", "whence")]
     )
     offset = p.emu.to_signed(args.offset)
-    xlseek(sm, args.fd, offset, args.whence)
-    return sm.offset_dict[args.fd]
+    file_position = xlseek(sm, args.fd, offset, args.whence)
+    return file_position
 
 
-def xlseek(sm, fd, offset, whence):
-    if whence == 0:  # SEEK_SET
-        sm.offset_dict[fd] = offset
-    elif whence == 1:  # SEEK_CUR
-        sm.offset_dict[fd] += offset
-    elif whence == 2:  # SEEK_END
-        handle = sm.z.handles.get(fd)
-        library_path = sm.z.files.find_library(handle.Name)
-        sm.offset_dict[fd] = path.getsize(library_path) + offset
+def xlseek(sm, fd, offset, whence) -> int:
+    """
+    Returns the offset from the beginning of the file.
+    """
+    handle = sm.z.handles.get(fd)
+    if handle is None:
+        return
+    return handle.seek(offset, whence)
 
 
 def sys_readlink(sm, p):

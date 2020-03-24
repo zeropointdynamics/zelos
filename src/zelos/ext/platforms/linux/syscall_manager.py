@@ -50,8 +50,6 @@ class LinuxSyscallManager(SyscallManager):
         self._name2syscall_func = self._load_linux_syscall_funcs()
         self.rev_map = {v: k for k, v in self.call_map.items()}
 
-        self.offset_dict = defaultdict(int)
-
         self.arg_factory = ArgFactory(
             functools.partial(get_arg_string, self.z)
         )

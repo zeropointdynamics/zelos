@@ -149,11 +149,9 @@ class PathTranslator:
 class FileSystem(PathTranslator):
     # TODO: We need to allow /tmp directory to be accessed, otherwise
     # cloud stuff probably won't work.
-    def __init__(self, z, processes, hook_manager):
+    def __init__(self, z, hook_manager):
         self.directories = []
         self.z = z
-        self.handles = z.handles
-        self._processes = processes
         self._hook_manager = hook_manager
         self.logger = logging.getLogger(__name__)
 
@@ -162,6 +160,10 @@ class FileSystem(PathTranslator):
         self.sandboxed_files = dict()
 
         self.fds = []
+
+    @property
+    def handles(self):
+        return self.z.handles
 
     def __del__(self):
         for fd in self.fds:
@@ -180,8 +182,6 @@ class FileSystem(PathTranslator):
         access it
         """
         handle_num = self.handles.new_file(emulated_path)
-        handle = self.handles.get(handle_num)
-        handle.data["offset"] = 0
         return handle_num
 
     def get_file_by_name(self, filename):
@@ -211,15 +211,13 @@ class FileSystem(PathTranslator):
         handle_data = self.handles.get(handle)
         return 0 if handle_data is None else handle_data.data["file"]
 
-    def write_to_sandbox(self, orig_filename, data, offset=0):
+    def open_sandbox_file(self, orig_filename: str):
         if orig_filename == "":
-            return
+            return None
         # TODO: There should be a generalized way to map between the
         # windows vision of the files and the internal zelos vision.
         if orig_filename.startswith(self.zelos_file_prefix):
             orig_filename = orig_filename[len(self.zelos_file_prefix) :]
-
-        self.z.triggers.tr_file_write(orig_filename, data)
 
         orig_filename = str(orig_filename).lower()
         filename = self.sandboxed_files.get(orig_filename, "")
@@ -238,18 +236,23 @@ class FileSystem(PathTranslator):
             if os.path.dirname(os.path.abspath(filename)) != os.path.abspath(
                 self.sandbox_path
             ):
-                print(
+                self.logger.error(
                     "[Sandbox] Filename attempts to escape sandbox, "
                     "ignoring this file write..."
                 )
                 return
-            print("[Sandbox] Created file {0}".format(filename))
+            self.logger.debug(f"[Sandbox] Created file {filename}")
         if not os.path.exists(self.sandbox_path):
             os.makedirs(self.sandbox_path)
         if os.path.exists(filename):
-            f = self.unsafe_open(filename, "r+b")
-        else:
-            f = self.unsafe_open(filename, "wb")
+            return self.unsafe_open(filename, "r+b")
+        return self.unsafe_open(filename, "w+b")
+
+    def write_to_sandbox(self, orig_filename, data, offset=0):
+        self.z.triggers.tr_file_write(orig_filename, data)
+        f = self.open_sandbox_file(orig_filename)
+        if f is None:
+            return
         f.seek(offset)
         f.write(data)
         f.close()
@@ -264,6 +267,9 @@ class FileSystem(PathTranslator):
         path = self.find_library(orig_filename)
         if path is None:
             return None
+        self.logger.debug(
+            f'Opening file "{orig_filename}" (real path: "{path}")'
+        )
         fd = open(path, "rb")
         self.fds.append(fd)
         return fd
