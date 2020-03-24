@@ -97,6 +97,9 @@ class Thread(object):
         self.module_path = module_path
         self.state = ThreadState.RUNNING
 
+        self.last_execution_address = None
+        self.last_execution_size = None
+
         self._callstack_indent_count = -1
         self.api_count = 0
 

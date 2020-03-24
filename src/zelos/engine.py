@@ -232,15 +232,6 @@ class Engine:
     def log_api_dbg(self, args):
         self.trace.api_dbg(args)
 
-    def hexdump(self, address: int, size: int) -> None:
-        import hexdump
-
-        try:
-            data = self.memory.read(address, size)
-            hexdump.hexdump(data)
-        except Exception:
-            self.logger.exception("Invalid address range.")
-
     @property
     def current_process(self):
         return self.processes.current_process
@@ -559,7 +550,6 @@ class Engine:
             return
 
         self.ehCount = 0
-
         # Main emulated execution loop
         while self._should_continue():
             if self.current_thread is None:
@@ -568,6 +558,10 @@ class Engine:
             self.should_print_last_instruction = False
             self.last_instruction = self.emu.getIP()
             self.last_instruction_size = 1
+            if self.current_thread.last_execution_address is None:
+                self.current_thread.last_execution_address = self.emu.getIP()
+                self.current_thread.last_execution_size = 1
+
             try:
                 if self.processes.num_active_processes() == 0:
                     self.processes.logger.info(
@@ -715,13 +709,12 @@ class Engine:
                 "process swap", self.processes.schedule_next
             )
             return
-
         if self.verbose:
             if self.should_print_last_instruction:  # Print block
                 # Turn on full trace to do trace comparison
                 self.trace.bb(
-                    self.last_instruction,
-                    self.last_instruction_size,
+                    self.current_thread.last_execution_address,
+                    self.current_thread.last_execution_size,
                     full_trace=False,
                 )
             self.should_print_last_instruction = True
@@ -733,6 +726,8 @@ class Engine:
 
         current_process.threads.record_block(address)
 
+        self.current_thread.last_execution_address = address
+        self.current_thread.last_execution_size = size
         self.last_instruction = address
         self.last_instruction_size = size
 

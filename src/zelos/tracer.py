@@ -408,7 +408,7 @@ class x86CommentGenerator:
         return f" -> {pointer_data:x}"
 
     def get_comment(self, insn):
-        cmt = ""
+        cmt = "."
         if insn.mnemonic == "call" or insn.mnemonic == "jmp":
             cmt = self._call_string(insn)
         elif insn.mnemonic == "push":

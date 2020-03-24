@@ -50,18 +50,19 @@ class LinuxMode:
         self.z = z
 
     def handle_exception(self, p, e):
+        thread = p.current_thread
         # TODO(kzsnow): This goes in core?
         try:
             self.z.trace.bb(
-                self.z.last_instruction, self.z.last_instruction_size
+                thread.last_execution_address, thread.last_execution_size
             )
         except Exception:
             self.z.logger.exception("Couldn't print basic block")
 
-        if p.current_thread.getIP() == p.current_thread.end_address:
+        if thread.getIP() == thread.end_address:
             # TODO: this only removes the mapping, but does not change
             # where the next allocation will occur.
-            # p.current_thread.cleanup(self)
+            # thread.cleanup(self)
             p.threads.complete_current_thread()
             return
 
@@ -71,7 +72,7 @@ class LinuxMode:
                 0xFFFF0FA0: self.z.zos.syscall_manager._kuser_memory_barrier,
                 0xFFFF0FC0: self.z.zos.syscall_manager._kuser_cmpxchg,
                 0xFFFF0FE0: self.z.zos.syscall_manager._kuser_get_tls,
-            }.get(p.current_thread.getIP(), None)
+            }.get(thread.getIP(), None)
             if arm_private_syscall is not None:
                 arm_private_syscall()
                 return
