@@ -31,7 +31,7 @@ DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 class ZelosTest(unittest.TestCase):
     def _ltp_run(self, bin_path, timeout=3):
         z = Zelos(path.join(DATA_DIR, bin_path), log="ERROR")
-        z.internal_engine.set_verbose(False)
+        z.internal_engine.plugins.trace.set_verbose(False)
         z.internal_engine.trace.threads_to_print.add("none")
 
         stdout = z.internal_engine.handles.get(1)

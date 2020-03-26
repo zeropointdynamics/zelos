@@ -28,7 +28,7 @@ DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 class ZelosTest(unittest.TestCase):
     def test_static_elf_verbose(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_arm_helloworld"))
-        z.internal_engine.set_verbose(True)
+        z.internal_engine.plugins.trace.set_verbose(True)
         z.internal_engine.trace.threads_to_print.add("none")
         z.internal_engine.start(timeout=3)
 

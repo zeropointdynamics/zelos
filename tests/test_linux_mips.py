@@ -28,7 +28,7 @@ DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 class ZelosTest(unittest.TestCase):
     def test_static_elf_el(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_mipsel_mti_helloworld"))
-        z.internal_engine.set_hook_granularity(HookType.EXEC.BLOCK)
+        z.internal_engine.plugins.trace.set_hook_granularity(HookType.EXEC.BLOCK)
         z.internal_engine.start(timeout=10)
 
         self.assertEqual(
@@ -41,7 +41,7 @@ class ZelosTest(unittest.TestCase):
                 "Skipping `test_static_elf_eb`: Windows lief fails to parse"
             )
         z = Zelos(path.join(DATA_DIR, "static_elf_mipseb_mti_helloworld"))
-        z.internal_engine.set_hook_granularity(HookType.EXEC.BLOCK)
+        z.internal_engine.plugins.trace.set_hook_granularity(HookType.EXEC.BLOCK)
         z.internal_engine.start(timeout=10)
 
         self.assertEqual(
