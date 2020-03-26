@@ -62,14 +62,14 @@ class Trace(IPlugin):
     # Hook invoked for each instruction or block.
     def hook_code(self, zelos, address, size):
         try:
-            self.hook_code_impl(zelos, address, size)
+            self._hook_code_impl(zelos, address, size)
             self._check_timeout()
         except Exception:
             if self.zelos.thread is not None:
                 self.zelos.process.threads.kill_thread(self.zelos.thread.id)
             self.logger.exception("Stopping execution due to exception")
 
-    def hook_code_impl(self, zelos, address, size):
+    def _hook_code_impl(self, zelos, address, size):
         # TCG Dump example usage:
         # self.emu.get_tcg(0, 0)
         if self.zelos.thread is None:
@@ -110,7 +110,72 @@ class Trace(IPlugin):
         self.last_instruction = address
         self.last_instruction_size = size
 
-    def set_verbose(self, should_set_verbose: bool) -> None:
+    def traceoff(self, addr=None):
+        """
+        Disable verbose tracing. Optionally specify an address at which
+        verbose tracing is disabled.
+        """
+        if addr is None:
+            self.set_verbose(False)
+        else:
+
+            def hook_traceoff(zelos, address, size):
+                print("HOOKING TRACEOFFFFFF")
+                self.set_verbose(False)
+
+            self.zelos.hook_execution(
+                HookType.EXEC.INST,
+                hook_traceoff,
+                name="traceoff_hook",
+                ip_low=addr,
+                ip_high=addr,
+                end_condition=lambda: True,
+            )
+
+    def traceoff_syscall(self, syscall_name):
+        """
+        Disable verbose tracing after a specific system call has executed.
+        """
+
+        def hook_traceoff(zelos, sysname, args, retval):
+            if sysname == syscall_name:
+                zelos.plugins.trace.traceoff()
+
+        self.zelos.hook_syscalls(HookType.SYSCALL.AFTER, hook_traceoff)
+
+    def traceon(self, addr=None):
+        """
+        Enable verbose tracing. Optionally specify an address at which
+        verbose tracing is enabled.
+        """
+        if addr is None:
+            self.set_verbose(True)
+        else:
+
+            def hook_traceon(zelos, address, size):
+                self.set_verbose(True)
+
+            self.zelos.hook_execution(
+                HookType.EXEC.INST,
+                hook_traceon,
+                name="traceon_hook",
+                ip_low=addr,
+                ip_high=addr,
+                end_condition=lambda: True,
+            )
+
+    def traceon_syscall(self, syscall_name):
+        """
+        Enable verbose tracing after a specific system call has executed.
+        """
+
+        def hook_traceon(zelos, sysname, args, retval):
+            if sysname == syscall_name:
+                self.traceon()
+
+        self.zelos.hook_syscalls(HookType.SYSCALL.AFTER, hook_traceon)
+
+    def set_verbose(self, should_set_verbose) -> None:
         """
         Used to set the verbosity level, and change the hooks.
         This prevents two types of issues:
