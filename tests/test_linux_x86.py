@@ -70,7 +70,9 @@ class ZelosTest(unittest.TestCase):
     def test_socket_elf(self):
         z = Zelos(path.join(DATA_DIR, "static-socket-x86-musl"))
         z.internal_engine.trace.threads_to_print.add("none")
-        z.internal_engine.plugins.trace.set_hook_granularity(HookType.EXEC.BLOCK)
+        z.internal_engine.plugins.trace.set_hook_granularity(
+            HookType.EXEC.BLOCK
+        )
         z.internal_engine.network.disable_whitelist()
         z.internal_engine.start(timeout=5)
 

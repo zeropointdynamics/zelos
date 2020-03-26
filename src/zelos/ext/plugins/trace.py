@@ -14,7 +14,8 @@
 # License along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
-from zelos import CommandLineOption, HookType, IPlugin
+from zelos import HookType, IPlugin
+
 
 class Trace(IPlugin):
     def __init__(self, z):
@@ -65,9 +66,7 @@ class Trace(IPlugin):
             self._check_timeout()
         except Exception:
             if self.zelos.thread is not None:
-                self.zelos.process.threads.kill_thread(
-                    self.zelos.thread.id
-                )
+                self.zelos.process.threads.kill_thread(self.zelos.thread.id)
             self.logger.exception("Stopping execution due to exception")
 
     def hook_code_impl(self, zelos, address, size):
@@ -81,7 +80,9 @@ class Trace(IPlugin):
         # threads if the specified number of blocks is exceeded and
         # other threads exist
         self.zelos.thread.total_blocks_executed += 1
-        rev_modules = self.zelos.internal_engine.modules.reverse_module_functions
+        rev_modules = (
+            self.zelos.internal_engine.modules.reverse_module_functions
+        )
         if (
             self.zelos.thread.total_blocks_executed % 1000 == 0
             and address not in rev_modules
