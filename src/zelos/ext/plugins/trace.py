@@ -28,16 +28,16 @@ class Trace(IPlugin):
 
         self.last_instruction = None
         self.last_instruction_size = None
-        # Instruction hook runs before the instruction, so wait for the
-        # hook to run once before printing instructions.
         self.should_print_last_instruction = False
 
-        # If you remove one of the hooks on _hook_code, be careful that
-        # you don't break the ability to stop a running emulation
         if self.verbose:
             self.set_hook_granularity(HookType.EXEC.INST)
 
     def set_hook_granularity(self, granularity: HookType.EXEC):
+        """
+        Sets the code hook granularity to be either every instruction
+        or every block.
+        """
         try:
             self.zelos.delete_hook(self.code_hook_info)
         except AttributeError:
@@ -47,20 +47,17 @@ class Trace(IPlugin):
             granularity, self.hook_code, name="code_hook"
         )
 
-    @property
-    def verbose(self):
-        return self.zelos.internal_engine.verbose
-
-    @verbose.setter
-    def verbose(self, v):
-        self.zelos.internal_engine.verbose = v
-
     def _check_timeout(self):
+        """
+        Check if specified timeout has elapsed and stop execution.
+        """
         if self.zelos.internal_engine.timer.is_timed_out():
             self.zelos.stop("timeout")
 
-    # Hook invoked for each instruction or block.
     def hook_code(self, zelos, address, size):
+        """
+        Hook that is executed for each instruction or block.
+        """
         try:
             self._hook_code_impl(zelos, address, size)
             self._check_timeout()
@@ -76,9 +73,6 @@ class Trace(IPlugin):
             self.zelos.stop("hook_code_null_thread")
             return
 
-        # Log the total number of blocks executed per thread. Swap
-        # threads if the specified number of blocks is exceeded and
-        # other threads exist
         self.zelos.thread.total_blocks_executed += 1
         rev_modules = (
             self.zelos.internal_engine.modules.reverse_module_functions
@@ -91,8 +85,7 @@ class Trace(IPlugin):
             return
 
         if self.verbose:
-            if self.should_print_last_instruction:  # Print block
-                # Turn on full trace to do trace comparison
+            if self.should_print_last_instruction:
                 self.zelos.internal_engine.trace.bb(
                     self.last_instruction,
                     self.last_instruction_size,
