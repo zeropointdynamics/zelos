@@ -120,7 +120,6 @@ class Trace(IPlugin):
         else:
 
             def hook_traceoff(zelos, address, size):
-                print("HOOKING TRACEOFFFFFF")
                 self.set_verbose(False)
 
             self.zelos.hook_execution(
