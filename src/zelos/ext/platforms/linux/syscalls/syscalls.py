@@ -23,7 +23,10 @@ import time
 
 from os import path
 
+from unicorn.unicorn import UcError
+
 from zelos import handles
+from zelos.enums import ProtType
 from zelos.exceptions import ZelosLoadException
 from zelos.threads import ThreadState
 from zelos.util import align, dumpstruct, str2struct, struct2str
@@ -289,14 +292,21 @@ def sys_mmap2(sm, p):
 
 def mmapx(sm, p, syscall_name, args, offset):
     MAP_SHARED = 0x1
+    MAP_FIXED = 0x10
+    MAP_ANONYMOUS = 0x20
     memory_region_name = syscall_name
-    handle = sm.z.handles.get(args.fd)
+    if args.flags & MAP_ANONYMOUS != 0:
+        handle = None
+    else:
+        handle = sm.z.handles.get(args.fd)
     if handle is not None:
         memory_region_name = f"{syscall_name} -> {handle.Name}"
 
     addr = args.addr
     if addr == 0:
         addr = p.memory._find_free_space(args.length)
+    prot = ProtType(args.prot)
+    length = align(args.length)
 
     data = b""
     if handle is not None:
@@ -316,31 +326,31 @@ def mmapx(sm, p, syscall_name, args, offset):
         )
         p.memory.map(
             addr,
-            align(args.length),
+            length,
             name=memory_region_name,
             kind=syscall_name,
+            prot=prot,
             ptr=ptr,
         )
         return addr
 
     try:
         p.memory.map(
-            addr,
-            align(args.length),
-            name=memory_region_name,
-            kind=syscall_name,
+            addr, length, name=memory_region_name, prot=prot, kind=syscall_name
         )
     except Exception:
-        if args.flags & 0x10 > 0:
+        sm.logger.debug(f"Address {addr:x} is already mapped")
+        if args.flags & MAP_FIXED > 0:
             # This must be mapped to this region, we should be able to
             # just write over the existing data.
             # This should crash if we are unable to write to the desired
             # region
+            p.memory.protect(addr, length, prot)
             pass
         else:
-            sm.logger.notice(f"Address {addr:x} already mapped")
+            sm.logger.notice(f"Attempting to map {addr} elsewhere")
             addr = p.memory.map_anywhere(
-                args.length, name=memory_region_name, kind=syscall_name
+                length, name=memory_region_name, kind=syscall_name
             )
 
     p.memory.write(addr, data)
@@ -354,7 +364,8 @@ def sys_munmap(sm, p):
 
 
 def sys_mprotect(sm, p):
-    sm.get_args([("void*", "addr"), ("size_t", "len"), ("int", "prot")])
+    args = sm.get_args([("void*", "addr"), ("size_t", "len"), ("int", "prot")])
+    p.memory.protect(args.addr, args.len, ProtType(args.prot))
     return 0
 
 
@@ -420,9 +431,10 @@ def mips_set_thread_area(sm, p):
 def sys_read(sm, p):
     args = sm.get_args([("int", "fd"), ("void*", "buf"), ("size_t", "count")])
     handle = sm.z.handles.get(args.fd)
-
     if handle is None:
-        return 0
+        return SysError.EBADF
+    if not p.memory.is_writable(args.buf):
+        return SysError.EFAULT
     data = ""
     if isinstance(handle, handles.SocketHandle):
         return socketcall._recv(sm, p, args.fd, args.buf, args.count)
@@ -443,6 +455,8 @@ def sys_read(sm, p):
         return len(data)
     if isinstance(handle, handles.PipeInHandle):
         return SysError.EBADF
+    if isinstance(handle, handles.FileHandle) and handle.is_dir:
+        return SysError.EISDIR
 
     try:
         data = handle.read(args.count)
@@ -454,8 +468,11 @@ def sys_read(sm, p):
 
     if len(data) == 0:
         return 0
+    try:
+        p.memory.write(args.buf, data)
+    except UcError:
+        return SysError.EFAULT
 
-    p.memory.write(args.buf, data)
     return len(data)
 
 
@@ -1579,8 +1596,13 @@ def sys_umask(sm, p):
 
 
 def sys_statfs(sm, p):
-    sm.get_args([("const char*", "path"), ("struct statfs *", "buf")])
-    return -1
+    args = sm.get_args([("const char*", "path"), ("struct statfs *", "buf")])
+    statfs = structs.STATFS()
+    statfs.f_bsize = 0x1000
+    statfs.f_frsize = 0x1000
+    statfs.f_namemax = 0x8F
+    p.memory.writestruct(args.buf, statfs)
+    return 0
 
 
 def sys_alarm(sm, p):

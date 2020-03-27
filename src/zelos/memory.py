@@ -832,7 +832,17 @@ class Memory:
         del self.mem_hooks[addr]
         return mem_hook.hook(uc, access, address, size, value, user_data)
 
-    def get_region(self, address):
+    def is_writable(self, address: int) -> bool:
+        """
+        Returns True if writing memory is allowed at the specified
+        address.
+        """
+        for (begin, end, perms) in self.emu.mem_regions():
+            if begin <= address < end:
+                return perms & ProtType.WRITE
+        return False
+
+    def get_region(self, address: int) -> Optional[Section]:
         """ Gets the region that this address belongs to."""
         for section in self.memory_info.values():
             if section.address <= address < section.address + section.size:

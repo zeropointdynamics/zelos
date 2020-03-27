@@ -80,8 +80,8 @@ def _get_msr(p, msr):
     orip = emu.get_reg("rip")
 
     # x86: rdmsr
-    buf = "\x0f\x32"
-    buf_ptr = memory.heap.alloc(2, "wrmsr inst")
+    buf = b"\x0f\x32"
+    buf_ptr = memory.map_anywhere(2, "rdmsr inst")
     memory.write(buf_ptr, buf)
 
     emu.set_reg("rcx", msr & 0xFFFFFFFF)
