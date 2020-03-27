@@ -140,8 +140,6 @@ class Engine:
         if config.dns > 0:
             self.flags_dns = True
 
-        self.set_trace_on(config.traceon)
-        self.traceoff = config.traceoff
         if config.tracethread != "":
             self.trace.threads_to_print.add(config.tracethread)
         if config.writetrace != "":
@@ -550,9 +548,6 @@ class Engine:
             if self.current_thread is None:
                 self.processes.swap_with_next_thread()
 
-            # self.should_print_last_instruction = False
-            self.last_instruction = self.emu.getIP()
-            self.last_instruction_size = 1
             try:
                 if self.processes.num_active_processes() == 0:
                     self.processes.logger.info(
@@ -647,21 +642,6 @@ class Engine:
                 ">>> Tracing DebugService at 0x%x Routine 0x%x"
                 % (address, service)
             )
-
-    def set_trace_on(self, val):
-        try:
-            i = int(val, 0)
-
-            def f(zelos, address, size):
-                self.verbosity = 2  # Allow logging inside modules
-                self.set_verbose(True)
-
-            self.hook_manager.register_exec_hook(
-                HookType.EXEC.INST, f, name="traceon", ip_low=i, ip_high=i
-            )
-        except ValueError:
-            pass
-        self.traceon = val
 
     def _check_timeout(self):
         if self.timer.is_timed_out():
