@@ -25,94 +25,22 @@ def twos_comp(val, bits):
     return val  # return positive value as is
 
 
+# These msr registers are x86 specific
 _FSMSR = 0xC0000100
 _GSMSR = 0xC0000101
 
 
-def _set_msr(p, msr, value):
-    """
-    set the given model-specific register (MSR) to the given value.
-    this will clobber some memory at the given scratch address, as it
-    emits some code.
-    """
-    emu = p.emu
-    memory = p.memory
-    # save clobbered registers
-    orax = emu.get_reg("rax")
-    ordx = emu.get_reg("rdx")
-    orcx = emu.get_reg("rcx")
-    orip = emu.get_reg("rip")
-
-    # In addition, special handling needs to be done for setting and
-    # getting the fs and gs registers
-    # x86: wrmsr
-    buf = b"\x0f\x30"
-    buf_ptr = memory.map_anywhere(2, "wrmsr inst")
-    memory.write(buf_ptr, buf)
-    # x86: wrmsr
-    emu.set_reg("rax", value & 0xFFFFFFFF)
-    emu.set_reg("rdx", (value >> 32) & 0xFFFFFFFF)
-    emu.set_reg("rcx", msr & 0xFFFFFFFF)
-    emu.emu_start(buf_ptr, buf_ptr + len(buf), count=1)
-
-    # stop for all syscalls
-
-    # restore clobbered registers
-    emu.set_reg("rax", orax)
-    emu.set_reg("rdx", ordx)
-    emu.set_reg("rcx", orcx)
-    emu.set_reg("rip", orip)
-
-
-def _get_msr(p, msr):
-    """
-    fetch the contents of the given model-specific register (MSR).
-    this will clobber some memory at the given scratch address, as it
-    emits some code.
-    """
-
-    emu = p.emu
-    memory = p.memory
-    # save clobbered registers
-    orax = emu.get_reg("rax")
-    ordx = emu.get_reg("rdx")
-    orcx = emu.get_reg("rcx")
-    orip = emu.get_reg("rip")
-
-    # x86: rdmsr
-    buf = "\x0f\x32"
-    buf_ptr = memory.heap.alloc(2, "wrmsr inst")
-    memory.write(buf_ptr, buf)
-
-    emu.set_reg("rcx", msr & 0xFFFFFFFF)
-    emu.emu_start(buf_ptr, buf_ptr + len(buf), count=1)
-    eax = emu.get_reg("eax")
-    edx = emu.get_reg("edx")
-
-    # restore clobbered registers
-    emu.set_reg("rax", orax)
-    emu.set_reg("rdx", ordx)
-    emu.set_reg("rcx", orcx)
-    emu.set_reg("rip", orip)
-
-    return (edx << 32) | (eax & 0xFFFFFFFF)
-
-
 def set_gs(p, addr):
-    GSMSR = 0xC0000101
-    return _set_msr(p, GSMSR, addr)
+    p.emu.msr_write(_GSMSR, addr)
 
 
 def get_gs(p):
-    GSMSR = 0xC0000101
-    return _get_msr(p, GSMSR)
+    return p.emu.msr_read(_GSMSR)
 
 
 def set_fs(p, addr):
-    FSMSR = 0xC0000100
-    return _set_msr(p, FSMSR, addr)
+    p.emu.msr_write(_FSMSR, addr)
 
 
 def get_fs(p):
-    FSMSR = 0xC0000100
-    return _get_msr(p, FSMSR)
+    return p.emu.msr_read(_FSMSR)
