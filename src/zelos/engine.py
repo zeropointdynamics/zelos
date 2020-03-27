@@ -391,12 +391,6 @@ class Engine:
             f"Initialized {arch} {self.state.bits} emulator/disassembler"
         )
 
-        # self.last_instruction = None
-        # self.last_instruction_size = None
-        # # Instruction hook runs before the instruction, so wait for the
-        # # hook to run once before printing instructions.
-        # self.should_print_last_instruction = False
-
         self.triggers = Triggers(self)
         self.processes.set_architecture(self.state)
 

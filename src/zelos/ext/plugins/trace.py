@@ -14,6 +14,12 @@
 # License along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
+
+import capstone.arm_const as cs_arm
+import capstone.x86_const as cs_x86
+
+from unicorn import UC_ERR_READ_UNMAPPED, UcError
+
 from zelos import HookType, IPlugin
 
 
@@ -187,3 +193,258 @@ class Trace(IPlugin):
             self.set_hook_granularity(HookType.EXEC.INST)
         else:
             self.set_hook_granularity(HookType.EXEC.BLOCK)
+
+
+class EmptyCommentGenerator:
+    def get_comment(self, insn):
+        return ""
+
+
+class ArmCommentGenerator:
+    def __init__(self, z, tracer, modules):
+        self.functions_called = {}
+        self._z = z
+        self.tracer = tracer
+        self._modules = modules
+
+    def get_comment(self, insn):
+        if insn.mnemonic[:3] in [
+            "add",
+            "sub",
+            "mov",
+            "mvn",
+            "mul",
+            "and",
+            "orr",
+        ]:
+            return self._dst_comment(insn)
+        if insn.mnemonic[:3] in ["cmp", "cmn", "tst", "teq"]:
+            return self._cmp_comment(insn)
+        if insn.mnemonic[:3] == "ldr":
+            return self._ldr_comment(insn)
+        if insn.mnemonic[:3] == "str":
+            return self._str_comment(insn)
+        if insn.mnemonic in ["b", "bl"]:
+            return self._branch_comment(insn)
+        if insn.mnemonic in ["push", "pop"]:
+            return self._push_pop(insn)
+        if insn.mnemonic == "svc":
+            return self._svc_comment(insn)
+
+        return "."
+
+    def _push_pop(self, insn):
+        """
+        Returns all instructions that are pushed or popped
+        """
+        reg_vals = [
+            f"{self._get_reg_or_mem_val(insn, i): x}" for i in insn.operands
+        ]
+        return f"[{','.join(reg_vals)}]"
+
+    def _svc_comment(self, insn):
+        """
+        Returns the syscall name
+        """
+        if insn.insn_name() == "svc" and insn.operands[0].imm != 0:
+            syscall_num = insn.operands[0].imm - 0x900000
+        else:
+            syscall_num = self._z.zos.syscall_manager.get_syscall_number()
+        syscall_name = self._z.zos.syscall_manager.find_syscall_name_by_number(
+            syscall_num
+        )
+        return f"{syscall_name}"
+
+    def _dst_comment(self, insn):
+        """
+        Returns the destination register
+        """
+        dst_val = self._get_reg_or_mem_val(insn, insn.operands[0])
+        return f"{insn.reg_name(insn.operands[0].value.reg)} = 0x{dst_val:x}"
+
+    def _cmp_comment(self, insn):
+        dst_val = self._get_reg_or_mem_val(insn, insn.operands[0])
+        src_val = self._get_reg_or_mem_val(insn, insn.operands[1])
+        return f"0x{dst_val:x} vs 0x{src_val:x}"
+
+    def _ldr_comment(self, insn):
+        """
+        Returns a comment on loading a register from memory.
+        """
+        dst_val = self._get_reg_or_mem_val(insn, insn.operands[0])
+        src_val = self._get_reg_or_mem_val(insn, insn.operands[1], is_dst=True)
+        return f"{insn.reg_name(insn.operands[0].value.reg)} = "
+        f"load(0x{src_val:x}) = 0x{dst_val:x}"
+
+    def _str_comment(self, insn):
+        """
+        Returns a comment on storing a register in memory.
+        """
+        src_val = self._get_reg_or_mem_val(insn, insn.operands[0])
+        dst_val = self._get_reg_or_mem_val(insn, insn.operands[1], is_dst=True)
+        return f"store(0x{src_val:x}, 0x{dst_val:x})"
+
+    def _branch_comment(self, insn):
+        """
+        Returns a comment on branch to label.
+        """
+        src_val = self._get_reg_or_mem_val(insn, insn.operands[0])
+        if src_val in self._z.main_module.exported_functions:
+            func_name = self._z.main_module.exported_functions[src_val]
+            return f"<{func_name:s}> (0x{src_val:x})"
+        return f"<0x{src_val:x}>"
+
+    def _get_reg_or_mem_val(self, insn, x, is_dst=False):
+        """
+        Gets the value of the operand, for memory addresses, gets
+        the memory value at the location specified
+        """
+        if x.type == cs_arm.ARM_OP_REG:
+            return self.tracer.emu.get_reg(insn.reg_name(x.value.reg))
+        elif x.type == cs_arm.ARM_OP_IMM:
+            return x.imm
+        else:
+            base_val = (
+                0
+                if x.mem.base == 0
+                else self.tracer.emu.get_reg(insn.reg_name(x.mem.base))
+            )
+            shift_val = (
+                0
+                if x.mem.index == 0
+                else self.tracer.emu.get_reg(insn.reg_name(x.mem.index))
+                * x.mem.scale
+            )
+            if is_dst:
+                return base_val + shift_val + x.value.mem.disp
+            else:
+                return self.tracer.memory.read_int(
+                    base_val + shift_val + x.value.mem.disp
+                )
+
+
+class x86CommentGenerator:
+    def __init__(self, tracer, modules):
+        self.tracer = tracer
+        self._modules = modules
+        self.functions_called = {}
+
+    def _get_ptr_val_string(self, ptr: int) -> str:
+        """Returns a string representing the data pointed to by 'ptr' if 'ptr'
+        is a valid pointer. Otherwise, reutrns an empty string."""
+        try:
+            pointer_data = self.tracer.memory.read_int(ptr)
+        except UcError as e:
+            if e.errno == UC_ERR_READ_UNMAPPED:
+                return ""
+            raise e
+
+        s = ""
+        try:
+            s = self.tracer.memory.read_string(ptr, 8)
+        except UcError as e:
+            if e.errno != UC_ERR_READ_UNMAPPED:
+                raise e
+
+        # Require a certain amount of valid characters to reduce false
+        # positives for string identification.
+        if len(s) > 2:
+            return f' -> "{s}"'
+
+        return f" -> {pointer_data:x}"
+
+    def get_comment(self, insn):
+        cmt = ""
+        if insn.mnemonic == "call" or insn.mnemonic == "jmp":
+            cmt = self._call_string(insn)
+        elif insn.mnemonic == "push":
+            cmt = self._push_string(insn)
+        elif len(insn.operands) == 1:
+            cmt = self._single_operand(insn)
+        elif insn.mnemonic == "test" or insn.mnemonic == "cmp":
+            cmt = self._test_or_cmp_string(insn)
+        elif len(insn.operands) == 2:
+            cmt = self._double_operand(insn)
+        return cmt
+
+    def _call_string(self, insn):
+        # Only used when looking at the current instruction.
+        # op = operands[0]
+        # target = op.value.imm
+        target = self.tracer.emu.getIP()
+        self.functions_called[target] = True
+        cmt = insn.mnemonic + "(0x{0:x}) ".format(target)
+        if target in self._modules.reverse_module_functions:
+            cmt += " " + self._modules.reverse_module_functions[target]
+        return cmt
+
+    def _push_string(self, insn):
+        op = insn.operands[0]
+        value = self._get_reg_or_mem_val(insn, op)
+        ptr_val_str = self._get_ptr_val_string(value)
+        return f"push(0x{value:x}){ptr_val_str}"
+
+    def _single_operand(self, insn):
+        op = insn.operands[0]
+        # Just resolve any non-immediate values
+        value = self._get_reg_or_mem_val(insn, op)
+        ptr_val_string = self._get_ptr_val_string(value)
+        if op.type == cs_x86.X86_OP_REG:
+            reg_name = insn.reg_name(op.value.reg)
+            s = f"{reg_name} = 0x{value:x}{ptr_val_string}"
+        elif op.type == cs_x86.X86_OP_MEM:
+            s = f"mem is (0x{value:x}){ptr_val_string}"
+        else:
+            return ""
+
+        return s
+
+    def _double_operand(self, insn):
+        dst = insn.operands[0]
+        dst_val = self._get_reg_or_mem_val(insn, dst, is_dst=True)
+        if dst.type == cs_x86.X86_OP_REG:
+            dst_name = insn.reg_name(dst.value.reg)
+            ptr_val_string = self._get_ptr_val_string(dst_val)
+            return f"{dst_name} = 0x{dst_val:x}{ptr_val_string}"
+
+        src = insn.operands[1]
+        src_val = self._get_reg_or_mem_val(insn, src)
+
+        if dst.type == cs_x86.X86_OP_MEM:
+            dst_target = dst_val  # dst.value.mem.disp
+            ptr_val_string = self._get_ptr_val_string(src_val)
+            return f"store(0x{dst_target:x},0x{src_val:x}){ptr_val_string}"
+        return ""
+
+    def _test_or_cmp_string(self, insn):
+        dst_val = self._get_reg_or_mem_val(insn, insn.operands[0])
+        src_val = self._get_reg_or_mem_val(insn, insn.operands[1])
+        return "0x{0:x} vs 0x{1:x}".format(dst_val, src_val)
+
+    def _get_reg_or_mem_val(self, insn, x, is_dst=False):
+        """
+        Gets the value of the operand, for memory addresses, gets the
+        memory value at the location specified
+        """
+        if x.type == cs_x86.X86_OP_REG:
+            return self.tracer.emu.get_reg(insn.reg_name(x.value.reg))
+        elif x.type == cs_x86.X86_OP_IMM:
+            return x.imm
+        else:
+            base_val = (
+                0
+                if x.mem.base == 0
+                else self.tracer.emu.get_reg(insn.reg_name(x.mem.base))
+            )
+            shift_val = (
+                0
+                if x.mem.index == 0
+                else self.tracer.emu.get_reg(insn.reg_name(x.mem.index))
+                * x.mem.scale
+            )
+            if is_dst:
+                return base_val + shift_val + x.value.mem.disp
+            else:
+                return self.tracer.memory.read_int(
+                    base_val + shift_val + x.value.mem.disp, sz=x.size
+                )
