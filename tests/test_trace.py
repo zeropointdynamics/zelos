@@ -18,39 +18,50 @@
 
 from __future__ import absolute_import
 
-import subprocess
 import unittest
 
+from io import StringIO
 from os import path
+from unittest.mock import patch
+
+from zelos import Zelos
 
 
-DATA_DIR = path.dirname(path.abspath(__file__))
+DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 
 
 class TraceTest(unittest.TestCase):
     def test_traceon(self):
-        output = subprocess.check_output(
-            ["python", path.join(DATA_DIR, "run_trace.py"), "traceon"]
-        )
-        self.assertNotIn("[080f5c00]", str(output))
-        self.assertIn("[08131b16]", str(output))
+
+        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
+        z.plugins.trace.traceon(0x08131B16)
+
+        with patch("sys.stdout", new=StringIO()) as stdout:
+            z.start()
+            self.assertNotIn("[080f5c00]", stdout.getvalue())
+            self.assertIn("[08131b16]", stdout.getvalue())
 
     def test_traceoff(self):
-        output = subprocess.check_output(
-            ["python", path.join(DATA_DIR, "run_trace.py"), "traceoff"]
-        )
-        self.assertIn("[08048b70]", str(output))
-        self.assertNotIn("[08048b73]", str(output))
+        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"), verbosity=1)
+        z.plugins.trace.traceoff(0x08048B73)
+
+        with patch("sys.stdout", new=StringIO()) as stdout:
+            z.start()
+            self.assertIn("[08048b70]", stdout.getvalue())
+            self.assertNotIn("[08048b73]", stdout.getvalue())
 
     def test_traceon_syscall(self):
-        output = subprocess.check_output(
-            ["python", path.join(DATA_DIR, "run_trace.py"), "sys_traceon"]
-        )
-        self.assertIn("[08131b16]", str(output))
+        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
+        z.plugins.trace.traceon_syscall("write")
+
+        with patch("sys.stdout", new=StringIO()) as stdout:
+            z.start()
+            self.assertIn("[08131b16]", stdout.getvalue())
 
     def test_traceoff_syscall(self):
-        output = subprocess.check_output(
-            ["python", path.join(DATA_DIR, "run_trace.py"), "sys_traceoff"]
-        )
-        # self.assertIn("[0815b56f]", str(output))
-        self.assertNotIn("[0815b575]", str(output))
+        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"), verbosity=1)
+        z.plugins.trace.traceoff_syscall("brk")
+        with patch("sys.stdout", new=StringIO()) as stdout:
+            z.start()
+            # self.assertIn("[0815b56f]", stdout.getvalue())
+            self.assertNotIn("[0815b575]", stdout.getvalue())
