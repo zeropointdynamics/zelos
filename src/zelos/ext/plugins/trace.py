@@ -256,7 +256,7 @@ class Trace(IPlugin):
         if address is None:
             address = self.zelos.regs.getIP()
         try:
-            code = self.zelos.internal_engine.emu.mem_read(address, size)
+            code = self.zelos.memory.read(address, size)
             insns = [insn for insn in self.cs.disasm(code, address)]
             if len(insns) == 0:
                 return
@@ -623,7 +623,7 @@ class x86CommentGenerator:
         # Only used when looking at the current instruction.
         # op = operands[0]
         # target = op.value.imm
-        target = self.zelos.internal_engine.emu.getIP()
+        target = self.zelos.regs.getIP()
         self.functions_called[target] = True
         cmt = insn.mnemonic + "(0x{0:x}) ".format(target)
         if target in self._modules.reverse_module_functions:
