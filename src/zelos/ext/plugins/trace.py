@@ -145,7 +145,7 @@ class Trace(IPlugin):
 
         if self.verbose:
             if self.should_print_last_instruction:
-                self.zelos.internal_engine.plugins.trace.bb(
+                self.bb(
                     self.last_instruction,
                     self.last_instruction_size,
                     full_trace=False,

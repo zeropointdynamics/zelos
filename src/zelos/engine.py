@@ -530,6 +530,10 @@ class Engine:
             if self.current_thread is None:
                 self.processes.swap_with_next_thread()
 
+            self.plugins.trace.should_print_last_instruction = False
+            self.plugins.trace.last_instruction = self.emu.getIP()
+            self.plugins.trace.last_instruction_size = 1
+
             try:
                 if self.processes.num_active_processes() == 0:
                     self.processes.logger.info(
