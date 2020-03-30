@@ -29,7 +29,7 @@ class ZelosTest(unittest.TestCase):
     def test_static_elf_verbose(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_arm_helloworld"))
         z.internal_engine.plugins.trace.set_verbose(True)
-        z.internal_engine.trace.threads_to_print.add("none")
+        z.internal_engine.plugins.trace.threads_to_print.add("none")
         z.internal_engine.start(timeout=3)
 
         self.assertEqual(
@@ -38,7 +38,7 @@ class ZelosTest(unittest.TestCase):
 
     def test_static_elf(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_arm_helloworld"))
-        z.internal_engine.trace.threads_to_print.add("none")
+        z.internal_engine.plugins.trace.threads_to_print.add("none")
         z.internal_engine.start(timeout=10)
 
         self.assertEqual(
@@ -52,7 +52,7 @@ class ZelosTest(unittest.TestCase):
                 "Windows fatal exception: access violation"
             )
         z = Zelos(path.join(DATA_DIR, "dynamic_elf_arm_helloworld"))
-        z.internal_engine.trace.threads_to_print.add("none")
+        z.internal_engine.plugins.trace.threads_to_print.add("none")
         z.internal_engine.start(timeout=10)
 
         self.assertEqual(

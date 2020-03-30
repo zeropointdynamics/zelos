@@ -52,7 +52,6 @@ from zelos.network import Network
 from zelos.plugin import OSPlugins
 from zelos.processes import Processes
 from zelos.state import State
-from zelos.tracer import Tracer
 from zelos.triggers import Triggers
 
 
@@ -106,8 +105,6 @@ class Engine:
         self.main_module = None
 
         self.date = "2019-02-02"
-        self.traceon = ""
-        self.traceoff = ""
 
         self.timer = util.Timer()
 
@@ -140,8 +137,6 @@ class Engine:
         if config.dns > 0:
             self.flags_dns = True
 
-        if config.tracethread != "":
-            self.trace.threads_to_print.add(config.tracethread)
         if config.writetrace != "":
             target_addr = int(config.writetrace, 16)
             self.set_writetrace(target_addr)
@@ -214,12 +209,6 @@ class Engine:
             )
         except ModuleNotFoundError:
             self.logger.setLevel(log_level)
-
-    def log_api(self, args, isNative=False):
-        self.trace.api(args, isNative)
-
-    def log_api_dbg(self, args):
-        self.trace.api_dbg(args)
 
     def hexdump(self, address: int, size: int) -> None:
         import hexdump
@@ -425,7 +414,6 @@ class Engine:
                 )
             else:
                 self.files.add_file(self.config.filename)
-        self.trace = Tracer(self.helpers, self, self.cs, self.modules)
 
         # TODO: SharedSection needs to be removed
         self.processes.handles.new("section", "\\Windows\\SharedSection")

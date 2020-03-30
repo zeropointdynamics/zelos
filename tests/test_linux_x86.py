@@ -27,7 +27,7 @@ DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 class ZelosTest(unittest.TestCase):
     def test_static_elf_unpatched(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
-        z.internal_engine.trace.threads_to_print.add("none")
+        z.internal_engine.plugins.trace.threads_to_print.add("none")
         z.internal_engine.start(timeout=3)
 
         self.assertEqual(
@@ -36,7 +36,7 @@ class ZelosTest(unittest.TestCase):
 
     def test_static_elf(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
-        z.internal_engine.trace.threads_to_print.add("none")
+        z.internal_engine.plugins.trace.threads_to_print.add("none")
         z.internal_engine.start(timeout=3)
 
         self.assertEqual(
@@ -47,7 +47,7 @@ class ZelosTest(unittest.TestCase):
         z = Zelos(
             path.join(DATA_DIR, "ld-linux.so"), "./dynamic_elf_helloworld"
         )
-        z.internal_engine.trace.threads_to_print.add("none")
+        z.internal_engine.plugins.trace.threads_to_print.add("none")
         z.internal_engine.files.add_file(
             path.join(DATA_DIR, "dynamic_elf_helloworld")
         )
@@ -60,7 +60,7 @@ class ZelosTest(unittest.TestCase):
 
     def test_dynamic_elf_directly(self):
         z = Zelos(path.join(DATA_DIR, "dynamic_elf_helloworld"))
-        z.internal_engine.trace.threads_to_print.add("none")
+        z.internal_engine.plugins.trace.threads_to_print.add("none")
         z.internal_engine.start(timeout=3)
 
         self.assertEqual(
@@ -69,7 +69,7 @@ class ZelosTest(unittest.TestCase):
 
     def test_socket_elf(self):
         z = Zelos(path.join(DATA_DIR, "static-socket-x86-musl"))
-        z.internal_engine.trace.threads_to_print.add("none")
+        z.internal_engine.plugins.trace.threads_to_print.add("none")
         z.internal_engine.plugins.trace.set_hook_granularity(
             HookType.EXEC.BLOCK
         )
