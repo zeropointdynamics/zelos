@@ -65,3 +65,22 @@ class TraceTest(unittest.TestCase):
             z.start()
             # self.assertIn("[0815b56f]", stdout.getvalue())
             self.assertNotIn("[0815b575]", stdout.getvalue())
+
+    def test_hook_comments(self):
+        z = Zelos(
+            path.join(DATA_DIR, "static_elf_helloworld"),
+            verbosity=1,
+            fasttrace=True,
+        )
+
+        comments = []
+
+        def comment_hook(zelos, address, thread_id, text):
+            comments.append((address, thread_id, text))
+
+        z.plugins.trace.hook_comments(comment_hook)
+        z.start()
+
+        self.assertGreater(len(comments), 0)
+        self.assertIn("ebp = 0x0", comments[0][2])
+        self.assertIn("ecx = 0xff08eea4 -> ff08ef41", comments[2][2])

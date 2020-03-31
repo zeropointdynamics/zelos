@@ -71,6 +71,8 @@ class Trace(IPlugin):
         else:
             self.comment_generator = EmptyCommentGenerator()
 
+        self.comment_hooks = []
+
     @property
     def cs(self):
         return self.zelos.internal_engine.cs
@@ -93,6 +95,57 @@ class Trace(IPlugin):
 
     def get_region(self, addr):
         return self.zelos.internal_engine.memory.get_region(addr)
+
+    def hook_comments(self, callback):
+        """
+        Registers a callback that is invoked when a comment is generated.
+
+        Args:
+            callback: The code that should be executed when a comment is
+                generated. The function should accept the following inputs:
+                (zelos, address, thread_id, text)
+
+        Example:
+             .. code-block:: python
+
+                from zelos import Zelos
+
+                # Keep track of the syscall return values
+                comments = []
+                def comment_hook(zelos, address, thread_id, text):
+                    comments.append((address, thread_id, text))
+
+                z = Zelos("binary_to_emulate")
+                z.plugins.trace.hook_comments(comment_hook)
+                z.start()
+        """
+        self.comment_hooks.append(callback)
+
+    def hook_functions(self, callback):
+        """
+        Registers a callback that is invoked when a function is called.
+
+        Args:
+            callback: The code that should be executed when a comment is
+                generated. The function should accept the following inputs:
+                (zelos, address, thread_id, text)
+
+        Example:
+             .. code-block:: python
+
+                from zelos import Zelos
+
+                # Keep track of the syscall return values
+                functions = []
+                def function_hook(zelos, address, thread_id, text):
+                    comments.append((address, thread_id, text))
+
+                z = Zelos("binary_to_emulate")
+                z.plugins.trace.hook_comments(comment_hook)
+                z.start()
+        """
+        # TODO: hook functions called within the comment generator
+        pass
 
     def set_hook_granularity(self, granularity: HookType.EXEC):
         """
@@ -422,10 +475,15 @@ class Trace(IPlugin):
                 + padding
                 + colored(" ; " + cmt, "grey", attrs=["bold"])
             )
-            # Log comment for the dump
-            self.comments.append(
-                Comment(insn.address, self.zelos.thread.id, cmt)
-            )
+            for fn in self.comment_hooks:
+                try:
+                    # invoke comment-hook callback
+                    fn(self.zelos, insn.address, self.zelos.thread.id, cmt)
+                except Exception:
+                    from sys import exc_info
+
+                    einfo = exc_info()
+                    print(f"Exception in comment-hook callback: {einfo}")
         else:
             result += insn_str
 
