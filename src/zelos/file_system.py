@@ -38,13 +38,11 @@ class PathTranslator:
         # Ntpath includes posixpaths, so be sure to test
         # posix first :P
         if posixpath.isabs(file_prefix):
-            self._is_absolute_path = posixpath.isabs
-            self.emulated_join = posixpath.join
             self.working_directory = "/"
+            self.emulated_path_module = posixpath
         elif ntpath.isabs(file_prefix):
-            self._is_absolute_path = ntpath.isabs
-            self.emulated_join = ntpath.join
             self.working_directory, _ = ntpath.splitdrive(file_prefix)
+            self.emulated_path_module = ntpath
         else:
             raise ZelosException(
                 (
@@ -58,7 +56,7 @@ class PathTranslator:
         self.mounted_folders = defaultdict(list)
 
     def is_absolute_path(self, emulated_path):
-        return self._is_absolute_path(emulated_path)
+        return self.emulated_path_module.isabs(emulated_path)
 
     def change_working_directory(self, emulated_path):
         emulated_path = self._normalize_emulated_path(emulated_path)
@@ -72,8 +70,14 @@ class PathTranslator:
             )
             return False
         if emulated_path is None:
-            emulated_path = self.emulated_join(
+            emulated_path = self.emulated_path_module.join(
                 self.working_directory, os.path.basename(real_path)
+            )
+        # If the emulated_path ends in a slash, keep the name of the
+        # original binary, but place within the emulated_path
+        if self.emulated_path_module.basename(emulated_path) == "":
+            emulated_path = self.emulated_path_module.join(
+                emulated_path, os.path.basename(real_path)
             )
         emulated_path = self._normalize_emulated_path(emulated_path)
         self.added_files[emulated_path] = real_path
@@ -100,7 +104,7 @@ class PathTranslator:
         if emulated_path.startswith("./"):
             emulated_path = emulated_path[2:]
         if not self.is_absolute_path(emulated_path):
-            emulated_path = self.emulated_join(
+            emulated_path = self.emulated_path_module.join(
                 self.working_directory, emulated_path
             )
         return emulated_path
@@ -128,16 +132,21 @@ class PathTranslator:
                 self.logger.debug(
                     f"Checking {emu_mount}->{real_mount} for {emulated_path} "
                 )
-                if emulated_path.startswith(emu_mount):
-                    real_path = os.path.join(
-                        real_mount, emulated_path[len(emu_mount) :]
+                if not emulated_path.startswith(emu_mount):
+                    continue
+
+                path_within_mounted_folder = self.emulated_path_module.relpath(
+                    emulated_path, emu_mount
+                )
+                real_path = os.path.join(
+                    real_mount, path_within_mounted_folder
+                )
+                real_path = os.path.normpath(real_path)
+                if os.path.lexists(real_path):
+                    self.logger.debug(
+                        f"From mounted folder: {emulated_path} -> {real_path}"
                     )
-                    if os.path.lexists(real_path):
-                        self.logger.debug(
-                            f"From mounted folder: "
-                            f"{emulated_path} -> {real_path}"
-                        )
-                        return real_path
+                    return real_path
 
         self.logger.debug(f"No real path for '{emulated_path}'")
         return None
@@ -217,7 +226,10 @@ class FileSystem(PathTranslator):
         # TODO: There should be a generalized way to map between the
         # windows vision of the files and the internal zelos vision.
         if orig_filename.startswith(self.zelos_file_prefix):
-            orig_filename = orig_filename[len(self.zelos_file_prefix) :]
+            orig_filename = self.emulated_path_module.relpath(
+                orig_filename, self.zelos_file_prefix
+            )
+            orig_filename = self.emulated_path_module.normpath(orig_filename)
 
         orig_filename = str(orig_filename).lower()
         filename = self.sandboxed_files.get(orig_filename, "")
@@ -283,7 +295,10 @@ class FileSystem(PathTranslator):
             return None
 
         if orig_filename.startswith(self.zelos_file_prefix):
-            orig_filename = orig_filename[len(self.zelos_file_prefix) :]
+            orig_filename = self.emulated_path_module.relpath(
+                orig_filename, self.zelos_file_prefix
+            )
+            orig_filename = self.emulated_path_module.normpath(orig_filename)
 
         # Handle the /proc virtual subsystem # linux specific
         # if orig_filename.startswith("/proc"):
