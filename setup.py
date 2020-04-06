@@ -52,7 +52,7 @@ INSTALL_REQUIRES = [
 ]
 EXTRAS_REQUIRE = {
     "docs": [
-        "sphinx",
+        "sphinx==2.4.4",
         "sphinx_rtd_theme",
         "sphinxcontrib-apidoc",
         "recommonmark",

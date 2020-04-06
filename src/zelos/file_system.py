@@ -220,7 +220,9 @@ class FileSystem(PathTranslator):
         handle_data = self.handles.get(handle)
         return 0 if handle_data is None else handle_data.data["file"]
 
-    def open_sandbox_file(self, orig_filename: str):
+    def open_sandbox_file(
+        self, orig_filename: str, create_if_not_exists: bool = False
+    ):
         if orig_filename == "":
             return None
         # TODO: There should be a generalized way to map between the
@@ -234,25 +236,13 @@ class FileSystem(PathTranslator):
         orig_filename = str(orig_filename).lower()
         filename = self.sandboxed_files.get(orig_filename, "")
         if len(filename) == 0:
-            filename = (
-                orig_filename.replace("\\", "_")
-                .replace("/", "_")
-                .replace(":", "_")
-            )
-            while filename != filename.replace("..", "."):
-                filename = filename.replace("..", ".")
-            filename = os.path.join(self.sandbox_path, filename)
+            if not create_if_not_exists:
+                return None
+            filename = self._make_sandbox_filename(orig_filename)
+            if filename is None:
+                return None
+
             self.sandboxed_files[orig_filename] = filename
-            print(os.path.dirname(os.path.abspath(filename)))
-            print(os.path.abspath(self.sandbox_path))
-            if os.path.dirname(os.path.abspath(filename)) != os.path.abspath(
-                self.sandbox_path
-            ):
-                self.logger.error(
-                    "[Sandbox] Filename attempts to escape sandbox, "
-                    "ignoring this file write..."
-                )
-                return
             self.logger.debug(f"[Sandbox] Created file {filename}")
         if not os.path.exists(self.sandbox_path):
             os.makedirs(self.sandbox_path)
@@ -260,9 +250,31 @@ class FileSystem(PathTranslator):
             return self.unsafe_open(filename, "r+b")
         return self.unsafe_open(filename, "w+b")
 
+    def _make_sandbox_filename(self, orig_filename: str) -> str:
+        filename = (
+            orig_filename.replace("\\", "_")
+            .replace("/", "_")
+            .replace(":", "_")
+        )
+        while filename != filename.replace("..", "."):
+            filename = filename.replace("..", ".")
+        filename = os.path.join(self.sandbox_path, filename)
+
+        if os.path.dirname(os.path.abspath(filename)) != os.path.abspath(
+            self.sandbox_path
+        ):
+            self.logger.info(os.path.dirname(os.path.abspath(filename)))
+            self.logger.info(os.path.abspath(self.sandbox_path))
+            self.logger.error(
+                "[Sandbox] Filename attempts to escape sandbox, "
+                "ignoring this file write..."
+            )
+            return None
+        return filename
+
     def write_to_sandbox(self, orig_filename, data, offset=0):
         self.z.triggers.tr_file_write(orig_filename, data)
-        f = self.open_sandbox_file(orig_filename)
+        f = self.open_sandbox_file(orig_filename, create_if_not_exists=True)
         if f is None:
             return
         f.seek(offset)
@@ -282,6 +294,11 @@ class FileSystem(PathTranslator):
         self.logger.debug(
             f'Opening file "{orig_filename}" (real path: "{path}")'
         )
+        # Windows throws permission errors if you try to open a
+        # directory. Manually throw this exception to keep things
+        # uniform.
+        if os.path.isdir(path):
+            raise IsADirectoryError()
         fd = open(path, "rb")
         self.fds.append(fd)
         return fd
@@ -318,7 +335,7 @@ class FileSystem(PathTranslator):
     #     #     return self._processes.current_process.module_path
     #     return None
 
-    def unsafe_open(self, *args, **kwargs):
+    def unsafe_open(self, filename, *args, **kwargs):
         """
         Ensures that the file opened by this call is closed upon call to
         `Engine.close`. This function does not validate that the
@@ -326,7 +343,11 @@ class FileSystem(PathTranslator):
         used in syscalls, or anywhere else that executing code has
         control over the inputs to the binary.
         """
-        f = open(*args, **kwargs)
+        # Windows throws a permission error when opening a directory.
+        # This makes sure behavior is the same.
+        if os.path.isdir(filename):
+            raise IsADirectoryError()
+        f = open(filename, *args, **kwargs)
         self._hook_manager.register_close_hook(f.close)
         return f
 
