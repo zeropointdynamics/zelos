@@ -282,6 +282,11 @@ class FileSystem(PathTranslator):
         self.logger.debug(
             f'Opening file "{orig_filename}" (real path: "{path}")'
         )
+        # Windows throws permission errors if you try to open a
+        # directory. Manually throw this exception to keep things
+        # uniform.
+        if os.path.isdir(path):
+            raise IsADirectoryError()
         fd = open(path, "rb")
         self.fds.append(fd)
         return fd
@@ -315,7 +320,7 @@ class FileSystem(PathTranslator):
     #     #     return self._processes.current_process.module_path
     #     return None
 
-    def unsafe_open(self, *args, **kwargs):
+    def unsafe_open(self, filename, *args, **kwargs):
         """
         Ensures that the file opened by this call is closed upon call to
         `Engine.close`. This function does not validate that the
@@ -323,7 +328,11 @@ class FileSystem(PathTranslator):
         used in syscalls, or anywhere else that executing code has
         control over the inputs to the binary.
         """
-        f = open(*args, **kwargs)
+        # Windows throws a permission error when opening a directory.
+        # This makes sure behavior is the same.
+        if os.path.isdir(filename):
+            raise IsADirectoryError()
+        f = open(filename, *args, **kwargs)
         self._hook_manager.register_close_hook(f.close)
         return f
 
