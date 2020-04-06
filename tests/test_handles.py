@@ -31,7 +31,6 @@ DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 class HandleTest(unittest.TestCase):
     def test_add_handle(self):
         z = Zelos(None)
-        z.internal_engine.files.setup(DATA_DIR)
         handles = z.internal_engine.handles
         handle_num = handles.new_file("test")
 
@@ -46,7 +45,6 @@ class HandleTest(unittest.TestCase):
 
     def test_overwrite_handle(self):
         z = Zelos(None)
-        z.internal_engine.files.setup(DATA_DIR)
         handles = z.internal_engine.handles
 
         num1 = handles.new_file("test1")
@@ -67,7 +65,6 @@ class HandleTest(unittest.TestCase):
 
     def test_get_by(self):
         z = Zelos(None)
-        z.internal_engine.files.setup(DATA_DIR)
         handles = z.internal_engine.handles
 
         handles.new_pipe("pipe1")
