@@ -203,12 +203,12 @@ class FileSystem(PathTranslator):
 
     def get_file_offset(self, handle):
         handle_data = self.handles.get(handle)
-        return 0 if handle_data is None else handle_data.data["offset"]
+        return 0 if handle_data is None else handle_data.tell()
 
     def set_file_offset(self, handle, new_offset):
         handle_data = self.handles.get(handle)
         if handle_data is not None:
-            handle_data.data["offset"] = new_offset
+            handle_data.seek(new_offset)
 
     def create_file_mapping(self, handle):
         new_handle_num = self.handles.new("file_mapping", "0x%x" % handle)

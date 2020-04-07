@@ -92,6 +92,9 @@ class FileHandle(Handle):
         except IsADirectoryError:
             self.is_dir = True
 
+    def tell(self) -> int:
+        return self._file.tell()
+
     def seek(self, offset: int, whence: int = 0) -> None:
         if self._file is None:
             return
