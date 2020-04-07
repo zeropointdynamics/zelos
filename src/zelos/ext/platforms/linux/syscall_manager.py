@@ -158,7 +158,7 @@ class LinuxSyscallManager(SyscallManager):
 
     def _print_socket_syscall(self, func_name, args):
         s = colored(f"{func_name}", "white", attrs=["bold"]) + f" ( {args} )"
-        self.z.trace.print("SOCKET SYSCALL", s)
+        self.z.plugins.trace.print("SOCKET SYSCALL", s)
 
     ####################
     # HELPER FUNCTIONS #

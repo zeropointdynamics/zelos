@@ -52,8 +52,9 @@ class LinuxMode:
     def handle_exception(self, p, e):
         # TODO(kzsnow): This goes in core?
         try:
-            self.z.trace.bb(
-                self.z.last_instruction, self.z.last_instruction_size
+            self.z.plugins.trace.bb(
+                self.z.plugins.trace.last_instruction,
+                self.z.plugins.trace.last_instruction_size,
             )
         except Exception:
             self.z.logger.exception("Couldn't print basic block")
@@ -79,15 +80,15 @@ class LinuxMode:
             if self._attempt_to_handle_syscall():
                 return  # linear execution after syscall (interrupt style)
 
-        self.z.trace.bb()
+        self.z.plugins.trace.bb()
         p.threads.fail_current_thread(fail_reason=f"Exception {e}")
         self.z.processes.handles.close_all(self.z.current_process.pid)
 
     def _attempt_to_handle_syscall(self):
-        if self.z.verbose:
-            self.z.trace.bb(
-                self.z.last_instruction,
-                self.z.last_instruction_size,
+        if self.z.plugins.trace.verbose:
+            self.z.plugins.trace.bb(
+                self.z.plugins.trace.last_instruction,
+                self.z.plugins.trace.last_instruction_size,
                 full_trace=False,
             )
         syscall_action = self.z.zos.syscall_manager.handle_syscall(

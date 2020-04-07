@@ -144,7 +144,7 @@ class SyscallManager(object):
         Used to print additional debug information within a syscall.
         Will not appear in the strace.
         """
-        if not self.z.trace.should_print_thread():
+        if not self.z.plugins.trace.should_print_thread():
             return
         if len(string) > max_len:
             string = str(string[:max_len]) + "..."
@@ -153,7 +153,7 @@ class SyscallManager(object):
 
     def print_info(self, string):
         """Used to print auxiliary information to the strace file"""
-        if not self.z.trace.should_print_thread():
+        if not self.z.plugins.trace.should_print_thread():
             return
         if self.strace_file is sys.stdout:
             s = (
@@ -174,7 +174,7 @@ class SyscallManager(object):
         """
         self.z.triggers.tr_syscall(thread, syscall_name, args, "Unknown")
 
-        if not self.z.trace.should_print_thread(thread):
+        if not self.z.plugins.trace.should_print_thread(thread):
             return
 
         retstr = "void" if retval is None else f"{retval:x}"

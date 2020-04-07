@@ -14,6 +14,7 @@
 # License along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
+
 import logging
 
 import capstone.arm_const as cs_arm
@@ -22,27 +23,13 @@ import capstone.x86_const as cs_x86
 from termcolor import colored
 from unicorn import UC_ERR_READ_UNMAPPED, UcError
 
-from .manager import IManager
+from zelos import HookType, IPlugin
 
 
-class Comment:
-    def __init__(self, address, thread_id, text):
-        self.address = address
-        self.thread_id = thread_id
-        self.text = text
+class Trace(IPlugin):
+    def __init__(self, z):
+        self.zelos = z
 
-
-class Tracer(IManager):
-    """
-    Tracer prints information to the user to help understand the state
-    of execution.
-    """
-
-    def __init__(self, helpers, z, cs, modules):
-        super().__init__(helpers)
-        self._z = z
-        self._cs = cs
-        self._modules = modules
         self.logger = logging.getLogger(__name__)
 
         self.current_return_address = 0
@@ -54,20 +41,211 @@ class Tracer(IManager):
         # thread, rather than keeping the thread with each comment.
         # This will break compatibility with systems like Doppler.
         self.comments = []
-
         self.MAX_INDENTS = 40
         self.threads_to_print = set()
+        if z.config.tracethread != "":
+            self.threads_to_print.add(z.config.tracethread)
+
+        self.verbosity = z.config.verbosity
+        self.verbose = False
+        self.set_verbose(self.verbosity > 0)
+        self.fasttrace = True if z.config.fasttrace > 0 else False
+        self.trace_on = ""
+        self.trace_off = ""
+
+        self.last_instruction = None
+        self.last_instruction_size = None
+        self.should_print_last_instruction = False
+
+        if self.verbose:
+            self.set_hook_granularity(HookType.EXEC.INST)
 
         if self.state.arch in ["x86", "x86_64"]:
-            self.comment_generator = x86CommentGenerator(self, modules)
+            self.comment_generator = x86CommentGenerator(
+                self.zelos, self.modules
+            )
         elif self.state.arch == "arm":
-            self.comment_generator = ArmCommentGenerator(z, self, modules)
+            self.comment_generator = ArmCommentGenerator(
+                self.zelos, self.modules
+            )
         else:
             self.comment_generator = EmptyCommentGenerator()
 
     @property
+    def cs(self):
+        return self.zelos.internal_engine.cs
+
+    @property
+    def modules(self):
+        return self.zelos.internal_engine.modules
+
+    @property
+    def main_module(self):
+        return self.zelos.internal_engine.main_module
+
+    @property
+    def state(self):
+        return self.zelos.internal_engine.state
+
+    @property
     def functions_called(self):
         return self.comment_generator.functions_called
+
+    def get_region(self, addr):
+        return self.zelos.internal_engine.memory.get_region(addr)
+
+    def set_hook_granularity(self, granularity: HookType.EXEC):
+        """
+        Sets the code hook granularity to be either every instruction
+        or every block.
+        """
+        try:
+            self.zelos.delete_hook(self.code_hook_info)
+        except AttributeError:
+            pass  # first time setting code_hook_info
+
+        self.code_hook_info = self.zelos.hook_execution(
+            granularity, self.hook_code, name="code_hook"
+        )
+
+    def _check_timeout(self):
+        """
+        Check if specified timeout has elapsed and stop execution.
+        """
+        if self.zelos.internal_engine.timer.is_timed_out():
+            self.zelos.stop("timeout")
+
+    def hook_code(self, zelos, address, size):
+        """
+        Hook that is executed for each instruction or block.
+        """
+        try:
+            self._hook_code_impl(zelos, address, size)
+            self._check_timeout()
+        except Exception:
+            if self.zelos.thread is not None:
+                self.zelos.process.threads.kill_thread(self.zelos.thread.id)
+            self.logger.exception("Stopping execution due to exception")
+
+    def _hook_code_impl(self, zelos, address, size):
+        # TCG Dump example usage:
+        # self.emu.get_tcg(0, 0)
+        if self.zelos.thread is None:
+            self.zelos.stop("hook_code_null_thread")
+            return
+
+        self.zelos.thread.total_blocks_executed += 1
+        rev_modules = self.modules.reverse_module_functions
+        if (
+            self.zelos.thread.total_blocks_executed % 1000 == 0
+            and address not in rev_modules
+        ):
+            self.zelos.swap_thread("process swap")
+            return
+
+        if self.verbose:
+            if self.should_print_last_instruction:
+                self.bb(
+                    self.last_instruction,
+                    self.last_instruction_size,
+                    full_trace=False,
+                )
+            self.should_print_last_instruction = True
+            if (
+                self.fasttrace
+                and self.zelos.process.threads.block_seen_before(address)
+            ):
+                self.should_print_last_instruction = False
+
+        self.zelos.process.threads.record_block(address)
+
+        self.last_instruction = address
+        self.last_instruction_size = size
+
+    def traceoff(self, addr=None):
+        """
+        Disable verbose tracing. Optionally specify an address at which
+        verbose tracing is disabled.
+        """
+        if addr is None:
+            self.set_verbose(False)
+        else:
+
+            def hook_traceoff(zelos, address, size):
+                self.set_verbose(False)
+
+            self.zelos.hook_execution(
+                HookType.EXEC.INST,
+                hook_traceoff,
+                name="traceoff_hook",
+                ip_low=addr,
+                ip_high=addr,
+                end_condition=lambda: True,
+            )
+
+    def traceoff_syscall(self, syscall_name):
+        """
+        Disable verbose tracing after a specific system call has executed.
+        """
+
+        def hook_traceoff(zelos, sysname, args, retval):
+            if sysname == syscall_name:
+                zelos.plugins.trace.traceoff()
+
+        self.zelos.hook_syscalls(HookType.SYSCALL.AFTER, hook_traceoff)
+
+    def traceon(self, addr=None):
+        """
+        Enable verbose tracing. Optionally specify an address at which
+        verbose tracing is enabled.
+        """
+        if addr is None:
+            self.set_verbose(True)
+        else:
+
+            def hook_traceon(zelos, address, size):
+                self.set_verbose(True)
+
+            self.zelos.hook_execution(
+                HookType.EXEC.INST,
+                hook_traceon,
+                name="traceon_hook",
+                ip_low=addr,
+                ip_high=addr,
+                end_condition=lambda: True,
+            )
+
+    def traceon_syscall(self, syscall_name):
+        """
+        Enable verbose tracing after a specific system call has executed.
+        """
+
+        def hook_traceon(zelos, sysname, args, retval):
+            if sysname == syscall_name:
+                self.traceon()
+
+        self.zelos.hook_syscalls(HookType.SYSCALL.AFTER, hook_traceon)
+
+    def set_verbose(self, should_set_verbose) -> None:
+        """
+        Used to set the verbosity level, and change the hooks.
+        This prevents two types of issues:
+
+        1) Running block hooks when printing individual instructions
+               This will cause the annotations that are printed to be
+               the values at the end of the block's execution
+        2) Running instruction hooks when not printing instructions
+               This will slow down the emulation (sometimes
+               considerably)
+        """
+        if self.verbose == should_set_verbose:
+            return
+        self.verbose = should_set_verbose
+
+        if should_set_verbose:
+            self.set_hook_granularity(HookType.EXEC.INST)
+        else:
+            self.set_hook_granularity(HookType.EXEC.BLOCK)
 
     def bb(self, address=None, size=20, full_trace=False):
         if not self.should_print_thread():
@@ -76,10 +254,10 @@ class Tracer(IManager):
         'size' bytes away. If no address is given, prints starting at
         the current address"""
         if address is None:
-            address = self.emu.getIP()
+            address = self.zelos.regs.getIP()
         try:
-            code = self.emu.mem_read(address, size)
-            insns = [insn for insn in self._cs.disasm(code, address)]
+            code = self.zelos.memory.read(address, size)
+            insns = [insn for insn in self.cs.disasm(code, address)]
             if len(insns) == 0:
                 return
             # For full trace, we'll just print the first instruction,
@@ -99,19 +277,21 @@ class Tracer(IManager):
     def regs(self):
         """ Prints registers at the current address"""
         s = ""
-        reg_list = self.emu.imp_regs
+        reg_list = self.zelos.internal_engine.emu.imp_regs
         for reg in reg_list:
-            s += " ".join([f"{reg}={self.emu.get_reg(reg):x}"])
+            s += " ".join(
+                [f"{reg}={self.zelos.internal_engine.emu.get_reg(reg):x}"]
+            )
             s += "\n"
         print(s)
 
     # There are issues when this is used with autohooks. Need to see how
     # we can include this in the future. without endless indents
     def indent(self):
-        self.get_current_thread()._callstack_indent_count += 1
+        self.zelos.thread._callstack_indent_count += 1
 
     def unindent(self):
-        self.get_current_thread()._callstack_indent_count -= 1
+        self.zelos.thread._callstack_indent_count -= 1
 
     def set_current_return_address(self, addr):
         self.current_return_address = addr
@@ -124,13 +304,19 @@ class Tracer(IManager):
 
     def print(self, category, s, thread=None, addr_str=None):
         if thread is None:
-            thread = self.get_current_thread().name
+            thread = self.zelos.thread.name
         if addr_str is None:
-            addr_str = f"{self.emu.getIP():08x}"
+            addr_str = f"{self.zelos.regs.getIP():08x}"
         thread_str = colored(f"[{thread}]", "magenta")
         category_str = colored(f"[{category}]", "red")
         addr_str_str = colored(f"[{addr_str}]", "white", attrs=["bold"])
         print(f"{thread_str} {category_str} {addr_str_str} {s}")
+
+    def log_api(self, args, isNative=False):
+        self.api(args, isNative)
+
+    def log_api_dbg(self, args):
+        self.api_dbg(args)
 
     # Prints the thread, return address and api string
     def api(self, args, isNative=False):
@@ -138,12 +324,10 @@ class Tracer(IManager):
         if not self.should_print_thread():
             return
         return_address = self.current_return_address
-        indent_count = self.get_current_thread()._callstack_indent_count
+        indent_count = self.zelos.thread._callstack_indent_count
         try:
             caller_module = (
-                self.memory.get_region(return_address).module_name.split(".")[
-                    0
-                ]
+                self.get_region(return_address).module_name.split(".")[0]
                 + "_____"
             )[:8]
         except Exception:
@@ -166,10 +350,9 @@ class Tracer(IManager):
         if not self.should_print_thread():
             return
         return_address = self.current_return_address
-        indent_count = self.get_current_thread()._callstack_indent_count
+        indent_count = self.zelos.thread._callstack_indent_count
         caller_module = (
-            self.memory.get_region(return_address).module_name.split(".")[0]
-            + "_____"
+            self.get_region(return_address).module_name.split(".")[0] + "_____"
         )[:8]
         if indent_count == -1:
             indent_count = 0
@@ -184,12 +367,12 @@ class Tracer(IManager):
         if not self.should_print_thread():
             return
         sep = ""
-        if insn.address == self.emu.getIP():
+        if insn.address == self.zelos.regs.getIP():
             sep = "*"
         address = insn.address
         ins_string = self._get_insn_string(insn)
-        if address in self._z.main_module.exported_functions:
-            function_name = self._z.main_module.exported_functions[address]
+        if address in self.main_module.exported_functions:
+            function_name = self.main_module.exported_functions[address]
             s = colored(f"<{function_name}>", "white", attrs=["bold"])
             self.print("INS", s, addr_str=f"{sep}{address:08x}")
         self.print("INS", ins_string, addr_str=f"{sep}{address:08x}")
@@ -202,7 +385,7 @@ class Tracer(IManager):
         # If the thread is known to be benign, let's ignore it. We can
         # add a config to print these if we need it.
         if t is None:
-            t = self.get_current_thread()
+            t = self.zelos.thread
             if t is None:
                 return False
 
@@ -241,12 +424,19 @@ class Tracer(IManager):
             )
             # Log comment for the dump
             self.comments.append(
-                Comment(insn.address, self.get_current_thread().id, cmt)
+                Comment(insn.address, self.zelos.thread.id, cmt)
             )
         else:
             result += insn_str
 
         return result
+
+
+class Comment:
+    def __init__(self, address, thread_id, text):
+        self.address = address
+        self.thread_id = thread_id
+        self.text = text
 
 
 class EmptyCommentGenerator:
@@ -255,10 +445,9 @@ class EmptyCommentGenerator:
 
 
 class ArmCommentGenerator:
-    def __init__(self, z, tracer, modules):
+    def __init__(self, zelos, modules):
         self.functions_called = {}
-        self._z = z
-        self.tracer = tracer
+        self.zelos = zelos
         self._modules = modules
 
     def get_comment(self, insn):
@@ -300,13 +489,12 @@ class ArmCommentGenerator:
         """
         Returns the syscall name
         """
+        sm = self.zelos.internal_engine.zos.syscall_manager
         if insn.insn_name() == "svc" and insn.operands[0].imm != 0:
             syscall_num = insn.operands[0].imm - 0x900000
         else:
-            syscall_num = self._z.zos.syscall_manager.get_syscall_number()
-        syscall_name = self._z.zos.syscall_manager.find_syscall_name_by_number(
-            syscall_num
-        )
+            syscall_num = sm.get_syscall_number()
+        syscall_name = sm.find_syscall_name_by_number(syscall_num)
         return f"{syscall_name}"
 
     def _dst_comment(self, insn):
@@ -343,8 +531,12 @@ class ArmCommentGenerator:
         Returns a comment on branch to label.
         """
         src_val = self._get_reg_or_mem_val(insn, insn.operands[0])
-        if src_val in self._z.main_module.exported_functions:
-            func_name = self._z.main_module.exported_functions[src_val]
+        if (
+            src_val
+            in self.zelos.internal_engine.main_module.exported_functions
+        ):
+            main_module = self.zelos.internal_engine.main_module
+            func_name = main_module.exported_functions[src_val]
             return f"<{func_name:s}> (0x{src_val:x})"
         return f"<0x{src_val:x}>"
 
@@ -354,32 +546,38 @@ class ArmCommentGenerator:
         the memory value at the location specified
         """
         if x.type == cs_arm.ARM_OP_REG:
-            return self.tracer.emu.get_reg(insn.reg_name(x.value.reg))
+            return self.zelos.internal_engine.emu.get_reg(
+                insn.reg_name(x.value.reg)
+            )
         elif x.type == cs_arm.ARM_OP_IMM:
             return x.imm
         else:
             base_val = (
                 0
                 if x.mem.base == 0
-                else self.tracer.emu.get_reg(insn.reg_name(x.mem.base))
+                else self.zelos.internal_engine.emu.get_reg(
+                    insn.reg_name(x.mem.base)
+                )
             )
             shift_val = (
                 0
                 if x.mem.index == 0
-                else self.tracer.emu.get_reg(insn.reg_name(x.mem.index))
+                else self.zelos.internal_engine.emu.get_reg(
+                    insn.reg_name(x.mem.index)
+                )
                 * x.mem.scale
             )
             if is_dst:
                 return base_val + shift_val + x.value.mem.disp
             else:
-                return self.tracer.memory.read_int(
+                return self.zelos.memory.read_int(
                     base_val + shift_val + x.value.mem.disp
                 )
 
 
 class x86CommentGenerator:
-    def __init__(self, tracer, modules):
-        self.tracer = tracer
+    def __init__(self, zelos, modules):
+        self.zelos = zelos
         self._modules = modules
         self.functions_called = {}
 
@@ -387,7 +585,7 @@ class x86CommentGenerator:
         """Returns a string representing the data pointed to by 'ptr' if 'ptr'
         is a valid pointer. Otherwise, reutrns an empty string."""
         try:
-            pointer_data = self.tracer.memory.read_int(ptr)
+            pointer_data = self.zelos.memory.read_int(ptr)
         except UcError as e:
             if e.errno == UC_ERR_READ_UNMAPPED:
                 return ""
@@ -395,7 +593,7 @@ class x86CommentGenerator:
 
         s = ""
         try:
-            s = self.tracer.memory.read_string(ptr, 8)
+            s = self.zelos.memory.read_string(ptr, 8)
         except UcError as e:
             if e.errno != UC_ERR_READ_UNMAPPED:
                 raise e
@@ -425,7 +623,7 @@ class x86CommentGenerator:
         # Only used when looking at the current instruction.
         # op = operands[0]
         # target = op.value.imm
-        target = self.tracer.emu.getIP()
+        target = self.zelos.regs.getIP()
         self.functions_called[target] = True
         cmt = insn.mnemonic + "(0x{0:x}) ".format(target)
         if target in self._modules.reverse_module_functions:
@@ -481,24 +679,30 @@ class x86CommentGenerator:
         memory value at the location specified
         """
         if x.type == cs_x86.X86_OP_REG:
-            return self.tracer.emu.get_reg(insn.reg_name(x.value.reg))
+            return self.zelos.internal_engine.emu.get_reg(
+                insn.reg_name(x.value.reg)
+            )
         elif x.type == cs_x86.X86_OP_IMM:
             return x.imm
         else:
             base_val = (
                 0
                 if x.mem.base == 0
-                else self.tracer.emu.get_reg(insn.reg_name(x.mem.base))
+                else self.zelos.internal_engine.emu.get_reg(
+                    insn.reg_name(x.mem.base)
+                )
             )
             shift_val = (
                 0
                 if x.mem.index == 0
-                else self.tracer.emu.get_reg(insn.reg_name(x.mem.index))
+                else self.zelos.internal_engine.emu.get_reg(
+                    insn.reg_name(x.mem.index)
+                )
                 * x.mem.scale
             )
             if is_dst:
                 return base_val + shift_val + x.value.mem.disp
             else:
-                return self.tracer.memory.read_int(
+                return self.zelos.memory.read_int(
                     base_val + shift_val + x.value.mem.disp, sz=x.size
                 )

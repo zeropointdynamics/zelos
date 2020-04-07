@@ -52,7 +52,6 @@ from zelos.network import Network
 from zelos.plugin import OSPlugins
 from zelos.processes import Processes
 from zelos.state import State
-from zelos.tracer import Tracer
 from zelos.triggers import Triggers
 
 
@@ -106,13 +105,7 @@ class Engine:
         self.main_module = None
 
         self.date = "2019-02-02"
-        self.traceon = ""
-        self.traceoff = ""
 
-        # Handling of the logging
-        self.verbose = False
-        self.verbosity = 0
-        self.fasttrace_on = False
         self.timer = util.Timer()
 
         self.hook_manager = HookManager(self, self.api)
@@ -143,15 +136,9 @@ class Engine:
         self.original_file_name = original_filename
         self.date = config.date
 
-        if config.fasttrace > 0:
-            self.fasttrace_on = True
         if config.dns > 0:
             self.flags_dns = True
 
-        self.set_trace_on(config.traceon)
-        self.traceoff = config.traceoff
-        if config.tracethread != "":
-            self.trace.threads_to_print.add(config.tracethread)
         if config.writetrace != "":
             target_addr = int(config.writetrace, 16)
             self.set_writetrace(target_addr)
@@ -172,9 +159,6 @@ class Engine:
                 continue
         if config.strace is not None:
             self.zos.syscall_manager.set_strace_file(config.strace)
-
-        self.verbosity = config.verbosity
-        self.set_verbose(config.verbosity > 0)
 
     def __del__(self):
         try:
@@ -226,12 +210,6 @@ class Engine:
             )
         except ModuleNotFoundError:
             self.logger.setLevel(log_level)
-
-    def log_api(self, args, isNative=False):
-        self.trace.api(args, isNative)
-
-    def log_api_dbg(self, args):
-        self.trace.api_dbg(args)
 
     def hexdump(self, address: int, size: int) -> None:
         import hexdump
@@ -376,11 +354,6 @@ class Engine:
         # files can access it.
         self.files.create_file(self.files.zelos_file_prefix + module_path)
 
-        # If you remove one of the hooks on _hook_code, be careful that
-        # you don't break the ability to stop a running emulation
-        if self.verbose:
-            self.set_hook_granularity(HookType.EXEC.INST)
-
     def _initialize_zelos(self, binary=None):
         self.state = State(self, binary, self.date)
 
@@ -407,12 +380,6 @@ class Engine:
         self.logger.debug(
             f"Initialized {arch} {self.state.bits} emulator/disassembler"
         )
-
-        self.last_instruction = None
-        self.last_instruction_size = None
-        # Instruction hook runs before the instruction, so wait for the
-        # hook to run once before printing instructions.
-        self.should_print_last_instruction = False
 
         self.triggers = Triggers(self)
         self.processes.set_architecture(self.state)
@@ -448,7 +415,6 @@ class Engine:
                 )
             else:
                 self.files.add_file(self.config.filename)
-        self.trace = Tracer(self.helpers, self, self.cs, self.modules)
 
         # TODO: SharedSection needs to be removed
         self.processes.handles.new("section", "\\Windows\\SharedSection")
@@ -497,7 +463,6 @@ class Engine:
         # Of course, we can simplify when we get a post instruction
         # hook working properly.
 
-        self.should_print_last_instruction = False
         inst_count = 0
 
         def step_n(zelos, addr, size):
@@ -566,9 +531,10 @@ class Engine:
             if self.current_thread is None:
                 self.processes.swap_with_next_thread()
 
-            self.should_print_last_instruction = False
-            self.last_instruction = self.emu.getIP()
-            self.last_instruction_size = 1
+            self.plugins.trace.should_print_last_instruction = False
+            self.plugins.trace.last_instruction = self.emu.getIP()
+            self.plugins.trace.last_instruction_size = 1
+
             try:
                 if self.processes.num_active_processes() == 0:
                     self.processes.logger.info(
@@ -664,109 +630,9 @@ class Engine:
                 % (address, service)
             )
 
-    def set_trace_on(self, val):
-        try:
-            i = int(val, 0)
-
-            def f(zelos, address, size):
-                self.verbosity = 2  # Allow logging inside modules
-                self.set_verbose(True)
-
-            self.hook_manager.register_exec_hook(
-                HookType.EXEC.INST, f, name="traceon", ip_low=i, ip_high=i
-            )
-        except ValueError:
-            pass
-        self.traceon = val
-
     def _check_timeout(self):
         if self.timer.is_timed_out():
             self.scheduler.stop("timeout")
-
-    # Hook invoked for each instruction or block.
-    def _hook_code(self, zelos, address, size):
-        try:
-            self._hook_code_impl(zelos, address, size)
-            self._check_timeout()
-        except Exception:
-            if self.current_thread is not None:
-                self.current_process.threads.kill_thread(
-                    self.current_thread.id
-                )
-            self.logger.exception("Stopping execution due to exception")
-
-    def _hook_code_impl(self, zelos, address, size):
-        current_process = self.current_process
-        current_thread = self.current_thread
-        # TCG Dump example usage:
-        # self.emu.get_tcg(0, 0)
-        if current_thread is None:
-            self.scheduler.stop("hook_code_null_thread")
-            return
-
-        # Log the total number of blocks executed per thread. Swap
-        # threads if the specified number of blocks is exceeded and
-        # other threads exist
-        current_thread.total_blocks_executed += 1
-        if (
-            current_thread.total_blocks_executed % 1000 == 0
-            and address not in self.modules.reverse_module_functions
-        ):
-            self.current_process.scheduler.stop_and_exec(
-                "process swap", self.processes.schedule_next
-            )
-            return
-
-        if self.verbose:
-            if self.should_print_last_instruction:  # Print block
-                # Turn on full trace to do trace comparison
-                self.trace.bb(
-                    self.last_instruction,
-                    self.last_instruction_size,
-                    full_trace=False,
-                )
-            self.should_print_last_instruction = True
-            if (
-                self.fasttrace_on
-                and current_process.threads.block_seen_before(address)
-            ):
-                self.should_print_last_instruction = False
-
-        current_process.threads.record_block(address)
-
-        self.last_instruction = address
-        self.last_instruction_size = size
-
-    def set_verbose(self, should_set_verbose: bool) -> None:
-        """
-        Used to set the verbosity level, and change the hooks.
-        This prevents two types of issues:
-
-        1) Running block hooks when printing individual instructions
-               This will cause the annotations that are printed to be
-               the values at the end of the block's execution
-        2) Running instruction hooks when not printing instructions
-               This will slow down the emulation (sometimes
-               considerably)
-        """
-        if self.verbose == should_set_verbose:
-            return
-        self.verbose = should_set_verbose
-
-        if should_set_verbose:
-            self.set_hook_granularity(HookType.EXEC.INST)
-        else:
-            self.set_hook_granularity(HookType.EXEC.BLOCK)
-
-    def set_hook_granularity(self, granularity: HookType.EXEC):
-        try:
-            self.hook_manager.delete_hook(self._code_hook_info)
-        except AttributeError:
-            pass  # first time setting _code_hook_info
-
-        self._code_hook_info = self.hook_manager.register_exec_hook(
-            granularity, self._hook_code, name="code_hook"
-        )
 
     # Estimates the number of function arguments with the assumption
     # that the callee is responsible for cleaning up the stack.
