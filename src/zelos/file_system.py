@@ -38,13 +38,11 @@ class PathTranslator:
         # Ntpath includes posixpaths, so be sure to test
         # posix first :P
         if posixpath.isabs(file_prefix):
-            self._is_absolute_path = posixpath.isabs
-            self.emulated_join = posixpath.join
             self.working_directory = "/"
+            self.emulated_path_module = posixpath
         elif ntpath.isabs(file_prefix):
-            self._is_absolute_path = ntpath.isabs
-            self.emulated_join = ntpath.join
             self.working_directory, _ = ntpath.splitdrive(file_prefix)
+            self.emulated_path_module = ntpath
         else:
             raise ZelosException(
                 (
@@ -58,7 +56,7 @@ class PathTranslator:
         self.mounted_folders = defaultdict(list)
 
     def is_absolute_path(self, emulated_path):
-        return self._is_absolute_path(emulated_path)
+        return self.emulated_path_module.isabs(emulated_path)
 
     def change_working_directory(self, emulated_path):
         emulated_path = self._normalize_emulated_path(emulated_path)
@@ -72,8 +70,14 @@ class PathTranslator:
             )
             return False
         if emulated_path is None:
-            emulated_path = self.emulated_join(
+            emulated_path = self.emulated_path_module.join(
                 self.working_directory, os.path.basename(real_path)
+            )
+        # If the emulated_path ends in a slash, keep the name of the
+        # original binary, but place within the emulated_path
+        if self.emulated_path_module.basename(emulated_path) == "":
+            emulated_path = self.emulated_path_module.join(
+                emulated_path, os.path.basename(real_path)
             )
         emulated_path = self._normalize_emulated_path(emulated_path)
         self.added_files[emulated_path] = real_path
@@ -100,7 +104,7 @@ class PathTranslator:
         if emulated_path.startswith("./"):
             emulated_path = emulated_path[2:]
         if not self.is_absolute_path(emulated_path):
-            emulated_path = self.emulated_join(
+            emulated_path = self.emulated_path_module.join(
                 self.working_directory, emulated_path
             )
         return emulated_path
@@ -128,16 +132,21 @@ class PathTranslator:
                 self.logger.debug(
                     f"Checking {emu_mount}->{real_mount} for {emulated_path} "
                 )
-                if emulated_path.startswith(emu_mount):
-                    real_path = os.path.join(
-                        real_mount, emulated_path[len(emu_mount) :]
+                if not emulated_path.startswith(emu_mount):
+                    continue
+
+                path_within_mounted_folder = self.emulated_path_module.relpath(
+                    emulated_path, emu_mount
+                )
+                real_path = os.path.join(
+                    real_mount, path_within_mounted_folder
+                )
+                real_path = os.path.normpath(real_path)
+                if os.path.lexists(real_path):
+                    self.logger.debug(
+                        f"From mounted folder: {emulated_path} -> {real_path}"
                     )
-                    if os.path.lexists(real_path):
-                        self.logger.debug(
-                            f"From mounted folder: "
-                            f"{emulated_path} -> {real_path}"
-                        )
-                        return real_path
+                    return real_path
 
         self.logger.debug(f"No real path for '{emulated_path}'")
         return None
@@ -194,12 +203,12 @@ class FileSystem(PathTranslator):
 
     def get_file_offset(self, handle):
         handle_data = self.handles.get(handle)
-        return 0 if handle_data is None else handle_data.data["offset"]
+        return 0 if handle_data is None else handle_data.tell()
 
     def set_file_offset(self, handle, new_offset):
         handle_data = self.handles.get(handle)
         if handle_data is not None:
-            handle_data.data["offset"] = new_offset
+            handle_data.seek(new_offset)
 
     def create_file_mapping(self, handle):
         new_handle_num = self.handles.new("file_mapping", "0x%x" % handle)
@@ -211,36 +220,29 @@ class FileSystem(PathTranslator):
         handle_data = self.handles.get(handle)
         return 0 if handle_data is None else handle_data.data["file"]
 
-    def open_sandbox_file(self, orig_filename: str):
+    def open_sandbox_file(
+        self, orig_filename: str, create_if_not_exists: bool = False
+    ):
         if orig_filename == "":
             return None
         # TODO: There should be a generalized way to map between the
         # windows vision of the files and the internal zelos vision.
         if orig_filename.startswith(self.zelos_file_prefix):
-            orig_filename = orig_filename[len(self.zelos_file_prefix) :]
+            orig_filename = self.emulated_path_module.relpath(
+                orig_filename, self.zelos_file_prefix
+            )
+            orig_filename = self.emulated_path_module.normpath(orig_filename)
 
         orig_filename = str(orig_filename).lower()
         filename = self.sandboxed_files.get(orig_filename, "")
         if len(filename) == 0:
-            filename = (
-                orig_filename.replace("\\", "_")
-                .replace("/", "_")
-                .replace(":", "_")
-            )
-            while filename != filename.replace("..", "."):
-                filename = filename.replace("..", ".")
-            filename = os.path.join(self.sandbox_path, filename)
+            if not create_if_not_exists:
+                return None
+            filename = self._make_sandbox_filename(orig_filename)
+            if filename is None:
+                return None
+
             self.sandboxed_files[orig_filename] = filename
-            print(os.path.dirname(os.path.abspath(filename)))
-            print(os.path.abspath(self.sandbox_path))
-            if os.path.dirname(os.path.abspath(filename)) != os.path.abspath(
-                self.sandbox_path
-            ):
-                self.logger.error(
-                    "[Sandbox] Filename attempts to escape sandbox, "
-                    "ignoring this file write..."
-                )
-                return
             self.logger.debug(f"[Sandbox] Created file {filename}")
         if not os.path.exists(self.sandbox_path):
             os.makedirs(self.sandbox_path)
@@ -248,9 +250,31 @@ class FileSystem(PathTranslator):
             return self.unsafe_open(filename, "r+b")
         return self.unsafe_open(filename, "w+b")
 
+    def _make_sandbox_filename(self, orig_filename: str) -> str:
+        filename = (
+            orig_filename.replace("\\", "_")
+            .replace("/", "_")
+            .replace(":", "_")
+        )
+        while filename != filename.replace("..", "."):
+            filename = filename.replace("..", ".")
+        filename = os.path.join(self.sandbox_path, filename)
+
+        if os.path.dirname(os.path.abspath(filename)) != os.path.abspath(
+            self.sandbox_path
+        ):
+            self.logger.info(os.path.dirname(os.path.abspath(filename)))
+            self.logger.info(os.path.abspath(self.sandbox_path))
+            self.logger.error(
+                "[Sandbox] Filename attempts to escape sandbox, "
+                "ignoring this file write..."
+            )
+            return None
+        return filename
+
     def write_to_sandbox(self, orig_filename, data, offset=0):
         self.z.triggers.tr_file_write(orig_filename, data)
-        f = self.open_sandbox_file(orig_filename)
+        f = self.open_sandbox_file(orig_filename, create_if_not_exists=True)
         if f is None:
             return
         f.seek(offset)
@@ -270,6 +294,11 @@ class FileSystem(PathTranslator):
         self.logger.debug(
             f'Opening file "{orig_filename}" (real path: "{path}")'
         )
+        # Windows throws permission errors if you try to open a
+        # directory. Manually throw this exception to keep things
+        # uniform.
+        if os.path.isdir(path):
+            raise IsADirectoryError()
         fd = open(path, "rb")
         self.fds.append(fd)
         return fd
@@ -283,7 +312,10 @@ class FileSystem(PathTranslator):
             return None
 
         if orig_filename.startswith(self.zelos_file_prefix):
-            orig_filename = orig_filename[len(self.zelos_file_prefix) :]
+            orig_filename = self.emulated_path_module.relpath(
+                orig_filename, self.zelos_file_prefix
+            )
+            orig_filename = self.emulated_path_module.normpath(orig_filename)
 
         # Handle the /proc virtual subsystem # linux specific
         # if orig_filename.startswith("/proc"):
@@ -303,7 +335,7 @@ class FileSystem(PathTranslator):
     #     #     return self._processes.current_process.module_path
     #     return None
 
-    def unsafe_open(self, *args, **kwargs):
+    def unsafe_open(self, filename, *args, **kwargs):
         """
         Ensures that the file opened by this call is closed upon call to
         `Engine.close`. This function does not validate that the
@@ -311,7 +343,11 @@ class FileSystem(PathTranslator):
         used in syscalls, or anywhere else that executing code has
         control over the inputs to the binary.
         """
-        f = open(*args, **kwargs)
+        # Windows throws a permission error when opening a directory.
+        # This makes sure behavior is the same.
+        if os.path.isdir(filename):
+            raise IsADirectoryError()
+        f = open(filename, *args, **kwargs)
         self._hook_manager.register_close_hook(f.close)
         return f
 

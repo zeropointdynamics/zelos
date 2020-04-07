@@ -14,7 +14,6 @@
 # License along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
-import os
 import tempfile
 import unittest
 
@@ -55,17 +54,22 @@ class TestPathTranslator(unittest.TestCase):
         file = tempfile.NamedTemporaryFile()
         folder = tempfile.TemporaryDirectory()
         f1 = open(
-            path_translator.emulated_join(folder.name, path_leaf(file.name)),
+            path_translator.emulated_path_module.join(
+                folder.name, path_leaf(file.name)
+            ),
             "wb",
         )
         f2 = open(
-            path_translator.emulated_join(folder.name, "testfile2"), "wb"
+            path_translator.emulated_path_module.join(
+                folder.name, "testfile2"
+            ),
+            "wb",
         )
         path_translator.add_file(file.name, "/testfolder/testfile2")
         path_translator.mount_folder(folder.name, "/testfolder")
 
         file_name = path_translator.emulated_path_to_host_path("/testfolder")
-        self.assertEqual(file_name, folder.name + os.path.sep)
+        self.assertEqual(file_name, folder.name)
 
         file_name = path_translator.emulated_path_to_host_path(
             "/testfolder/testfile2"
@@ -119,14 +123,12 @@ class TestPathTranslator(unittest.TestCase):
 class FileSystemTest(unittest.TestCase):
     def test_get_file(self):
         z = Zelos(None)
-        z.internal_engine.files.setup(DATA_DIR)
         file_system = z.internal_engine.files
         handle = file_system.create_file("test_file1")
         self.assertEqual(file_system.get_filename(handle), "test_file1")
 
     def test_offsets(self):
         z = Zelos(None, log="debug")
-        z.internal_engine.files.setup(DATA_DIR)
         file_system = z.internal_engine.files
         handle_num = file_system.create_file("test_file1")
         h = z.internal_engine.handles.get(handle_num)
