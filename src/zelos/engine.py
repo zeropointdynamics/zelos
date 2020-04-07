@@ -128,6 +128,8 @@ class Engine:
             self.load_executable(binary, entrypoint_override=config.startat)
         else:
             self._initialize_zelos()  # For testing purposes.
+            # If no binary is passed, default to UNIX-style paths.
+            self.files.setup("/")
 
         head, tail = ntpath.split(config.filename)
         original_filename = tail or ntpath.basename(head)
@@ -145,12 +147,11 @@ class Engine:
         for m in config.mount:
             try:
                 arch, dest, src = m.split(",")
-                # TODO: Use arch, dest to determine where to mount
-                # For now, always mounts src at default location
+                # TODO: Use arch to determine when to mount
                 if os.path.isdir(src):
-                    self.files.mount_folder(src)
+                    self.files.mount_folder(src, emulated_path=dest)
                 else:
-                    self.files.add_file(src)
+                    self.files.add_file(src, emulated_path=dest)
             except ValueError:
                 self.logger.error(
                     f"Incorrectly formatted input to '--mount': {m}"

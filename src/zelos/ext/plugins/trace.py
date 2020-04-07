@@ -484,6 +484,7 @@ class Trace(IPlugin):
 
                     einfo = exc_info()
                     print(f"Exception in comment-hook callback: {einfo}")
+
         else:
             result += insn_str
 

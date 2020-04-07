@@ -15,6 +15,8 @@
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
 
+from zelos.enums import ProtType
+
 from ..signals import Signal, sigmask_string
 from .syscall_utils import twos_comp
 from .syscalls_const import (
@@ -101,6 +103,8 @@ def get_arg_string(z, arg):
             handle.category() if handle is not None else "unknown"
         )
         arg_string = f"{name}=0x{val:x} ({handle_category})"
+    elif type_str in ["int"] and name in ["prot"]:
+        arg_string = f"{name}={ProtType(val)._name_}"
     elif type_str in ["fd_set*"]:
         if val == 0:
             arg_string = f"{name}=0x{val:x} ()"
