@@ -21,6 +21,12 @@ from collections import defaultdict
 from enum import Enum
 
 from zelos.hooks import HookType
+from zelos.plugin import CommandLineOption
+
+
+CommandLineOption(
+    "disable_highlights", action="store_true", help="Disable highlights mode"
+)
 
 
 class RuleType(Enum):
@@ -116,14 +122,16 @@ class Triggers:
         if curr_time - self.update_time >= 1:
             self.update_time = curr_time
             unique_blocks = self.z.current_process.blocks_executed()
-            self._custom_print(
+            self._highlight(
                 f"Blocks: {blocks}, Unique_blocks: {unique_blocks}, "
                 f"Syscalls {self.num_syscalls_called}, Time Slept (s): "
                 f"{round(self.total_time_slept_in_ms/1000)}"
             )
 
-    def _custom_print(self, msg):
+    def _highlight(self, msg):
         # Used just for the hackathon
+        if self.z.config.disable_highlights:
+            return
         self.update_time = time.time()
         if self.z.current_thread is not None:
             name = self.z.current_thread.name
@@ -208,14 +216,12 @@ class Triggers:
             len(self.unique_domains) < max_printed_domains
             and domain_name not in self.unique_domains
         ):
-            self._custom_print(f'DNS QUERY: "{domain_name}"')
+            self._highlight(f'DNS QUERY: "{domain_name}"')
         if len(self.unique_domains) == max_printed_domains:
-            self._custom_print(
-                f"DNS QUERY: Suppressing additional query output"
-            )
+            self._highlight(f"DNS QUERY: Suppressing additional query output")
         self.unique_domains.add(domain_name)
         if len(self.unique_domains) % 100 == 0:
-            self._custom_print(
+            self._highlight(
                 f"DNS QUERY: Contacted {len(self.unique_domains)}"
                 "unique domains"
             )
@@ -247,14 +253,14 @@ class Triggers:
             grouping="Process Manipulation",
             tags=["evasive"],
         )
-        self._custom_print(f"Process Created: {name_of_remote_process}")
+        self._highlight(f"Process Created: {name_of_remote_process}")
 
     def tr_create_thread(self, thread_address, thread_name):
         msg = f'Thread "{thread_name}" address is 0x{thread_address:x}'
         self.trigger(
             "Creates new thread", msg, grouping="Process Manipulation", tags=[]
         )
-        self._custom_print(f"Thread Created: {msg}")
+        self._highlight(f"Thread Created: {msg}")
 
     def tr_gets_processes(self, details):
         self.trigger(
@@ -284,7 +290,7 @@ class Triggers:
             )
         msg = f"Process Name: {process_name} Address: 0x{base_address:x} "
         "Bytes Written: 0x{data_len:x}"
-        self._custom_print(self.process_write_message + msg)
+        self._highlight(self.process_write_message + msg)
 
     def tr_registry_key_open(self, key_name, sub_key_name, perm):
         self.trigger(
@@ -318,7 +324,7 @@ class Triggers:
             msg,
             grouping="Registry Key Manipulation",
         )
-        self._custom_print(self.registry_key_write_message + msg)
+        self._highlight(self.registry_key_write_message + msg)
 
     def tr_registry_key_value_read(self, key_name, value_name):
         self.trigger(
@@ -348,7 +354,7 @@ class Triggers:
     def tr_file_write(self, file_name, data):
         msg = f"File name: {file_name}, Wrote {len(data)} bytes"
         self.trigger("File written", msg, grouping="File System")
-        self._custom_print(f"File written: {msg}")
+        self._highlight(f"File written: {msg}")
 
     # Misc
     def tr_reached_entrypoint(self, address):
@@ -356,19 +362,19 @@ class Triggers:
             return
         self.reached_entrypoint = True
         self.trigger("Reached EntryPoint", f"0x{address:x}")
-        self._custom_print(f"Reached EntryPoint: 0x{address:x}")
+        self._highlight(f"Reached EntryPoint: 0x{address:x}")
 
     def tr_load_library(self, module_name):
         self.trigger("Runtime DLLs", module_name)
-        self._custom_print(f"{self.load_library_message} {module_name}")
+        self._highlight(f"{self.load_library_message} {module_name}")
 
     def tr_mutex_open(self, mutex_name):
         self.trigger("Opens Mutex", 'Name: "%s"' % mutex_name)
-        self._custom_print(f"Open Mutex: '{mutex_name}'")
+        self._highlight(f"Open Mutex: '{mutex_name}'")
 
     def tr_mutex_create(self, mutex_name):
         self.trigger("Creates Mutex", 'Name: "%s"' % mutex_name)
-        self._custom_print(f"Create Mutex: '{mutex_name}'")
+        self._highlight(f"Create Mutex: '{mutex_name}'")
 
     def tr_call_crypto_func(self, func_name):
         self.trigger("Calls Crypto function", "%s" % func_name)
@@ -387,7 +393,7 @@ class Triggers:
             return
         self.seen_rdtsc = True
         self.trigger("Measures performance", "rdtsc called")
-        self._custom_print(self.rdtsc_message)
+        self._highlight(self.rdtsc_message)
 
     def tr_call_syscall(self, syscall_name):
         self.num_syscalls_called += 1
@@ -418,17 +424,15 @@ class Triggers:
     def tr_unpacked_code_execution(self, region):
         if not self.exec_unpacked:
             self.exec_unpacked = True
-            self._custom_print(self.exec_unpacked_message)
+            self._highlight(self.exec_unpacked_message)
             self.trigger("Execute unpacked code")
 
     def tr_rpc(self, interface, server_name):
         self.trigger("Uses RPC", "NdrClientCall2 called")
         if server_name is not None:
-            self._custom_print(
-                f"{self.rpc_message}{interface} -> {server_name}"
-            )
+            self._highlight(f"{self.rpc_message}{interface} -> {server_name}")
         else:
-            self._custom_print(f"{self.rpc_message}{interface}")
+            self._highlight(f"{self.rpc_message}{interface}")
 
 
 class Syscall:
