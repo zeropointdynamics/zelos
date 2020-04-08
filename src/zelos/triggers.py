@@ -20,6 +20,8 @@ import time
 from collections import defaultdict
 from enum import Enum
 
+from zelos.hooks import HookType
+
 
 class RuleType(Enum):
     NORMAL = 1
@@ -96,6 +98,14 @@ class Triggers:
         self.apis_called = defaultdict(list)
         self.api_strings = set()
         self.syscalls_called = defaultdict(list)
+
+        def syscall_hook(zelos, sysname, args, retval):
+            self.z.triggers.tr_call_syscall(sysname)
+            self.z.triggers.tr_syscall(zelos.thread, sysname, args, retval)
+
+        self.z.hook_manager.register_syscall_hook(
+            HookType.SYSCALL.AFTER, syscall_hook, name="triggers"
+        )
 
     def _update_msg(self):
         blocks = self.z.emu.bb_count()

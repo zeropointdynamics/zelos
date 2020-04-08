@@ -185,7 +185,8 @@ class Trace(IPlugin):
 
     def traceoff_syscall(self, syscall_name):
         """
-        Disable verbose tracing after a specific system call has executed.
+        Disable verbose tracing after a specific system call has
+        executed.
         """
 
         def hook_traceoff(zelos, sysname, args, retval):
@@ -217,7 +218,8 @@ class Trace(IPlugin):
 
     def traceon_syscall(self, syscall_name):
         """
-        Enable verbose tracing after a specific system call has executed.
+        Enable verbose tracing after a specific system call has
+        executed.
         """
 
         def hook_traceon(zelos, sysname, args, retval):
@@ -270,7 +272,9 @@ class Trace(IPlugin):
                     self.ins(insn)
         except UcError as e:
             if e.errno == UC_ERR_READ_UNMAPPED:
-                print("Unable to read instruction at address %x" % address)
+                self.logger.error(
+                    f"Unable to read instruction at address {address:x}"
+                )
             else:
                 raise e
 
