@@ -80,6 +80,8 @@ class SyscallManager(object):
 
         self.syscall_break_name = None
 
+        self.should_print_syscalls = True
+
     @property
     def emu(self):
         return self.z.current_process.emu
@@ -146,6 +148,8 @@ class SyscallManager(object):
         """
         if not self.z.plugins.trace.should_print_thread():
             return
+        if not self.should_print_syscalls:
+            return
         if len(string) > max_len:
             string = str(string[:max_len]) + "..."
 
@@ -172,8 +176,6 @@ class SyscallManager(object):
         Note, this may not immediately print the syscall (may need to
         wait for return value
         """
-        self.z.triggers.tr_syscall(thread, syscall_name, args, "Unknown")
-
         if not self.z.plugins.trace.should_print_thread(thread):
             return
 
@@ -207,7 +209,6 @@ class SyscallManager(object):
         """
         sys_num = self.get_syscall_number()
         sys_name = self.find_syscall_name_by_number(sys_num)
-        self.z.triggers.tr_call_syscall(sys_name)
         self.logger.spam(f"Executing syscall {sys_name}")
         sys_fn = self.find_syscall(sys_name)
         try:
@@ -217,9 +218,10 @@ class SyscallManager(object):
             retval = sys_fn(self, process)
             if retval is not None:
                 self.set_return_value(retval)
-            self.print_syscall(
-                thread, sys_name, self.last_syscall_args, retval
-            )
+            if self.should_print_syscalls:
+                self.print_syscall(
+                    thread, sys_name, self.last_syscall_args, retval
+                )
         except Exception as e:
             self.logger.error(f"Error happened inside syscall {sys_name}")
             self.print_syscall(thread, sys_name, self.last_syscall_args, None)
