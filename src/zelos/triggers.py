@@ -299,10 +299,21 @@ class Triggers:
 
     def tr_registry_key_value_write(self, key_name, value_name, value_data):
         max_data = 100
-        if len(value_data) > max_data:
-            value_data = value_data[:max_data]
-        value_data = "".join([i if ord(i) < 128 else "." for i in value_data])
-        msg = "%s\\%s: %s" % (key_name, value_name, value_data)
+        if type(value_data) is int:
+            msg = f"{key_name}\\{value_name}: {value_data:x}"
+        elif type(value_data) is str:
+            if len(value_data) > max_data:
+                value_data = value_data[:max_data]
+            msg = f"{key_name}\\{value_name}: {value_data}"
+        elif type(value_data) is list:
+            if len(value_data) > max_data:
+                value_data = value_data[:max_data]
+            value_data = "".join(
+                [i if ord(i) < 128 else "." for i in value_data]
+            )
+            msg = "%s\\%s: %s" % (key_name, value_name, value_data)
+        else:
+            msg = f"{key_name}\\{value_name}"
         self.trigger(
             "Value added to registry key",
             msg,
