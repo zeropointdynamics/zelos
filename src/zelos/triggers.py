@@ -312,13 +312,8 @@ class Triggers:
         msg = f"{key_name}\\{value_name}"
         if type(value_data) is int:
             value_data = f"{value_data:x}"
-        elif type(value_data) is str:
+        elif type(value_data) in [str, list]:
             value_data = value_data[:max_data]
-        elif type(value_data) is list:
-            value_data = value_data[:max_data]
-            value_data = "".join(
-                [i if ord(i) < 128 else "." for i in value_data]
-            )
         else:
             value_data = ""
 
