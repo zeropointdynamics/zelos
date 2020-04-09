@@ -62,6 +62,7 @@ EXTRAS_REQUIRE = {
         "coverage",
         "hypothesis",
         "pympler",
+        "pytest-cov",
         "pytest>=4.3.0",
         "pytest-xdist",
     ],
