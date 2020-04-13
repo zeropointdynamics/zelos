@@ -283,7 +283,7 @@ class Memory:
         """
         return self.emu.mem_read(addr, size)
 
-    def write(self, addr: int, data: bytes) -> None:
+    def write(self, addr: int, data: bytes) -> int:
         """
         Writes specified bytes to memory. Requires that the specified
         address is mapped.
@@ -291,8 +291,11 @@ class Memory:
         Args:
             addr: Address to start writing data to.
             data: Bytes to write in memory.
+        Returns:
+            Number of bytes written.
         """
         self.emu.mem_write(addr, data)
+        return len(data)
 
     def read_int(self, addr: int, sz: int = None, signed: bool = False) -> int:
         """

@@ -44,7 +44,7 @@ class MemoryApi:
         """
         return self._memory.read(addr, size)
 
-    def write(self, addr: int, data: bytearray) -> None:
+    def write(self, addr: int, data: bytearray) -> int:
         """
         Writes specified bytes to memory. Requires that the specified
         address is mapped.
@@ -71,7 +71,7 @@ class MemoryApi:
                 false.
 
         Returns:
-            Integer represntation of bytes read.
+            Integer representation of bytes read.
         """
         return self._memory.read_int(addr, size, signed)
 
