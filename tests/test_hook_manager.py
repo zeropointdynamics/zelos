@@ -29,12 +29,12 @@ DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 class HookManagerTest(unittest.TestCase):
     def test_hook_at(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_arm_helloworld"))
-        hm = z.internal_engine.current_process.hooks
+        hm = z.process.hooks
         action = Mock()
         handle = "handle_val"
         hm.add_hook(HookType.EXEC.INST, action, handle, name="test_hook")
-        z.internal_engine.plugins.runner.stop_at(0x2B3C8)
-        z.internal_engine.start()
+        z.plugins.runner.stop_at(0x2B3C8)
+        z.start()
         action.assert_called()
 
         action.reset_mock()
@@ -60,11 +60,9 @@ class HookManagerTest(unittest.TestCase):
         def syscall_hook(p, sys_name, args, retval):
             syscall_hook_data.append((sys_name, args, retval))
 
-        z.internal_engine.hook_manager.register_syscall_hook(
-            HookType.SYSCALL.AFTER, syscall_hook, "test_hook"
-        )
+        z.hook_syscalls(HookType.SYSCALL.AFTER, syscall_hook, "test_hook")
 
-        z.internal_engine.start()
+        z.start()
 
         self.assertGreaterEqual(len(syscall_hook_data), 12)
         self.assertEqual(syscall_hook_data[0][0], "brk")
@@ -82,12 +80,12 @@ class HookManagerTest(unittest.TestCase):
             ip_high=0x2B3C4,
             end_condition=lambda: True,
         )
-        z.internal_engine.plugins.runner.stop_at(0x2B3C8)
-        z.internal_engine.start()
+        z.plugins.runner.stop_at(0x2B3C8)
+        z.start()
         action.assert_called_once()
 
         action.reset_mock()
-        z.internal_engine.plugins.runner.run_to_addr(0x2B3C8)
+        z.plugins.runner.run_to_addr(0x2B3C8)
         action.assert_not_called()
 
     def test_temp_hook_at_with_end_condition(self):
@@ -103,16 +101,16 @@ class HookManagerTest(unittest.TestCase):
             ip_high=0x2B3C4,
             end_condition=end_condition,
         )
-        z.internal_engine.plugins.runner.stop_at(0x2B3C8)
-        z.internal_engine.start()
+        z.plugins.runner.stop_at(0x2B3C8)
+        z.start()
         action.assert_called_once()
 
         action.reset_mock()
-        z.internal_engine.plugins.runner.run_to_addr(0x2B3C8)
+        z.plugins.runner.run_to_addr(0x2B3C8)
         action.assert_called_once()
 
         action.reset_mock()
-        z.internal_engine.plugins.runner.run_to_addr(0x2B3C8)
+        z.plugins.runner.run_to_addr(0x2B3C8)
         action.assert_not_called()
 
     def test_add_multiple_hooks(self):
@@ -154,8 +152,8 @@ class HookManagerTest(unittest.TestCase):
             end_condition=lambda: True,
         )
 
-        z.internal_engine.plugins.runner.stop_at(0x2B3CC)
-        z.internal_engine.start()
+        z.plugins.runner.stop_at(0x2B3CC)
+        z.start()
         action1.assert_called()
         action2.assert_called()
         action3.assert_called()
@@ -165,7 +163,7 @@ class HookManagerTest(unittest.TestCase):
 
         mock_hook = Mock()
 
-        start_process_name = z.internal_engine.current_process.name
+        start_process_name = z.process.name
         start_addr = 0x8048B70
 
         hook_info = z.hook_execution(
@@ -184,9 +182,7 @@ class HookManagerTest(unittest.TestCase):
         p.memory.copy(z.internal_engine.memory)
 
         z.internal_engine.processes.load_next_process()
-        self.assertEqual(
-            z.internal_engine.current_process.name, "test_process"
-        )
+        self.assertEqual(z.process.name, "test_process")
         mock_hook.assert_not_called()
         z.step()
         mock_hook.assert_has_calls(
@@ -200,9 +196,7 @@ class HookManagerTest(unittest.TestCase):
         mock_hook.assert_not_called()
 
         z.internal_engine.processes.load_next_process()
-        self.assertEqual(
-            z.internal_engine.current_process.name, start_process_name
-        )
+        self.assertEqual(z.process.name, start_process_name)
         mock_hook.assert_not_called()
         z.step()
         mock_hook.assert_not_called()
@@ -212,7 +206,7 @@ class HookManagerTest(unittest.TestCase):
 
         mock_hook = Mock()
 
-        start_process_name = z.internal_engine.current_process.name
+        start_process_name = z.process.name
         start_addr = 0x8048B70
 
         pid = z.internal_engine.processes.new_process("test_process")
@@ -231,9 +225,7 @@ class HookManagerTest(unittest.TestCase):
         mock_hook.reset_mock()
 
         z.internal_engine.processes.load_next_process()
-        self.assertEqual(
-            z.internal_engine.current_process.name, "test_process"
-        )
+        self.assertEqual(z.process.name, "test_process")
         mock_hook.assert_not_called()
         z.step()
         mock_hook.assert_has_calls(
@@ -247,9 +239,7 @@ class HookManagerTest(unittest.TestCase):
         mock_hook.assert_not_called()
 
         z.internal_engine.processes.load_next_process()
-        self.assertEqual(
-            z.internal_engine.current_process.name, start_process_name
-        )
+        self.assertEqual(z.process.name, start_process_name)
         mock_hook.assert_not_called()
         z.step()
         mock_hook.assert_not_called()
