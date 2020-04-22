@@ -1260,7 +1260,11 @@ def sys_vfork(sm, p):
         priority=current_thread_priority + 1,
     )
 
-    sm.z.thread_manager.swap_with_thread(tid=t.id)
+    def thread_swap():
+        p.threads.swap_with_thread(tid=t.id)
+        sm.set_return_value(0)
+
+    p.scheduler.stop_and_exec("thread swap", thread_swap)
     return t.id
 
 
@@ -1404,7 +1408,9 @@ def sys_execve(sm, p):
     # If this is successful, this thread essentially ends.
     # TODO: we should have a list of things that can be execve'd, to
     # make this configurable
-    p.threads.complete_current_thread()
+    p.scheduler.stop_and_exec(
+        "execve thread", p.threads.complete_current_thread
+    )
     return
 
 
@@ -1416,12 +1422,16 @@ def sys_exit_group(sm, p):
     args = sm.get_args([("int", "status")])
 
     sm.z.processes.handles.close_all(p.pid)
-    if args.status == 0:
-        p.threads.complete_current_thread()
-    else:
-        p.threads.fail_current_thread(
-            fail_reason=f"syscall Exit_Group status {args.status}"
-        )
+
+    def exit_thread():
+        if args.status == 0:
+            p.threads.complete_current_thread()
+        else:
+            p.threads.fail_current_thread(
+                fail_reason=f"syscall Exit_Group status {args.status}"
+            )
+
+    p.scheduler.stop_and_exec("exit thread", exit_thread)
 
     if p.parent_pid is not None:
         parent = sm.z.processes.get_process(p.parent_pid)
