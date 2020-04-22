@@ -16,6 +16,7 @@
 # ======================================================================
 from __future__ import print_function
 
+import io
 import logging
 
 from collections import defaultdict
@@ -110,7 +111,21 @@ class FileHandle(Handle):
     def write(self, data: bytes) -> int:
         if self._file is None:
             return 0
-        self._file.write(data)
+        try:
+            self._file.write(data)
+        except io.UnsupportedOperation:
+            # We should replace the file that we are using with one in
+            # the sandbox that contains the same data, that way we can
+            # write it.
+            offset = self._file.tell()
+            f = self._file_system.open_sandbox_file(
+                self.Name, create_if_not_exists=True
+            )
+            original_file_contents = self._file.read()
+            f.write(original_file_contents)
+            f.seek(offset)
+            self._file = f
+            self._file.write(data)
         return len(data)
 
     def read(self, size: int) -> bytes:
