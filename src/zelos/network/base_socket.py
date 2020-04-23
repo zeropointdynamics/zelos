@@ -19,6 +19,7 @@ import queue
 import socket
 
 from collections import defaultdict
+from typing import Any, Optional
 
 import dnslib
 
@@ -45,25 +46,27 @@ class BaseSocket:
             type: socket type (as defined in python `socket`).
             protocol: socket protocol (as defined in python `socket`).
         """
+        # These fields are not present while running in windows. Insert
+        # them so they can be used. They won't work in a python socket,
+        # but allow for keeping track of values in a unified way.
         if not hasattr(socket, "SOCK_CLOEXEC"):
-            # Windows support
             socket.SOCK_CLOEXEC = 0x80000
             socket.SOCK_NONBLOCK = 0x800
             socket.AF_UNIX = 0x1
-
-        sock_type &= ~(socket.SOCK_CLOEXEC | socket.SOCK_NONBLOCK)
-        sock_type = socket.SocketKind(sock_type)
 
         self._errno = 0
         self.network = network_manager
         self.domain = domain
         self.type = sock_type
         self.protocol = protocol
-        self.host_and_port = (None, None)
+        self.host = None
+        self.port = None
         self._is_nonblock = True
 
         self.history = defaultdict(list)
         self.sock = None
+
+        self.sockopts = defaultdict(dict)
 
         if domain == socket.AF_UNIX:
             raise Exception("[BaseSocket] AF_UNIX domain not supported.")
@@ -79,7 +82,7 @@ class BaseSocket:
         """
         return self._errno
 
-    def setsockopt(self, level, name, value):
+    def setsockopt(self, level: int, name: int, value: Any) -> None:
         """
         Sets socket options.
 
@@ -88,10 +91,22 @@ class BaseSocket:
             name: option name (as defined in python `socket`)
             value: option value (type depends on option name)
 
-        Returns:
-            0 on success, -1 on failure.
         """
-        return 0
+        self.sockopts[level][name] = value
+
+    def getsockopt(self, level: int, name: int) -> Optional[Any]:
+        """
+        Gets socket options.
+
+        Args:
+            level: option level (as defined in python `socket`)
+            name: option name (as defined in python `socket`)
+
+        Returns:
+            The requested socket data, or None if that data does not
+            exist.
+        """
+        return self.sockopts[level].get(name, None)
 
     def set_nonblock(self, is_nonblock: bool):
         """
@@ -121,11 +136,9 @@ class BaseSocket:
         Returns:
             0 on success, -1 on failure.
         """
-        self.host_and_port = host_and_port
-        if self.sock is None and host_and_port[1] == 53:
-            self.sock = DnsSocketSimulator(
-                self.domain, host_and_port[0], host_and_port[1]
-            )
+        (self.host, self.port) = host_and_port
+        if self.sock is None and self.port == 53:
+            self.sock = DnsSocketSimulator(self.domain, self.host, self.port)
         self.history["connect"].append(host_and_port)
         return 0
 
@@ -145,7 +158,7 @@ class BaseSocket:
         Returns:
             0 on success, -1 on failure.
         """
-        self.host_and_port = host_and_port
+        (self.host, self.port) = host_and_port
         self.history["bind"].append(host_and_port)
         return 0
 
@@ -187,11 +200,9 @@ class BaseSocket:
         Returns:
             The length of the data sent.
         """
-        host = self.host_and_port[0]
-        port = self.host_and_port[1]
 
-        if self.sock is None and port == 53:
-            self.sock = DnsSocketSimulator(self.domain, host, port)
+        if self.sock is None and self.port == 53:
+            self.sock = DnsSocketSimulator(self.domain, self.host, self.port)
 
         if self.sock is not None:
             return self.sock.send(data, flags)
@@ -229,12 +240,7 @@ class BaseSocket:
         # If sock exists, use it's simulated receiver
         if self.sock is not None:
             return self.sock.recvfrom(bufsize, flags)
-        return (
-            b"0" * bufsize,
-            self.domain,
-            self.host_and_port[0],
-            self.host_and_port[1],
-        )
+        return (b"0" * bufsize, self.domain, self.host, self.port)
 
     def sendto(self, data: bytes, host_and_port, flags: int = 0):
         """
@@ -249,17 +255,16 @@ class BaseSocket:
         Returns:
             The length sent.
         """
-        if self.host_and_port is not None and host_and_port[0] is not None:
-            self.host_and_port = host_and_port
-        port = self.host_and_port[1]
+        if host_and_port[0] is not None:
+            (host, port) = host_and_port
+        else:
+            (host, port) = (self.host, self.port)
 
         if self.sock is None and port == 53:
-            self.sock = DnsSocketSimulator(
-                self.domain, host_and_port[0], host_and_port[1]
-            )
+            self.sock = DnsSocketSimulator(self.domain, host, port)
 
         if self.sock is not None:
-            return self.sock.sendto(data, self.host_and_port, flags)
+            return self.sock.sendto(data, (host, port), flags)
 
         self.history["sendto"].append([data, host_and_port])
         return len(data)
@@ -273,7 +278,8 @@ class DnsSocketSimulator:
     def __init__(self, domain, host=None, port=None):
         self.hostname = ""
         self.domain = domain
-        self.host_and_port = (host, port)
+        self.host = host
+        self.port = port
         self.query = None
         self.dns_id = None
 
@@ -304,13 +310,11 @@ class DnsSocketSimulator:
         return reply
 
     def sendto(self, payload, host_and_port, flags=0):
-        self.host_and_port = host_and_port
+        (self.host, self.port) = host_and_port
         return self.send(payload)
 
     def recvfrom(self, bufsize, flags=0):
-        host = self.host_and_port[0]
-        port = self.host_and_port[1]
-        result = (self.recv(bufsize), socket.AF_INET, host, port)
+        result = (self.recv(bufsize), socket.AF_INET, self.host, self.port)
         return result
 
     def is_readable(self):
@@ -400,7 +404,8 @@ class RawSocketSimulator:
     def __init__(self, domain, host=None, port=None):
         self._raw_syn_queue = queue.Queue()
         self.domain = domain
-        self.host_and_port = (host, port)
+        self.host = host
+        self.port = port
 
     def send(self, payload):
         packet = ip.IP(payload)
@@ -414,7 +419,10 @@ class RawSocketSimulator:
                     packet[tcp.TCP].dport,
                 )
             )
-            self.host_and_port = (packet[ip.IP].dst_s, packet[tcp.TCP].dport)
+            (self.host, self.port) = (
+                packet[ip.IP].dst_s,
+                packet[tcp.TCP].dport,
+            )
             # Handle TCP SYN Scan
             if packet[tcp.TCP].flags == tcp.TH_SYN:
                 if self._raw_syn_queue.qsize() < 16:
@@ -448,9 +456,7 @@ class RawSocketSimulator:
         return self.send(payload)
 
     def recvfrom(self, bufsize, flags=0):
-        host = self.host_and_port[0]
-        port = self.host_and_port[1]
-        return (self.recv(bufsize), socket.AF_INET, host, port)
+        return (self.recv(bufsize), socket.AF_INET, self.host, self.port)
 
     def is_readable(self):
         return True
