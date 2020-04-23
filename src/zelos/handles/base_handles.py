@@ -83,7 +83,8 @@ class FileHandle(Handle):
         self.is_dir = is_dir
         if is_dir:
             return
-        # Keep in mind that only files that are in the sandbox are writable.
+        # Keep in mind that only files that are in the sandbox are
+        # writable.
         try:
             self._file = file_system.open_library(name)
             if self._file is None:
