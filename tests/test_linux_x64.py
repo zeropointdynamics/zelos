@@ -26,36 +26,44 @@ DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 
 class ZelosTest(unittest.TestCase):
     def test_static_elf_unpatched(self):
-        z = Zelos(path.join(DATA_DIR, "static_elf_x64_helloworld"))
-        z.internal_engine.plugins.trace.threads_to_print.add("none")
-        z.internal_engine.start(timeout=3)
+        z = Zelos(
+            path.join(DATA_DIR, "static_elf_x64_helloworld"),
+            tracethread="none",
+        )
+        z.start(timeout=3)
 
         self.assertEqual(
             1, len(z.internal_engine.thread_manager.completed_threads)
         )
 
     def test_static_elf(self):
-        z = Zelos(path.join(DATA_DIR, "static_elf_x64_helloworld"))
-        z.internal_engine.plugins.trace.threads_to_print.add("none")
-        z.internal_engine.start(timeout=3)
+        z = Zelos(
+            path.join(DATA_DIR, "static_elf_x64_helloworld"),
+            tracethread="none",
+        )
+        z.start(timeout=3)
 
         self.assertEqual(
             1, len(z.internal_engine.thread_manager.completed_threads)
         )
 
     def test_dynamic_elf_unpatched(self):
-        z = Zelos(path.join(DATA_DIR, "dynamic_elf_x64_helloworld"))
-        z.internal_engine.plugins.trace.threads_to_print.add("none")
-        z.internal_engine.start(timeout=3)
+        z = Zelos(
+            path.join(DATA_DIR, "dynamic_elf_x64_helloworld"),
+            tracethread="none",
+        )
+        z.start(timeout=3)
 
         self.assertEqual(
             1, len(z.internal_engine.thread_manager.completed_threads)
         )
 
     def test_dynamic_elf(self):
-        z = Zelos(path.join(DATA_DIR, "dynamic_elf_x64_helloworld"))
-        z.internal_engine.plugins.trace.threads_to_print.add("none")
-        z.internal_engine.start(timeout=3)
+        z = Zelos(
+            path.join(DATA_DIR, "dynamic_elf_x64_helloworld"),
+            tracethread="none",
+        )
+        z.start(timeout=3)
 
         self.assertEqual(
             1, len(z.internal_engine.thread_manager.completed_threads)

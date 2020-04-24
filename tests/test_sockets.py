@@ -10,37 +10,39 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU Affero General Public License for more details.
 
+
 # You should have received a copy of the GNU Affero General Public
 # License along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
-import os
+
 import unittest
 
 from os import path
 
-from zelos import Zelos
+from zelos import HookType, Zelos
 
 
 DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 
 
 class ZelosTest(unittest.TestCase):
-    def test_static_elf_el(self):
-        z = Zelos(path.join(DATA_DIR, "static_elf_mipsel_mti_helloworld"))
-        z.start(timeout=10)
+    def test_dga_example(self):
+        z = Zelos(path.join(DATA_DIR, "dns_socket_test"), tracethread="None")
+        syscalls_called = []
 
-        self.assertEqual(
-            1, len(z.internal_engine.thread_manager.completed_threads)
-        )
+        def record_syscalls(z, syscall_name, args, return_value):
+            syscalls_called.append(syscall_name)
 
-    def test_static_elf_eb(self):
-        if os.name == "nt":
-            raise unittest.SkipTest(
-                "Skipping `test_static_elf_eb`: Windows lief fails to parse"
-            )
-        z = Zelos(path.join(DATA_DIR, "static_elf_mipseb_mti_helloworld"))
-        z.start(timeout=10)
+        z.hook_syscalls(HookType.SYSCALL.AFTER, record_syscalls, "test_hook")
+
+        z.start(timeout=3)
+
+        self.assertIn("socket", syscalls_called)
+        self.assertIn("connect", syscalls_called)
+        self.assertIn("sendto", syscalls_called)
+        self.assertIn("select", syscalls_called)
+        self.assertIn("recvfrom", syscalls_called)
 
         self.assertEqual(
             1, len(z.internal_engine.thread_manager.completed_threads)

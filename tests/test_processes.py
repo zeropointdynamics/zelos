@@ -30,54 +30,46 @@ DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 class ProcessesTest(unittest.TestCase):
     def test_emu_swap(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
-        z.internal_engine.current_process.threads.swap_with_next_thread()
+        z.process.threads.swap_with_next_thread()
 
         self.assertEqual(z.internal_engine.processes.num_active_processes(), 1)
-        pid1 = z.internal_engine.current_process.pid
+        pid1 = z.process.pid
         self.assertEqual(
             z.internal_engine.thread_manager.num_active_threads(), 1
         )
-        z.internal_engine.current_thread.setIP(0x2000)
+        z.thread.setIP(0x2000)
 
         pid2 = z.internal_engine.processes.new_process("Process_2", pid1)
         p2 = z.internal_engine.processes.get_process(pid2)
         p2.new_thread(0x1000, "thread2")
         p2.threads.swap_with_next_thread()
 
-        self.assertEqual(z.internal_engine.current_thread.getIP(), 0x2000)
+        self.assertEqual(z.thread.getIP(), 0x2000)
         z.internal_engine.processes.load_process(pid2)
-        self.assertEqual(z.internal_engine.current_thread.getIP(), 0x1000)
+        self.assertEqual(z.thread.getIP(), 0x1000)
 
     def test_memory_swap(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
 
         self.assertEqual(z.internal_engine.processes.num_active_processes(), 1)
-        pid1 = z.internal_engine.current_process.pid
-        z.internal_engine.current_process.memory.map(0xDEADB000, 0x1000)
-        self.assertEqual(
-            z.internal_engine.memory.read(0xDEADB000, 0x4), b"\x00" * 4
-        )
+        pid1 = z.process.pid
+        z.memory.map(0xDEADB000, 0x1000)
+        self.assertEqual(z.memory.read(0xDEADB000, 0x4), b"\x00" * 4)
         z.internal_engine.memory.write(0xDEADB000, b"\x01\x02\x03\x04")
-        self.assertEqual(
-            z.internal_engine.memory.read(0xDEADB000, 0x4), b"\x01\x02\x03\x04"
-        )
+        self.assertEqual(z.memory.read(0xDEADB000, 0x4), b"\x01\x02\x03\x04")
 
         pid2 = z.internal_engine.processes.new_process("Process_2", pid1)
         z.internal_engine.processes.load_process(pid2)
-        z.internal_engine.current_process.memory.map(0xDEADB000, 0x1000)
-        self.assertEqual(
-            z.internal_engine.memory.read(0xDEADB000, 0x4), b"\x00" * 4
-        )
+        z.process.memory.map(0xDEADB000, 0x1000)
+        self.assertEqual(z.memory.read(0xDEADB000, 0x4), b"\x00" * 4)
         z.internal_engine.memory.write(0xDEADB000, b"\x05\x05\x05\x05")
-        self.assertEqual(
-            z.internal_engine.memory.read(0xDEADB000, 0x4), b"\x05\x05\x05\x05"
-        )
+        self.assertEqual(z.memory.read(0xDEADB000, 0x4), b"\x05\x05\x05\x05")
 
     def test_sys_fork(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
         z.internal_engine.processes.swap_with_next_thread()
         self.assertEqual(z.internal_engine.processes.num_active_processes(), 1)
-        p1 = z.internal_engine.current_process
+        p1 = z.process
 
         # Make handle_syscall call fork
         z.internal_engine.zos.syscall_manager.find_syscall_name_by_number = (

@@ -59,10 +59,10 @@ def get_arg_string(z, arg):
                 sock = socket_handle.socket
                 domain = str(sock.domain).split(".")[1]
                 sock_type = str(sock.type).split(".")[1]
-                host = sock.host_and_port[0]
+                host = sock.host
                 if host is None:
                     host = "?"
-                port = sock.host_and_port[1]
+                port = sock.port
                 if port is None:
                     port = "?"
                 socket_name = f" ({domain}:{sock_type}:{host}:{str(port)})"
