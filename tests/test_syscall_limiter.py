@@ -34,9 +34,7 @@ class SyscallLimiterTest(unittest.TestCase):
             syscall_limit=5,
         )
         z.start()
-        self.assertEqual(
-            z.internal_engine.plugins.syscalllimiter.syscall_cnt, 5
-        )
+        self.assertEqual(z.plugins.syscalllimiter.syscall_cnt, 5)
 
     def test_thread_limit(self):
         z = Zelos(
@@ -44,9 +42,7 @@ class SyscallLimiterTest(unittest.TestCase):
             syscall_thread_limit=5,
         )
         z.start()
-        self.assertEqual(
-            z.internal_engine.plugins.syscalllimiter.syscall_cnt, 5
-        )
+        self.assertEqual(z.plugins.syscalllimiter.syscall_cnt, 5)
 
     # def test_syscall_limit_plugin(self):
 
@@ -55,7 +51,7 @@ class SyscallLimiterTest(unittest.TestCase):
     #     z.start()
 
     #     self.assertEqual(
-    #         z.internal_engine.plugins.syscalllimiter.syscall_cnt, 5
+    #         z.plugins.syscalllimiter.syscall_cnt, 5
     #     )
 
 

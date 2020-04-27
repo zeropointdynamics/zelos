@@ -315,13 +315,17 @@ class Triggers:
 
     def tr_registry_key_value_write(self, key_name, value_name, value_data):
         max_data = 100
-        if len(value_data) > max_data:
+        msg = f"{key_name}\\{value_name}"
+        if type(value_data) is int:
+            value_data = f"{value_data:x}"
+        elif type(value_data) in [str, list]:
             value_data = value_data[:max_data]
-        value_data = "".join([i if ord(i) < 128 else "." for i in value_data])
-        msg = "%s\\%s: %s" % (key_name, value_name, value_data)
+        else:
+            value_data = ""
+
         self.trigger(
             "Value added to registry key",
-            msg,
+            f"{msg}: {value_data}",
             grouping="Registry Key Manipulation",
         )
         self._highlight(self.registry_key_write_message + msg)

@@ -91,6 +91,14 @@ class Trace(IPlugin):
     def functions_called(self):
         return self.comment_generator.functions_called
 
+    @property
+    def strace_file(self):
+        return self.zelos.internal_engine.zos.syscall_manager.strace_file
+
+    @property
+    def strace(self):
+        return self.zelos.config.strace
+
     def get_region(self, addr):
         return self.zelos.internal_engine.memory.get_region(addr)
 
@@ -311,10 +319,20 @@ class Trace(IPlugin):
             thread = self.zelos.thread.name
         if addr_str is None:
             addr_str = f"{self.zelos.regs.getIP():08x}"
-        thread_str = colored(f"[{thread}]", "magenta")
-        category_str = colored(f"[{category}]", "red")
-        addr_str_str = colored(f"[{addr_str}]", "white", attrs=["bold"])
-        print(f"{thread_str} {category_str} {addr_str_str} {s}")
+
+        if self.strace:
+            thread_str = f"[{thread}]"
+            category_str = f"[{category}]"
+            addr_str_str = f"[{addr_str}]"
+            print(
+                f"{thread_str} {category_str} {addr_str_str} {s}",
+                file=self.strace_file,
+            )
+        else:
+            thread_str = colored(f"[{thread}]", "magenta")
+            category_str = colored(f"[{category}]", "red")
+            addr_str_str = colored(f"[{addr_str}]", "white", attrs=["bold"])
+            print(f"{thread_str} {category_str} {addr_str_str} {s}")
 
     def log_api(self, args, isNative=False):
         self.api(args, isNative)
@@ -361,9 +379,12 @@ class Trace(IPlugin):
         if indent_count == -1:
             indent_count = 0
         args = "".join([i if ord(i) < 128 else "." for i in args])
-        s = "  " * min(indent_count, self.MAX_INDENTS) + colored(
-            args, "white", attrs=["bold"]
-        )
+        if self.strace:
+            s = "  " * min(indent_count, self.MAX_INDENTS) + args
+        else:
+            s = "  " * min(indent_count, self.MAX_INDENTS) + colored(
+                args, "white", attrs=["bold"]
+            )
         self.print("API", s, addr_str=f"{caller_module}:{return_address:08x}")
 
     def ins(self, insn):
@@ -377,7 +398,10 @@ class Trace(IPlugin):
         ins_string = self._get_insn_string(insn)
         if address in self.main_module.exported_functions:
             function_name = self.main_module.exported_functions[address]
-            s = colored(f"<{function_name}>", "white", attrs=["bold"])
+            if self.strace:
+                s = f"<{function_name}>"
+            else:
+                s = colored(f"<{function_name}>", "white", attrs=["bold"])
             self.print("INS", s, addr_str=f"{sep}{address:08x}")
         self.print("INS", ins_string, addr_str=f"{sep}{address:08x}")
 
@@ -420,12 +444,15 @@ class Trace(IPlugin):
                 padSize = 1
             for y in range(0, padSize):
                 padding += " "
-            result += (
-                insn_str
-                + " "
-                + padding
-                + colored(" ; " + cmt, "grey", attrs=["bold"])
-            )
+            if self.strace:
+                result += insn_str + " " + padding + " ; " + cmt
+            else:
+                result += (
+                    insn_str
+                    + " "
+                    + padding
+                    + colored(" ; " + cmt, "grey", attrs=["bold"])
+                )
             # Log comment for the dump
             self.comments.append(
                 Comment(insn.address, self.zelos.thread.id, cmt)
