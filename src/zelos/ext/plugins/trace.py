@@ -16,6 +16,7 @@
 # ======================================================================
 
 import logging
+import sys
 
 import capstone.arm_const as cs_arm
 import capstone.x86_const as cs_x86
@@ -90,6 +91,10 @@ class Trace(IPlugin):
     @property
     def functions_called(self):
         return self.comment_generator.functions_called
+
+    @property
+    def strace_file(self):
+        return self.zelos.internal_engine.zos.syscall_manager.strace_file
 
     def get_region(self, addr):
         return self.zelos.internal_engine.memory.get_region(addr)
@@ -311,10 +316,19 @@ class Trace(IPlugin):
             thread = self.zelos.thread.name
         if addr_str is None:
             addr_str = f"{self.zelos.regs.getIP():08x}"
-        thread_str = colored(f"[{thread}]", "magenta")
-        category_str = colored(f"[{category}]", "red")
-        addr_str_str = colored(f"[{addr_str}]", "white", attrs=["bold"])
-        print(f"{thread_str} {category_str} {addr_str_str} {s}")
+        if self.strace_file == sys.stdout:
+            thread_str = colored(f"[{thread}]", "magenta")
+            category_str = colored(f"[{category}]", "red")
+            addr_str_str = colored(f"[{addr_str}]", "white", attrs=["bold"])
+        else:
+            thread_str = f"[{thread}]"
+            category_str = f"[{category}]"
+            addr_str_str = f"[{addr_str}]"
+        print(
+            f"{thread_str} {category_str} {addr_str_str} {s}",
+            file=self.strace_file,
+            flush=True,
+        )
 
     def log_api(self, args, isNative=False):
         self.api(args, isNative)
