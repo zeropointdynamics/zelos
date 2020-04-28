@@ -226,9 +226,11 @@ class Thread(object):
         return self.threads.emu.unpack(x, bytes, little_endian, signed)
 
     def __str__(self):
-        return f"{self.name} (0x{self.id:x}), PRI: {self.priority}, "
-        f"parent: {self.parent}, IP: 0x{self.getIP():x}, "
-        f"blocks_exec'd: 0x{self.total_blocks_executed:x}, {self.state}"
+        return (
+            f"{self.name} (0x{self.id:x}), PRI: {self.priority}, "
+            f"parent: {self.parent}, IP: 0x{self.getIP():x}, "
+            f"blocks_exec'd: 0x{self.total_blocks_executed:x}, {self.state}"
+        )
 
     def __lt__(self, other):  # Python 3
         return other.priority < self.priority  # Sorts high to low
