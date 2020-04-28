@@ -13,10 +13,13 @@
 
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
-from __future__ import absolute_import
-
 # You should have received a copy of the GNU Affero General Public
 # License along with this program.  If not, see
+
+
+from __future__ import absolute_import
+
+import tempfile
 import unittest
 
 from os import path
@@ -81,6 +84,19 @@ class HandleTest(unittest.TestCase):
 
         handles.add_handle(file1, handle_num=file_num1, pid=0x1000)
         self.assertIs(handles.get(file_num1, pid=0x1000), file1)
+
+    def test_truncate(self):
+        z = Zelos(None)
+        handles = z.internal_engine.handles
+
+        handle_num = handles.new_file(
+            "TestFile", file=tempfile.TemporaryFile("wb")
+        )
+        handle = handles.get(handle_num)
+
+        self.assertEqual(handle.size(), 0)
+        handle.truncate(0x100)
+        self.assertEqual(handle.size(), 0x100)
 
 
 def main():
