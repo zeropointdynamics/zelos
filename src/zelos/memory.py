@@ -125,7 +125,7 @@ class Memory:
         """
         return self.emu.mem_read(addr, size)
 
-    def write(self, addr: int, data: bytes) -> None:
+    def write(self, addr: int, data: bytes) -> int:
         """
         Writes specified bytes to memory. Requires that the specified
         address is mapped.
@@ -133,8 +133,11 @@ class Memory:
         Args:
             addr: Address to start writing data to.
             data: Bytes to write in memory.
+        Returns:
+            Number of bytes written.
         """
         self.emu.mem_write(addr, data)
+        return len(data)
 
     def read_int(self, addr: int, sz: int = None, signed: bool = False) -> int:
         """
@@ -698,7 +701,17 @@ class Memory:
         del self.mem_hooks[addr]
         return mem_hook.hook(uc, access, address, size, value, user_data)
 
-    def get_region(self, address):
+    def is_writable(self, address: int) -> bool:
+        """
+        Returns True if writing memory is allowed at the specified
+        address.
+        """
+        for (begin, end, perms) in self.emu.mem_regions():
+            if begin <= address < end:
+                return perms & ProtType.WRITE
+        return False
+
+    def get_region(self, address: int) -> Optional[Section]:
         """ Gets the region that this address belongs to."""
         return self.emu.mem_region(address)
 

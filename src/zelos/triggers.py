@@ -20,6 +20,8 @@ import time
 from collections import defaultdict
 from enum import Enum
 
+from zelos.hooks import HookType
+
 
 class RuleType(Enum):
     NORMAL = 1
@@ -96,6 +98,14 @@ class Triggers:
         self.apis_called = defaultdict(list)
         self.api_strings = set()
         self.syscalls_called = defaultdict(list)
+
+        def syscall_hook(zelos, sysname, args, retval):
+            self.z.triggers.tr_call_syscall(sysname)
+            self.z.triggers.tr_syscall(zelos.thread, sysname, args, retval)
+
+        self.z.hook_manager.register_syscall_hook(
+            HookType.SYSCALL.AFTER, syscall_hook, name="triggers"
+        )
 
     def _update_msg(self):
         blocks = self.z.emu.bb_count()
@@ -299,13 +309,17 @@ class Triggers:
 
     def tr_registry_key_value_write(self, key_name, value_name, value_data):
         max_data = 100
-        if len(value_data) > max_data:
+        msg = f"{key_name}\\{value_name}"
+        if type(value_data) is int:
+            value_data = f"{value_data:x}"
+        elif type(value_data) in [str, list]:
             value_data = value_data[:max_data]
-        value_data = "".join([i if ord(i) < 128 else "." for i in value_data])
-        msg = "%s\\%s: %s" % (key_name, value_name, value_data)
+        else:
+            value_data = ""
+
         self.trigger(
             "Value added to registry key",
-            msg,
+            f"{msg}: {value_data}",
             grouping="Registry Key Manipulation",
         )
         self._custom_print(self.registry_key_write_message + msg)

@@ -52,7 +52,7 @@ INSTALL_REQUIRES = [
 ]
 EXTRAS_REQUIRE = {
     "docs": [
-        "sphinx",
+        "sphinx==2.4.4",
         "sphinx_rtd_theme",
         "sphinxcontrib-apidoc",
         "recommonmark",
@@ -62,6 +62,7 @@ EXTRAS_REQUIRE = {
         "coverage",
         "hypothesis",
         "pympler",
+        "pytest-cov",
         "pytest>=4.3.0",
         "pytest-xdist",
     ],

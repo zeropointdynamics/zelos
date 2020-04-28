@@ -16,6 +16,7 @@
 # ======================================================================
 from __future__ import print_function
 
+import io
 import logging
 
 from collections import defaultdict
@@ -78,12 +79,23 @@ class FileHandle(Handle):
     ):
         super().__init__(name, parent_thread, access)
         self._file_system = file_system
-        # Keep in mind that only files that are in the sandbox are writable.
-        self._file = file_system.open_library(name)
-        if self._file is None:
-            self._file = self._file_system.open_sandbox_file(name)
-
+        self._file = None
         self.is_dir = is_dir
+        if is_dir:
+            return
+        # Keep in mind that only files that are in the sandbox are
+        # writable.
+        try:
+            self._file = file_system.open_library(name)
+            if self._file is None:
+                self._file = self._file_system.open_sandbox_file(
+                    name, create_if_not_exists=True
+                )
+        except IsADirectoryError:
+            self.is_dir = True
+
+    def tell(self) -> int:
+        return self._file.tell()
 
     def seek(self, offset: int, whence: int = 0) -> None:
         if self._file is None:
@@ -100,7 +112,21 @@ class FileHandle(Handle):
     def write(self, data: bytes) -> int:
         if self._file is None:
             return 0
-        self._file.write(data)
+        try:
+            self._file.write(data)
+        except io.UnsupportedOperation:
+            # We should replace the file that we are using with one in
+            # the sandbox that contains the same data, that way we can
+            # write it.
+            offset = self._file.tell()
+            f = self._file_system.open_sandbox_file(
+                self.Name, create_if_not_exists=True
+            )
+            original_file_contents = self._file.read()
+            f.write(original_file_contents)
+            f.seek(offset)
+            self._file = f
+            self._file.write(data)
         return len(data)
 
     def read(self, size: int) -> bytes:
