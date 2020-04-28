@@ -47,10 +47,13 @@ class SyscallLimiter(IPlugin):
 
     def __init__(self, z):
         super().__init__(z)
+        self.syscall_limit = z.config.syscall_limit
+        self.syscall_thread_limit = z.config.syscall_thread_limit
+        self.syscall_thread_swap = z.config.syscall_thread_swap
         if (
-            z.config.syscall_limit > 0
-            or z.config.syscall_thread_limit > 0
-            or z.config.syscall_thread_swap > 0
+            self.syscall_limit > 0
+            or self.syscall_thread_limit > 0
+            or self.syscall_thread_swap > 0
         ):
             self.zelos.hook_syscalls(
                 HookType.SYSCALL.AFTER, self._syscall_callback
@@ -59,36 +62,36 @@ class SyscallLimiter(IPlugin):
         self.syscall_thread_cnt = defaultdict(int)
 
     def _syscall_callback(self, zelos, sysname, args, retval):
-        if zelos.thread is None:
-            return
-
-        thread_name = zelos.thread.name
-
         self.syscall_cnt += 1
-        self.syscall_thread_cnt[thread_name] += 1
 
         # End execution if syscall limit reached
         if (
-            zelos.config.syscall_limit > 0
-            and self.syscall_cnt >= zelos.config.syscall_limit
+            self.syscall_limit > 0
+            and self.syscall_cnt >= self.syscall_limit
         ):
             zelos.stop("syscall limit")
             return
 
         # End thread if syscall thread limit reached
         if (
-            zelos.config.syscall_thread_limit != 0
-            and self.syscall_thread_cnt[thread_name]
-            % zelos.config.syscall_thread_limit
-            == 0
+            self.syscall_thread_limit != 0
+            and zelos.thread is not None
         ):
-            zelos.end_thread()
-            return
+            thread_name = zelos.thread.name
+            self.syscall_thread_cnt[thread_name] += 1
+            if (
+                self.syscall_thread_cnt[thread_name]
+                % self.syscall_thread_limit
+                == 0
+            ):
+                zelos.end_thread()
+                return
 
         # Swap threads if syscall thread swap limit reached
         if (
-            zelos.config.syscall_thread_swap > 0
-            and self.syscall_cnt % zelos.config.syscall_thread_swap == 0
+            self.syscall_thread_swap > 0
+            and self.syscall_cnt % self.syscall_thread_swap == 0
         ):
             zelos.swap_thread("syscall limit thread swap")
+
         return

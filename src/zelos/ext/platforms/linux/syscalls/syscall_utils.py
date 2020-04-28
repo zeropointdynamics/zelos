@@ -47,7 +47,7 @@ def _set_msr(p, msr, value):
     # getting the fs and gs registers
     # x86: wrmsr
     buf = b"\x0f\x30"
-    buf_ptr = memory.map_anywhere(2, "wrmsr inst")
+    buf_ptr = memory.map_anywhere(2, name="wrmsr inst")
     memory.write(buf_ptr, buf)
     # x86: wrmsr
     emu.set_reg("rax", value & 0xFFFFFFFF)

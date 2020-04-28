@@ -273,7 +273,7 @@ class Thread(object):
             elif address == sp:
                 prefix = " sp --> "
             try:
-                val = self.emu.mem_read(address, ptr_size)
+                val = self.memory.read(address, ptr_size)
                 val = struct.unpack("<L", val)[0]
                 stack_str = prefix + "0x{0:08x}: {1:08x}".format(address, val)
             except Exception:

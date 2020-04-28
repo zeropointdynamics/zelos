@@ -227,6 +227,8 @@ def sys_writev(sm, p):
     word_size = 8 if sm.arch == "x86_64" else 4
     for i in range(args.iovcnt):
         iovec = p.memory.read_ptr(args.iov + 2 * word_size * i)
+        if iovec == 0:
+            break
         iov_len = p.memory.read_uint32(
             args.iov + 2 * word_size * i + word_size
         )
@@ -296,7 +298,7 @@ def mmapx(sm, p, syscall_name, args, offset):
 
     addr = args.addr
     if addr == 0:
-        addr = p.memory._find_free_space(args.length)
+        addr = p.memory.find_free_space(args.length)
 
     data = b""
     if handle is not None:
@@ -307,21 +309,7 @@ def mmapx(sm, p, syscall_name, args, offset):
             f.close()
 
     data += b"\0" * (args.length - len(data))
-
-    # If this is shared, map it with the pointer
-    if args.flags & MAP_SHARED != 0:
-        print(len(data))
-        ptr = ctypes.POINTER(ctypes.c_void_p)(
-            ctypes.c_void_p.from_buffer(bytearray(data))
-        )
-        p.memory.map(
-            addr,
-            align(args.length),
-            name=memory_region_name,
-            kind=syscall_name,
-            ptr=ptr,
-        )
-        return addr
+    shared = args.flags & MAP_SHARED != 0
 
     try:
         p.memory.map(
@@ -329,6 +317,7 @@ def mmapx(sm, p, syscall_name, args, offset):
             align(args.length),
             name=memory_region_name,
             kind=syscall_name,
+            shared=shared,
         )
     except Exception:
         if args.flags & 0x10 > 0:
@@ -340,7 +329,10 @@ def mmapx(sm, p, syscall_name, args, offset):
         else:
             sm.logger.notice(f"Address {addr:x} already mapped")
             addr = p.memory.map_anywhere(
-                args.length, name=memory_region_name, kind=syscall_name
+                args.length,
+                name=memory_region_name,
+                kind=syscall_name,
+                shared=shared,
             )
 
     p.memory.write(addr, data)
@@ -1193,7 +1185,6 @@ def sys_clone(sm, p):
     #     # sm.logger.error(f'ADDRESS: {userdesc.base_address}')
     #     # child_process.current_thread.local_data_address =
     #     #     userdesc.base_address
-
     return child_process.pid
 
 

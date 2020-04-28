@@ -256,7 +256,6 @@ class MemoryApi:
         kind: str = "",
         module_name: str = "",
         prot: int = ProtType.RWX,
-        ptr: Optional[ctypes.POINTER] = None,
         reserve: bool = False,
     ) -> None:
         """
@@ -274,13 +273,12 @@ class MemoryApi:
                 this region.
             prot: An integer representing the RWX protection to be set
                 on the mapped region.
-            ptr: If specified, creates a memory map from the pointer.
             reserve: Reserves memory to prepare for mapping. An option
                 used in Windows.
 
         """
         return self._memory.map(
-            address, size, name, kind, module_name, prot, ptr, reserve
+            address, size, name, kind, module_name, prot, reserve
         )
 
     def read_ptr(self, addr: int) -> int:

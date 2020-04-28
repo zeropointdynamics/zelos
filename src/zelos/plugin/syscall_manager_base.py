@@ -208,7 +208,6 @@ class SyscallManager(object):
         sys_num = self.get_syscall_number()
         sys_name = self.find_syscall_name_by_number(sys_num)
         self.z.triggers.tr_call_syscall(sys_name)
-        self.logger.spam(f"Executing syscall {sys_name}")
         sys_fn = self.find_syscall(sys_name)
         try:
             # The current thread might get modified by the syscall.
@@ -217,9 +216,10 @@ class SyscallManager(object):
             retval = sys_fn(self, process)
             if retval is not None:
                 self.set_return_value(retval)
-            self.print_syscall(
-                thread, sys_name, self.last_syscall_args, retval
-            )
+            if self.z.config.log_syscalls:
+                self.print_syscall(
+                    thread, sys_name, self.last_syscall_args, retval
+                )
         except Exception as e:
             self.logger.error(f"Error happened inside syscall {sys_name}")
             self.print_syscall(thread, sys_name, self.last_syscall_args, None)

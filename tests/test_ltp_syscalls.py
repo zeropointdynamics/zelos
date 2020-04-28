@@ -29,7 +29,7 @@ DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 
 
 class ZelosTest(unittest.TestCase):
-    def _ltp_run(self, bin_path, timeout=3):
+    def _ltp_run(self, bin_path, timeout=30):
         z = Zelos(path.join(DATA_DIR, bin_path), log="ERROR")
         z.internal_engine.set_verbose(False)
         z.internal_engine.trace.threads_to_print.add("none")
@@ -153,8 +153,15 @@ class ZelosTest(unittest.TestCase):
         # self._ltp_run('ltp_x64/syscalls/vfork02')
 
     def test_write(self):
-        # self._ltp_run('ltp_x64/syscalls/write01')
+        self._ltp_run('ltp_x64/syscalls/write01')
         self._ltp_run("ltp_x64/syscalls/write02")
         # self._ltp_run('ltp_x64/syscalls/write03')
         # self._ltp_run('ltp_x64/syscalls/write04')
         # self._ltp_run('ltp_x64/syscalls/write05')
+
+def main():
+    unittest.main()
+
+
+if __name__ == "__main__":
+    main()

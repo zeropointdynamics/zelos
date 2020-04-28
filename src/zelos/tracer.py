@@ -24,6 +24,8 @@ from unicorn import UC_ERR_READ_UNMAPPED, UcError
 
 from .manager import IManager
 
+from .exceptions import MemoryReadUnmapped
+
 
 class Comment:
     def __init__(self, address, thread_id, text):
@@ -78,7 +80,8 @@ class Tracer(IManager):
         if address is None:
             address = self.emu.getIP()
         try:
-            code = self.emu.mem_read(address, size)
+            code = self.memory.read(address, size)
+            # code = self.memory.emu.mem_read(address, size)
             insns = [insn for insn in self._cs.disasm(code, address)]
             if len(insns) == 0:
                 return
@@ -95,6 +98,8 @@ class Tracer(IManager):
                 print("Unable to read instruction at address %x" % address)
             else:
                 raise e
+        except MemoryReadUnmapped as e:
+            print("Unable to read instruction at address %x" % address)
 
     def regs(self):
         """ Prints registers at the current address"""
@@ -392,6 +397,8 @@ class x86CommentGenerator:
             if e.errno == UC_ERR_READ_UNMAPPED:
                 return ""
             raise e
+        except MemoryReadUnmapped as e:
+            print("Unable to read instruction at address %x" % address)
 
         s = ""
         try:
@@ -399,6 +406,8 @@ class x86CommentGenerator:
         except UcError as e:
             if e.errno != UC_ERR_READ_UNMAPPED:
                 raise e
+        except MemoryReadUnmapped as e:
+            print("Unable to read instruction at address %x" % address)
 
         # Require a certain amount of valid characters to reduce false
         # positives for string identification.

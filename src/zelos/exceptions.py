@@ -42,3 +42,11 @@ class UnsupportedBinaryError(ZelosException):
 
 class OutOfMemoryException(Exception):
     pass
+
+
+class MemoryWriteUnmapped(Exception):
+    pass
+
+
+class MemoryReadUnmapped(Exception):
+    pass

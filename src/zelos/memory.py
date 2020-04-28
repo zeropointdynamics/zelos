@@ -19,118 +19,24 @@ from __future__ import absolute_import, print_function
 
 import ctypes
 import logging
+import os
+import struct
 
 from collections import defaultdict
+from ctypes import string_at
 from string import printable
 from typing import List, Optional
 
-from sortedcontainers import SortedDict, SortedListWithKey
+from sortedcontainers import SortedListWithKey
 
 import zelos.util as util
 
 from zelos.enums import ProtType
-from zelos.exceptions import OutOfMemoryException
-
-
-class Section:
-    """
-    Represents a region of memory that has been mapped.
-    """
-
-    def __init__(
-        self,
-        emu,
-        address,
-        size,
-        name,
-        kind,
-        module_name,
-        reserve=False,
-        ptr=None,
-    ):
-        self.emu = emu
-        self.address = address
-        self.size = size
-        self.name = name
-        self.kind = kind
-        self.module_name = module_name
-        self.reserved = reserve
-
-        # If the ptr is set, this means the section is ptr mapped.
-        # These sections should be shared across processes
-        self.ptr = ptr
-
-    def __str__(self):
-        s = f"0x{self.address:08x}-0x{self.address+self.size:08x}: "
-        s += f"{self.module_name} {self.name}, {self.kind}"
-        if self.ptr is not None:
-            s += " (p)"
-        return s
-
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
-
-    def get_data(self) -> bytearray:
-        """
-        Returns all data in the region.
-
-        Returns:
-            Data from the region.
-        """
-        return self.emu.mem_read(self.address, self.size)
-
-    def entropy(self) -> float:
-        """
-        Calculates the entropy of data contained within the section.
-
-        Returns:
-            Entropy of this section.
-        """
-        data = self.get_data()
-        import numpy as np
-        from scipy.stats import entropy
-
-        value, counts = np.unique(data, return_counts=True)
-        return entropy(counts)
-
-    def get_strings(self, min_len: int = 5) -> List[str]:
-        """
-        Returns all strings found in the region's memory.
-
-        Args:
-            min_len: The minimum length a string must be to be included
-                in the output.
-
-        Returns:
-            List of strings found within this section's data.
-
-        """
-        strings = []
-        string_so_far = ""
-        data = self.get_data()
-        for c in data:
-            if chr(c) in printable:
-                string_so_far += chr(c)
-            else:
-                if len(string_so_far) >= min_len:
-                    strings.append(string_so_far)
-                string_so_far = ""
-
-        # Also look for wide strings
-        string_so_far = ""
-        i = 0
-        while i + 1 < len(data):
-            c = chr(data[i])
-            if c in printable and data[i + 1] == 0:
-                string_so_far += c
-                i += 2
-            else:
-                if len(string_so_far) >= min_len:
-                    strings.append(string_so_far)
-                string_so_far = ""
-                i += 1
-
-        return strings
+from zelos.exceptions import (
+    OutOfMemoryException,
+    MemoryWriteUnmapped,
+    MemoryReadUnmapped,
+)
 
 
 class Memory:
@@ -138,137 +44,73 @@ class Memory:
     Responsbile for interactions with emulated memory.
     """
 
-    # Users of memory class should use memory's protection definitions
-    # defined here instead of unicorn constants directly.
-
     HEAP_BASE = 0x90000000
     HEAP_MAX_SIZE = 100 * 1024 * 1024
-
     # A separate heap base for virtual allocations
     VALLOC_BASE = 0x00C50000
-
     MAX_UINT64 = 0xFFFFFFFFFFFFFFFF
+    MAX_UINT32 = 0xFFFFFFFF
 
-    def __init__(
-        self,
-        emu,
-        state,
-        lowest_addr: int = 0,
-        max_addr: int = MAX_UINT64,
-        disableNX: bool = False,
-    ) -> None:
+    def __init__(self, emu, state, disableNX: bool = False,) -> None:
         self.emu = emu
         self.state = state
         self.logger = logging.getLogger(__name__)
-
-        self.max_addr = max_addr
         self.disableNX = disableNX
+        self.MEM_LIMIT = 3 * 1024 * 1024 * 1024
+        self.heap = None
+        self.clear()
+        self.heap = Heap(self, self.HEAP_BASE, self.HEAP_MAX_SIZE)
 
         from unicorn import UC_HOOK_MEM_READ_PROT
 
         self.emu.hook_add(UC_HOOK_MEM_READ_PROT, self._hook_read_prot)
         self.mem_hooks = dict()
 
-        # Prevent runaway allocation
-        self.MEM_LIMIT = 3 * 1024 * 1024 * 1024
-
-        self._setup()
-
-        self.heap = Heap(self, self.emu, self.HEAP_BASE, self.HEAP_MAX_SIZE)
-
-    def _setup(self):
-        """Sets up variables after init or after memory is cleared."""
-        self.memory_info = SortedDict()
-        self.memory_info[0] = Section(
-            self.emu, 0x0, 0x1000, "reserved", "zelos", "", False
-        )
-
-        self.num_bytes_mapped = 0
-
-        # Keep track of memory changes that have been made.
-        self.initial_memory_state = {}
-
-        # Current virual allocation location
-        self.VALLOC_CUR = self.VALLOC_BASE
-
     def __str__(self):
         s = "Memory Manager:\n"
-        for info in self.memory_info.values():
+        for info in self.get_regions():
             s += "  {0}\n".format(info)
         return s
 
     def copy(self, other_memory: "Memory") -> None:
         """
-        Creates the same state in other_memory.
+        Duplicates memory regions from `other_memory` into this memory.
 
         Args:
-            other_memory: Memory that will contain a copy of self.
+            other_memory: Memory to duplicate.
         """
-        for (start, end, prot) in self.emu.mem_regions():
-            self.logger.spam(f"Clearing {start:x}-{end:x}")
-            size = end + 1 - start
-            self.emu.mem_unmap(start, size)
-
-        self.heap._clear()
-
-        self._setup()
-
-        # Copy the Memory metadata
-        for section in other_memory.memory_info.values():
-            self.copy_section(section, other_memory)
-
-        # other tidbits
-        self.max_addr = other_memory.max_addr
+        self.clear()
         self.disableNX = other_memory.disableNX
-        self.num_bytes_mapped = other_memory.num_bytes_mapped
         self.heap = other_memory.heap
+        for mr in other_memory.get_regions():
+            if mr.shared:
+                self.emu.map_shared(mr)
+            else:
+                self.map(
+                    mr.address,
+                    mr.size,
+                    name=mr.name,
+                    kind=mr.kind,
+                    module_name=mr.module_name,
+                )
+                data = other_memory.read(mr.address, mr.size)
+                self.write(mr.address, bytes(data))
 
     def clear(self) -> None:
         """
         Clears all of memory
         """
-        for (start, end, prot) in self.emu.mem_regions():
-            self.logger.spam(f"Clearing {start:x}-{end:x}")
-            size = end + 1 - start
-            self.emu.mem_unmap(start, size)
-
-        self.heap._clear()
-
-        self._setup()
-
-        self.heap = Heap(self, self.emu, self.HEAP_BASE, self.HEAP_MAX_SIZE)
-
-    def get_sections(self) -> List[Section]:
-        """
-        Gets meaningful sections from Zelos in memory. Reserved sections
-        are not guaranteed to be written into Zelos, so memory
-        operations on these addresses may not be meaningful.
-
-        Returns:
-            Sections present in memory.
-        """
-        return [
-            meminfo
-            for meminfo in self.memory_info.values()
-            if meminfo.name not in ["reserved"]
-        ]
-
-    def record_initial_memory_state(self) -> None:
-        """
-        We record the initial memory state in order to use it to tell
-        what memory has changed.
-        """
-        if len(self.initial_memory_state) > 0:
-            return
-        for section in self.get_sections():
-            self.initial_memory_state[section.address] = (
-                section,
-                section.get_data(),
-            )
+        self.logger.debug(f"Clearing Memory...")
+        for region in self.get_regions():
+            self.logger.debug(f"  Clearing {region.start:x}-{region.end:x}")
+            self.unmap(region.start, region.size)
+        if self.heap:
+            self.heap._clear()
+        self.num_bytes_mapped = 0
+        self.VALLOC_CUR = self.VALLOC_BASE
 
     # Helper functions for reading and writing memory. All generic
     # helpers for memory should go here moving forward
-
     def read(self, addr: int, size: int) -> bytearray:
         """
         Copies specified region of memory. Requires that the specified
@@ -309,7 +151,7 @@ class Memory:
             Integer represntation of bytes read.
         """
         sz = self.state.bytes if sz is None else sz
-        value = self.emu.mem_read(addr, sz)
+        value = self.read(addr, sz)
         return self.emu.unpack(value, bytes=sz, signed=signed)
 
     def write_int(
@@ -330,7 +172,7 @@ class Memory:
             Number of bytes written to memory.
         """
         packed = self.emu.pack(value, bytes=sz, signed=signed)
-        self.emu.mem_write(addr, packed)
+        self.write(addr, packed)
         return len(packed)
 
     def read_string(self, addr: int, size: int = 1024) -> str:
@@ -350,7 +192,7 @@ class Memory:
         data = b""
         try:
             for i in range(size):
-                byte = bytes(self.emu.mem_read(addr + i, 1))
+                byte = bytes(self.read(addr + i, 1))
                 if byte == b"\x00":
                     break
                 data += byte
@@ -383,47 +225,13 @@ class Memory:
         data = b""
         try:
             for i in range(0, size, 2):
-                chars = self.emu.mem_read(addr + i, 2)
+                chars = self.read(addr + i, 2)
                 if chars == b"\x00\x00":
                     break
                 data += chars
             return data.decode("utf-16")
         except Exception:
             print("Couldn't read wstr at 0x{0:x}".format(addr + i))
-            return ""
-
-    def get_punicode_string(self, addr: int) -> str:
-        # punicode
-        # length        ushort
-        # maxlength     ushort
-        # wstring        pvoid
-        try:
-            length = self.read_uint16(addr)
-            string_pointer = self.read_ptr(addr + 4)
-            if length == 0:
-                value = self.read_wstring(string_pointer)
-            else:
-                value = self.read_wstring(string_pointer, length)
-            return value
-        except Exception as e:
-            print("Could not read string @", hex(addr), ":", e)
-            return ""
-
-    def get_pansi_string(self, addr: int) -> int:
-        # punicode
-        # length        ushort
-        # maxlength     ushort
-        # string        pvoid
-        try:
-            length = self.read_uint16(addr)
-            string_pointer = self.read_ptr(addr + 4)
-            if length == 0:
-                value = self.read_string(string_pointer)
-            else:
-                value = self.read_string(string_pointer, length)
-            return value
-        except Exception as e:
-            print("Could not read string @", hex(addr), ":", e)
             return ""
 
     def write_string(
@@ -446,7 +254,7 @@ class Memory:
         if terminal_null_byte:
             byte_value += b"\x00"
         if addr != 0:
-            self.emu.mem_write(addr, byte_value)
+            self.write(addr, byte_value)
         return len(byte_value)
 
     def write_wstring(
@@ -468,7 +276,7 @@ class Memory:
         byte_value = value.encode("utf-16-le")
         if terminal_null_byte:
             byte_value += b"\x00\x00"
-        self.emu.mem_write(addr, byte_value)
+        self.write(addr, byte_value)
         return len(byte_value)
 
     # @@TODO handle MBCS / WCHAR nonsense
@@ -486,7 +294,7 @@ class Memory:
         Returns:
             Instance of structure read from memory.
         """
-        data = self.emu.mem_read(addr, ctypes.sizeof(obj))
+        data = self.read(addr, ctypes.sizeof(obj))
         util.str2struct(obj, data)
         return obj
 
@@ -523,7 +331,7 @@ class Memory:
             Number of bytes written to memory.
         """
         data = util.struct2str(structure)
-        self.emu.mem_write(address, data)
+        self.write(address, data)
         return len(data)
 
     def dumpstruct(
@@ -542,12 +350,16 @@ class Memory:
     def map_anywhere(
         self,
         size: int,
+        preferred_address: int = None,
         name: str = "",
         kind: str = "",
-        min_addr: int = 0,
+        module_name: str = "",
+        min_addr: int = 0x1000,
         max_addr: int = 0xFFFFFFFFFFFFFFFF,
         alignment: int = 0x1000,
+        top_down: bool = False,
         prot: int = ProtType.RWX,
+        shared: bool = False,
     ) -> int:
         """
         Maps a region of memory with requested size, within the
@@ -557,6 +369,8 @@ class Memory:
         Args:
             size: # of bytes to map. This will be rounded up to match
                 the alignment.
+            preferred_address: If the specified address is available,
+                it will be used for the mapping.
             name: String used to identify mapped region. Used for
                 debugging.
             kind: String used to identify the purpose of the mapped
@@ -565,15 +379,94 @@ class Memory:
             max_addr: The highest address that could be mapped.
             alignment: Ensures the size and start address are multiples
                 of this. Must be a multiple of 0x1000. Default 0x1000.
+            top_down: If True, the region will be mapped to the
+                highest available address instead of the lowest.
             prot: RWX permissions of the mapped region. Defaults to
                 granting all permissions.
         Returns:
             Start address of mapped region.
         """
-        address = self._find_free_space(
-            size, min_addr=min_addr, max_addr=max_addr, alignment=alignment
+        address = self.find_free_space(
+            size,
+            preferred_address=preferred_address,
+            min_addr=min_addr,
+            max_addr=max_addr,
+            alignment=alignment,
+            top_down=top_down,
         )
-        self.map(address, util.align(size), name, kind)
+        if address is None:
+            raise OutOfMemoryException()
+        self.map(
+            address,
+            util.align(size),
+            name=name,
+            kind=kind,
+            module_name=module_name,
+            prot=prot,
+            shared=shared,
+        )
+        return address
+
+    def map_file_anywhere(
+        self,
+        filename: str,
+        offset: int = 0,
+        size: int = 0,
+        preferred_address: int = None,
+        min_addr: int = 0x1000,
+        max_addr: int = 0xFFFFFFFFFFFFFFFF,
+        alignment: int = 0x1000,
+        top_down: bool = False,
+        prot: int = ProtType.RWX,
+        shared: bool = False,
+    ) -> int:
+        """
+        Maps a region of memory with requested size, within the
+        addresses specified. The size and start address will respect the
+        alignment.
+
+        Args:
+            size: # of bytes to map. This will be rounded up to match
+                the alignment.
+            preferred_address: If the specified address is available,
+                it will be used for the mapping.
+            name: String used to identify mapped region. Used for
+                debugging.
+            kind: String used to identify the purpose of the mapped
+                region. Used for debugging.
+            min_addr: The lowest address that could be mapped.
+            max_addr: The highest address that could be mapped.
+            alignment: Ensures the size and start address are multiples
+                of this. Must be a multiple of 0x1000. Default 0x1000.
+            top_down: If True, the region will be mapped to the
+                highest available address instead of the lowest.
+            prot: RWX permissions of the mapped region. Defaults to
+                granting all permissions.
+        Returns:
+            Start address of mapped region.
+        """
+        if size == 0:
+            with open(filename, "rb") as f:
+                size = os.fstat(f.fileno()).st_size
+        size = util.align(size)
+        address = self.find_free_space(
+            size,
+            preferred_address=preferred_address,
+            min_addr=min_addr,
+            max_addr=max_addr,
+            alignment=alignment,
+            top_down=top_down,
+        )
+        if address is None:
+            raise OutOfMemoryException()
+        self.map_file(
+            address,
+            filename,
+            offset=offset,
+            size=size,
+            prot=prot,
+            shared=shared,
+        )
         return address
 
     def map(
@@ -584,7 +477,7 @@ class Memory:
         kind: str = "",
         module_name: str = "",
         prot: int = ProtType.RWX,
-        ptr: Optional[ctypes.POINTER] = None,
+        shared: bool = False,
         reserve: bool = False,
     ) -> None:
         """
@@ -617,61 +510,53 @@ class Memory:
         if self.num_bytes_mapped > self.MEM_LIMIT:
             self.logger.critical("OUT OF MEMORY")
             raise OutOfMemoryException
-
-        if ptr is None:
-            self.emu.mem_map(address, size)
-            if prot != ProtType.RWX:
-                self.protect(address, size, prot)
-        else:
-            self.logger.debug(
-                f"mapping "
-                f"{address:x}, size: {size:x}, prot {prot:x}, ptr: {ptr}"
-            )
-            self.emu.mem_map_ptr(address, size, prot, ptr)
-        self._new_section(
-            address, size, name, kind, module_name, reserve=reserve, ptr=ptr
+        self.emu.mem_map(
+            address,
+            size,
+            name=name,
+            kind=kind,
+            module_name=module_name,
+            prot=prot,
+            shared=shared,
+            reserve=reserve,
         )
 
-    def copy_section(self, section: Section, other_memory: "Memory") -> None:
+    def map_file(
+        self,
+        address: int,
+        filename: str,
+        offset: int = 0,
+        size: int = 0,
+        prot: int = ProtType.RWX,
+        shared: bool = False,
+    ) -> int:
         """
-        Copies a section from this instance of memory into another
-        instance of memory.
+        Maps a region of memory at the specified address.
 
         Args:
-            section: The section to copy. Must correspond to a section
-                within this memory object.
-            other_memory: An instance of memory to copy the specified
-                section to.
+            address: Address to map.
+            size: # of bytes to map. This will be rounded up to the
+                nearest 0x1000.
+            name: String used to identify mapped region. Used for
+                debugging.
+            kind: String used to identify the purpose of the mapped
+                region. Used for debugging.
+            module_name: String used to identify the module that mapped
+                this region.
+            prot: An integer representing the RWX protection to be set
+                on the mapped region.
+            ptr: If specified, creates a memory map from the pointer.
+            reserve: Reserves memory to prepare for mapping. An option
+                used in Windows.
+
         """
-        start = section.address
-        size = section.size
-        end = start + size
-
-        # We have the beginning mapped for special addresses
-        if start == 0:
-            return
-
-        # Some sections are added to differentiate different sections in
-        # the binary. These are typically not aligned. If they are,
-        # should only be an extra copy.
-        if start != util.align(start) or end != util.align(end):
-            return
-
-        self.logger.spam(f"Copying {start:x}-{end:x}")
-
-        if section.ptr is None:
-            data = other_memory.read(start, size)
-            self.map(start, size)
-            self.write(start, bytes(data))
-        else:
-            self.map(start, size, ptr=section.ptr)
-        self._new_section(
-            section.address,
-            section.size,
-            name=section.name,
-            kind=section.kind,
-            module_name=section.module_name,
-            ptr=section.ptr,
+        self.emu.mem_map_file(
+            address,
+            filename,
+            offset=offset,
+            size=size,
+            prot=prot,
+            shared=shared,
         )
 
     def protect(self, address: int, size: int, prot: int) -> None:
@@ -690,6 +575,7 @@ class Memory:
             This does not correspond to Sections at the moment.
 
         """
+        # return
         if self.disableNX:
             prot = prot | ProtType.EXEC
         aligned_address = address & 0xFFFFF000  # Address needs to align with
@@ -725,21 +611,10 @@ class Memory:
             a correct representation in the Sections.
 
         """
-        if address in self.memory_info.keys():
-            section_size = self.memory_info[address].size
-            if size != section_size:
-                self.logger.info(
-                    "Deleting section, though size is not the same "
-                    "(was %x, requested %x)",
-                    section_size,
-                    size,
-                )
-            del self.memory_info[address]
-
-            self.emu.mem_unmap(address, size)
-        else:
-            self.logger.info("Attempting to unmap part of alloc section")
-            self.emu.mem_unmap(address, size)
+        self.logger.debug(
+            f"Unmapping region " f"0x{address:x} of size 0x{size:x}"
+        )
+        self.emu.mem_unmap(address, size)
 
     def get_base(self, address: int) -> Optional[int]:
         """
@@ -754,13 +629,10 @@ class Memory:
             This function should operate on the Section object.
             Also, clarity regions split by unmap is needed.
         """
-        regions = self.emu.mem_regions()
-        for region in regions:
-            addr = region[0]
-            size = region[1] - addr + 1
-            if address >= addr and address < addr + size:
-                return addr
-        return None
+        region = self.get_region(address)
+        if region is None:
+            return None
+        return region.address
 
     def get_perms(self, address: int) -> int:
         """
@@ -773,14 +645,10 @@ class Memory:
         Returns:
             Permissions of the containing section.
         """
-        regions = self.emu.mem_regions()
-        for region in regions:
-            addr = region[0]
-            size = region[1] - addr + 1
-            perm = region[2]
-            if address >= addr and address < addr + size:
-                return perm
-        return None
+        region = self.get_region(address)
+        if region is None:
+            return None
+        return region.prot
 
     def get_size(self, address: int) -> int:
         """
@@ -792,14 +660,12 @@ class Memory:
         Returns:
             Size of the containing section.
         """
-        regions = self.emu.mem_regions()
-        for region in regions:
-            addr = region[0]
-            size = region[1] - addr + 1
-            if address >= addr and address < addr + size:
-                return size
-        return None
+        region = self.get_region(address)
+        if region is None:
+            return None
+        return region.size
 
+    # TODO: move to memory hook API
     def hook_first_read(self, region_addr, hook):
         region = self.get_region(region_addr)
         size = self.get_size(region_addr)
@@ -809,7 +675,7 @@ class Memory:
         addr = region.address
 
         try:
-            self.emu.mem_protect(addr, util.align(size), ProtType.NONE)
+            self.protect(addr, util.align(size), ProtType.NONE)
         except Exception:
             self.logger.exception(
                 "Error trying to protect portion 0x%x + 0x%x, Prot: %x",
@@ -826,7 +692,7 @@ class Memory:
         if addr not in self.mem_hooks:
             return False
         mem_hook = self.mem_hooks[addr]
-        self.emu.mem_protect(
+        self.protect(
             mem_hook.addr, util.align(mem_hook.size), mem_hook.orig_perms
         )
         del self.mem_hooks[addr]
@@ -834,30 +700,11 @@ class Memory:
 
     def get_region(self, address):
         """ Gets the region that this address belongs to."""
-        for section in self.memory_info.values():
-            if section.address <= address < section.address + section.size:
-                return section
-        return None
+        return self.emu.mem_region(address)
 
-    def get_initial_region(self, address):
-        """
-        Returns the initial region that contained this address, along
-        with the memory at that time.
-        """
-        for (section, mem) in self.initial_memory_state.values():
-            if section.address <= address < section.address + section.size:
-                return (section, mem)
-        return (None, None)
-
-    def get_region_hash(self):
-        """ Used for determining whether a memory region has changed"""
-        hashes = {}
-        for region in self.memory_info.values():
-            try:
-                hashes[region.address] = region.get_data()
-            except Exception:
-                pass
-        return hashes
+    def get_regions(self):
+        """ Returns a list of all mapped memory regions."""
+        return self.emu.mem_regions()
 
     def read_ptr(self, addr: int) -> int:
         return self.read_int(addr)
@@ -890,88 +737,35 @@ class Memory:
         return self.read_int(addr, sz=1, signed=False)
 
     def write_ptr(self, addr: int, value: int) -> int:
-        return self.write_int(addr, value)
+        self.write_int(addr, value)
 
     def write_size_t(self, addr: int, value: int) -> int:
-        return self.write_int(addr, value)
+        self.write_int(addr, value)
 
     def write_int64(self, addr: int, value: int) -> int:
-        return self.write_int(addr, value, sz=8, signed=True)
+        self.write_int(addr, value, sz=8, signed=True)
 
     def write_uint64(self, addr: int, value: int) -> int:
-        return self.write_int(addr, value, sz=8, signed=False)
+        self.write_int(addr, value, sz=8, signed=False)
 
     def write_int32(self, addr: int, value: int) -> int:
-        return self.write_int(addr, value, sz=4, signed=True)
+        self.write_int(addr, value, sz=4, signed=True)
 
-    def write_uint32(self, addr: int, value: int) -> int:
-        return self.write_int(addr, value, sz=4, signed=False)
+    def write_uint32(self, addr, value):
+        self.write(addr, struct.pack("<I", value & 0xFFFFFFFF))
+        # return self.write_int(addr, value, sz=4, signed=False)
 
     def write_int16(self, addr: int, value: int) -> int:
-        return self.write_int(addr, value, sz=2, signed=True)
+        self.write_int(addr, value, sz=2, signed=True)
 
     def write_uint16(self, addr: int, value: int) -> int:
-        return self.write_int(addr, value, sz=2, signed=False)
+        self.write_int(addr, value, sz=2, signed=False)
 
     def write_int8(self, addr: int, value: int) -> int:
-        return self.write_int(addr, value, sz=1, signed=True)
+        self.write_int(addr, value, sz=1, signed=True)
 
     def write_uint8(self, addr: int, value: int) -> int:
-        return self.write_int(addr, value, sz=1, signed=False)
-
-    def pack(
-        self,
-        x: int,
-        bytes: int = None,
-        little_endian: bool = None,
-        signed: bool = False,
-    ) -> bytes:
-        """
-        Unpacks an integer from a byte format. Defaults to the
-        current architecture bytes and endianness.
-        """
-        return self.emu.pack(
-            x, bytes=bytes, little_endian=little_endian, signed=signed
-        )
-
-    def unpack(
-        self,
-        x: bytes,
-        bytes: int = None,
-        little_endian: bool = None,
-        signed: bool = False,
-    ) -> int:
-        """
-        Unpacks an integer from a byte format. Defaults to the
-        current architecture bytes and endianness.
-        """
-        return self.emu.unpack(
-            x, bytes=bytes, little_endian=little_endian, signed=signed
-        )
-
-    def _new_section(
-        self,
-        address: int,
-        size: int,
-        name: str = "",
-        kind: str = "",
-        module_name: str = "",
-        ptr: Optional[ctypes.POINTER] = None,
-        reserve: bool = False,
-    ):
-        if size == 0:
-            self.logger.notice("Will not insert region of size 0")
-            return
-        self.memory_info[address] = Section(
-            self.emu,
-            address,
-            size,
-            name,
-            kind,
-            module_name,
-            ptr=ptr,
-            reserve=reserve,
-        )
+        self.write_int(addr, value, sz=1, signed=False)
 
     def _has_overlap(self, requested_addr, size):
         """
@@ -979,150 +773,61 @@ class Memory:
         given size would overlap with an existing mapped region.
         """
         requested_end = requested_addr + size
-        for region in self.emu.mem_regions():
-            region_begin = region[0]
-            region_end = region[1]
-            if requested_addr <= region_end and requested_end >= region_begin:
+        for region in self.get_regions():
+            if requested_addr <= region.end and requested_end >= region.start:
                 return True
         return False
 
-    def _get_next_gap(self, size, start, end):
+    def find_free_space(
+        self,
+        size,
+        preferred_address=None,
+        min_addr=0x1000,
+        max_addr=MAX_UINT32,
+        alignment=0x10000,
+        top_down=False,
+    ):
         """
         Returns the start address of the next region between start and
         end that allows for memory of the given size to be mapped.
         """
-        min_addr_so_far = start
-        for region in sorted(list(self.emu.mem_regions()), key=lambda x: x[0]):
-            region_begin = region[0]
-            region_end = region[1]
-            if region_begin >= end or region_end < start:
-                continue
-
-            gap = region_begin - min_addr_so_far
-            if gap < size:
-                min_addr_so_far = util.align(region_end)
-                continue
-            return min_addr_so_far
-        # Check to see there is a gap after the last region
-        gap = end - min_addr_so_far
-        if gap < size:
-            self.logger.error(
-                "No gap of size %x between %x and %x" % (size, start, end)
+        if preferred_address is not None and not self._has_overlap(
+            preferred_address, size
+        ):
+            return preferred_address
+        regions = self.get_regions()
+        # Check if space before first region is free
+        min_addr = util.align(min_addr, alignment=alignment)
+        if len(regions) == 0 or min_addr + size <= regions[0].address:
+            return min_addr
+        # Check if space between regions is free
+        for i in range(len(regions) - 1):
+            gap_begin = util.align(
+                max(regions[i].end, min_addr), alignment=alignment
             )
-        return min_addr_so_far
-
-    # Allocate a chunk of memory at the requested address. If the
-    # requested address is not available, find the first available chunk
-    # of memory greater or equal to min_base. Returns the address of the
-    # allocated chunk, or zero on failure.
-    # This method was added after map_anywhere, due to legacy reasons.
-    # Look into combining the two functionalities
-
-    def _alloc_at(
-        self,
-        name,
-        kind,
-        module_name,
-        requested_addr,
-        size,
-        min_addr=0x60000000,
-        max_addr=0x90000000,
-        prot=ProtType.RWX,
-        ptr=None,
-    ):
-        # if requested_addr < min_addr:
-        #     requested_addr = min_addr
-        if requested_addr > max_addr:
-            requested_addr = min_addr
-        size = util.align(size)
-        relocated_addr = 0
-        if self._has_overlap(requested_addr, size):
-            relocated_addr = self._get_next_gap(size, min_addr, max_addr)
-
-            self.logger.debug(
-                "[Loader] Relocating Overlapping Region from "
-                "0x{0:08x} to 0x{1:08x}".format(requested_addr, relocated_addr)
+            gap_end = min(
+                min(max_addr, gap_begin + size), regions[i + 1].start
             )
-            try:
-                self.map(
-                    relocated_addr,
-                    size,
-                    name,
-                    kind,
-                    module_name=module_name,
-                    prot=prot,
-                    ptr=ptr,
-                )
-                return relocated_addr
-            except Exception:
-                self.logger.exception("Couldn't relocate properly")
-                exit()
-        else:
-            self.map(
-                requested_addr,
-                size,
-                name,
-                kind,
-                module_name=module_name,
-                prot=prot,
-                ptr=ptr,
-            )
-        return requested_addr
-
-    def _is_free(self, address):
-        """
-        Returns whether a specified addrss is free or already part of an
-        allocated region.
-        """
-        for section in self.memory_info.values():
-            if (
-                address >= section.address
-                and address < section.address + section.size
-            ):
-                return False
-        for region in list(self.emu.mem_regions()):
-            if address >= region[0] and address < region[1]:
-                return False
-        return True
-
-    def _find_free_space(
-        self, size, min_addr=0, max_addr=MAX_UINT64, alignment=0x10000
-    ):
-        """
-        Finds a region of memory that is free, larger than 'size' arg,
-        and aligned.
-        """
-        sections = list(self.memory_info.values())
-        for i in range(0, len(sections)):
-            addr = util.align(
-                sections[i].address + sections[i].size, alignment=alignment
-            )
-            # Enable allocating memory in the middle of a gap when the
-            # min requested address falls in the middle of a gap
-            if addr < min_addr:
-                addr = min_addr
-            # Cap the gap's max address by accounting for the next
-            # section's start address, requested max address, and the
-            # max possible address
-            max_gap_addr = (
-                self.max_addr
-                if i == len(sections) - 1
-                else sections[i + 1].address
-            )
-            max_gap_addr = min(max_gap_addr, max_addr)
-            # Ensure the end address is less than the max and the start
-            # address is free
-            if addr + size < max_gap_addr and self._is_free(addr):
-                return addr
-        raise OutOfMemoryException()
+            gap_size = gap_end - gap_begin
+            if gap_size >= size:
+                return gap_begin
+        # Check if space after last region is free
+        gap_begin = util.align(
+            max(regions[-1].end, min_addr), alignment=alignment
+        )
+        gap_end = max_addr
+        gap_size = gap_end - gap_begin
+        if gap_size >= size:
+            return gap_begin
+        return None
 
     def _save_state(self):
         data = []
-        for address, meminfo in self.memory_info.items():
-            if meminfo.kind not in ["main", "mmap", "stack", "section"]:
+        for region in self.get_regions():
+            if region.kind not in ["main", "mmap", "stack", "section"]:
                 continue
-            mem = self.emu.mem_read(address, meminfo.size)
-            data.append((meminfo, mem))
+            mem = self.read(region.address, region.size)
+            data.append((region, mem))
         return data
 
     def _load_state(self, data):
@@ -1132,7 +837,7 @@ class Memory:
             )
             mem = bytes(mem)
             try:
-                self.emu.mem_write(meminfo.address, mem)
+                self.write(meminfo.address, mem)
             except Exception:
                 self.map(
                     meminfo.address,
@@ -1140,7 +845,7 @@ class Memory:
                     meminfo.name,
                     meminfo.kind,
                 )
-                self.emu.mem_write(meminfo.address, mem)
+                self.write(meminfo.address, mem)
 
 
 class _HeapObjInfo:
@@ -1206,9 +911,8 @@ class _HeapObjInfo:
 class Heap:
     """ Helper class to manage heap allocation."""
 
-    def __init__(self, memory, emu, heap_start, heap_max_size):
+    def __init__(self, memory, heap_start, heap_max_size):
         self.memory = memory
-        self.emu = emu
         self.logger = logging.getLogger(__name__)
 
         self.heap_start = heap_start
@@ -1216,15 +920,12 @@ class Heap:
         self.heap_max_size = heap_max_size
         self.heap_objects = SortedListWithKey(key=lambda x: x.address)
 
-        self._setup()
-
-    def _setup(self):
         # Initialize default process heap
         self.memory.map(
             self.heap_start,
             self.heap_max_size,
-            "main_heap",
-            "heap",
+            name="main_heap",
+            kind="heap",
             prot=ProtType.READ | ProtType.WRITE,
         )
 
@@ -1323,7 +1024,7 @@ class Heap:
                 out_string += "\x00"
 
         p_str = self.alloc(len(out_string), name=alloc_name)
-        self.emu.mem_write(p_str, out_string.encode())
+        self.memory.write(p_str, out_string.encode())
         return p_str, len(out_string)
 
 

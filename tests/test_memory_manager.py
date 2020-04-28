@@ -22,40 +22,36 @@ import unittest
 from unicorn import UC_ARCH_X86, UC_MODE_32, Uc
 
 from zelos import Zelos
-from zelos.memory import Memory, OutOfMemoryException, Section
+from zelos.emulator import create_emulator
+from zelos.memory import Memory, OutOfMemoryException
+from zelos.state import State
 
 
 class MemoryTest(unittest.TestCase):
     def test_memory_manager_map_anywhere(self):
-        mm = Memory(Uc(UC_ARCH_X86, UC_MODE_32), None, 32)
-        address1 = mm.map_anywhere(0x1000, "name1", "size1")
-
-        self.assertEqual(
-            mm.memory_info[address1],
-            Section(mm.emu, address1, 0x1000, "name1", "size1", ""),
+        state = State(None, None, None)
+        mm = Memory(
+            create_emulator(UC_ARCH_X86, UC_MODE_32, state), state
         )
+        address1 = mm.map_anywhere(0x1000, name="name1", kind="size1")
 
-        address2 = mm.map_anywhere(0x2000, "name2", "size2")
+        self.assertEqual(mm.get_region(address1).name, "name1")
 
-        self.assertEqual(
-            mm.memory_info[address1],
-            Section(mm.emu, address1, 0x1000, "name1", "size1", ""),
-        )
-        self.assertEqual(
-            mm.memory_info[address2],
-            Section(mm.emu, address2, 0x2000, "name2", "size2", ""),
-        )
+        address2 = mm.map_anywhere(0x2000, name="name2", kind="size2")
+
+        self.assertEqual(mm.get_region(address1).name, "name1")
+        self.assertEqual(mm.get_region(address2).name, "name2")
 
         mm.unmap(address1, 0x1000)
-        self.assertNotIn(address1, mm.memory_info)
-        self.assertEqual(
-            mm.memory_info[address2],
-            Section(mm.emu, address2, 0x2000, "name2", "size2", ""),
-        )
+        self.assertEqual(mm.get_region(address1), None)
+        self.assertEqual(mm.get_region(address2).name, "name2")
 
     def test_map_anywhere_bounded(self):
         # Check mapping when given bounds
-        mm = Memory(Uc(UC_ARCH_X86, UC_MODE_32), None, 32)
+        state = State(None, None, None)
+        mm = Memory(
+            create_emulator(UC_ARCH_X86, UC_MODE_32, state), state
+        )
         min_addr = 0x10000
         max_addr = 0x12000
         address1 = mm.map_anywhere(
@@ -66,15 +62,15 @@ class MemoryTest(unittest.TestCase):
             kind="size1",
         )
 
-        self.assertEqual(
-            mm.memory_info[address1],
-            Section(mm.emu, address1, 0x1000, "name1", "size1", ""),
-        )
+        self.assertEqual(mm.get_region(address1).name, "name1")
         self.assertGreaterEqual(address1, min_addr)
         self.assertLessEqual(address1, max_addr)
 
     def test_map_anywhere_bounded_preexisting_sections(self):
-        mm = Memory(Uc(UC_ARCH_X86, UC_MODE_32), None, 32)
+        state = State(None, None, None)
+        mm = Memory(
+            create_emulator(UC_ARCH_X86, UC_MODE_32, state), state
+        )
         mm.map(0x10000, 0x1000)
         mm.map(0x15000, 0x1000)
         min_addr = 0x12000
@@ -87,46 +83,46 @@ class MemoryTest(unittest.TestCase):
             kind="size1",
         )
 
-        self.assertEqual(
-            mm.memory_info[address1],
-            Section(mm.emu, address1, 0x1000, "name1", "size1", ""),
-        )
+        self.assertEqual(mm.get_region(address1).name, "name1")
         self.assertGreaterEqual(address1, min_addr)
         self.assertLessEqual(address1, max_addr)
 
-    def test_alloc_at(self):
+    def test_map_anywhere(self):
         z = Zelos(None)
         mm = z.internal_engine.memory
-        mm._alloc_at(
-            "Test1",
-            "test_mem",
-            "main_module",
-            0x400000,
+        mm.map_anywhere(
             0x10000,
+            preferred_address=0x400000,
+            name="Test1",
+            kind="test_mem",
+            module_name="main_module",
             min_addr=0x400000,
             max_addr=0x500000,
+            alignment=0x10000,
         )
-        mm._alloc_at(
-            "Test2",
-            "test_mem",
-            "main_module",
-            0x400000,
+        mm.map_anywhere(
             0x10000,
+            preferred_address=0x400000,
+            name="Test2",
+            kind="test_mem",
+            module_name="main_module",
             min_addr=0x400000,
             max_addr=0x500000,
+            alignment=0x10000,
         )
-        mm._alloc_at(
-            "Test3",
-            "test_mem",
-            "main_module",
-            0x410000,
+        mm.map_anywhere(
             0x10000,
-            min_addr=0x400000,
+            preferred_address=0x400000,
+            name="Test3",
+            kind="test_mem",
+            module_name="main_module",
+            min_addr=0x410000,
             max_addr=0x500000,
+            alignment=0x10000,
         )
-        self.assertEqual(mm.memory_info[0x400000].name, "Test1")
-        self.assertEqual(mm.memory_info[0x410000].name, "Test2")
-        self.assertEqual(mm.memory_info[0x420000].name, "Test3")
+        self.assertEqual(mm.get_region(0x400000).name, "Test1")
+        self.assertEqual(mm.get_region(0x410000).name, "Test2")
+        self.assertEqual(mm.get_region(0x420000).name, "Test3")
 
     def test_read_int(self):
         z = Zelos(None)
@@ -159,7 +155,7 @@ class MemoryTest(unittest.TestCase):
         z = Zelos(None)
         mm = z.internal_engine.memory
 
-        address1 = mm.map_anywhere(0x1000, "name1", "size1")
+        address1 = mm.map_anywhere(0x1000, name="name1", kind="size1")
         mm.write_int(address1, 10)
         self.assertEqual(10, z.internal_engine.memory.read_int(address1))
 
