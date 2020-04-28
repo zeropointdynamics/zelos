@@ -285,10 +285,10 @@ class x86EmuHelper(IEmuHelper):
     ]
 
     def msr_read(self, msr_id):
-        return self.uc.msr_read(msr_id)
+        return self._uc.msr_read(msr_id)
 
     def msr_write(self, msr_id, value):
-        return self.uc.msr_write(msr_id, value)
+        return self._uc.msr_write(msr_id, value)
 
 
 class x86_64EmuHelper(IEmuHelper):
@@ -311,7 +311,7 @@ class x86_64EmuHelper(IEmuHelper):
     ]
 
     def msr_read(self, msr_id):
-        return self.uc.msr_read(msr_id)
+        return self._uc.msr_read(msr_id)
 
     def msr_write(self, msr_id, value):
-        return self.uc.msr_write(msr_id, value)
+        return self._uc.msr_write(msr_id, value)

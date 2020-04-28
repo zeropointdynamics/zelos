@@ -32,6 +32,7 @@ from sortedcontainers import SortedListWithKey
 import zelos.util as util
 
 from zelos.enums import ProtType
+from zelos.emulator.base import MemoryRegion
 from zelos.exceptions import (
     OutOfMemoryException,
     MemoryWriteUnmapped,
@@ -706,12 +707,12 @@ class Memory:
         Returns True if writing memory is allowed at the specified
         address.
         """
-        for (begin, end, perms) in self.emu.mem_regions():
-            if begin <= address < end:
-                return perms & ProtType.WRITE
-        return False
+        mr = self.get_region(address)
+        if mr is None:
+            return False
+        return mr.prot & ProtType.WRITE != 0
 
-    def get_region(self, address: int) -> Optional[Section]:
+    def get_region(self, address: int) -> Optional[MemoryRegion]:
         """ Gets the region that this address belongs to."""
         return self.emu.mem_region(address)
 
