@@ -79,13 +79,13 @@ def generate_parser():
     group_clock = parser.add_argument_group("clock")
     parser.add("-c", "--config", is_config_file=True, help="config file path")
     group_fs.add_argument(
-        "--virtual-filename",
+        "--virtual_filename",
         type=str,
         default=None,
         help="Emulated filename (if different from real filename).",
     )
     group_fs.add_argument(
-        "--virtual-path",
+        "--virtual_path",
         type=str,
         default=None,
         help="Emulated file path (optional). "
