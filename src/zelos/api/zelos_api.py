@@ -326,7 +326,7 @@ class Zelos:
                 z.start()
 
         """
-        self.internal_engine.start(timeout=timeout)
+        return self.internal_engine.start(timeout=timeout)
 
     def step(self, count=1) -> None:
         """
@@ -336,7 +336,7 @@ class Zelos:
             count: Maximum number of instructions to execute before
                 stopping
         """
-        self.internal_engine.step(count=count)
+        return self.internal_engine.step(count=count)
 
     def next(self, count=1) -> None:
         """
@@ -347,7 +347,7 @@ class Zelos:
             count: Maximum number of instructions to execute before
                 stopping.
         """
-        self.internal_engine.step_over(count=count)
+        return self.internal_engine.step_over(count=count)
 
     def stop(self, reason: str = "plugin"):
         """

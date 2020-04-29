@@ -103,9 +103,10 @@ class Triggers:
             self.z.triggers.tr_call_syscall(sysname)
             self.z.triggers.tr_syscall(zelos.thread, sysname, args, retval)
 
-        self.z.hook_manager.register_syscall_hook(
-            HookType.SYSCALL.AFTER, syscall_hook, name="triggers"
-        )
+        if self.z.config.trigger_syscall_recording:
+            self.z.hook_manager.register_syscall_hook(
+                HookType.SYSCALL.AFTER, syscall_hook, name="triggers"
+            )
 
     def _update_msg(self):
         blocks = self.z.emu.bb_count()

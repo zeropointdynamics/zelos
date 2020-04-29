@@ -118,6 +118,8 @@ class SyscallManager(object):
             self.z.scheduler.stop("syscall breakpoint")
 
     def generate_break_state(self):
+        if self.z.current_thread is None:
+            return None
         if self.syscall_break_name is None:
             syscall = None
         else:

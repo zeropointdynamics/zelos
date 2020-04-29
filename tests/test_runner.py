@@ -37,7 +37,10 @@ class RunnerTest(unittest.TestCase):
         self.assertEqual(z.thread.getIP(), 0x0B01B3CA)
 
     def test_stop_when(self):
-        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
+        z = Zelos(
+            path.join(DATA_DIR, "static_elf_helloworld"),
+            trigger_syscall_recording=True,
+        )
         z.internal_engine.thread_manager.swap_with_thread("main")
 
         def stop():

@@ -68,15 +68,6 @@ def _generate_without_binary(**kwargs):
     config.filename = ""
     return config
 
-def str2bool(v):
-    if isinstance(v, bool):
-       return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 def generate_parser():
     parser = configargparse.ArgumentParser()
@@ -201,12 +192,15 @@ def generate_parser():
         help="Enable logging of calls to exported functions. (default: off)",
     )
     group_logging.add_argument(
-        "--log_syscalls",
-        type=str2bool,
-        nargs='?',
-        const=True,
-        default=True,
-        help="Enable logging of system calls. (default: on)",
+        "--no_log_syscalls",
+        dest="log_syscalls",
+        action="store_false",
+        help="Disable logging of calls to exported functions.",
+    )
+    group_logging.add_argument(
+        "--trigger_syscall_recording",
+        action="store_true",
+        help="Save syscalls to reporter available post-run. (default: off)",
     )
     group_fs.add_argument(
         "--mount",

@@ -478,7 +478,7 @@ class Engine:
         self.hook_manager.register_exec_hook(
             HookType.EXEC.INST, step_n, end_condition=quit_step_n
         )
-        self.start(swap_threads=False)
+        return self.start(swap_threads=False)
 
     def step_over(self, count: int = 1) -> None:
         """
@@ -522,7 +522,7 @@ class Engine:
             self.processes.logger.info(
                 "No more processes or threads to execute."
             )
-            return
+            return None
 
         self.ehCount = 0
 
@@ -564,7 +564,7 @@ class Engine:
                     break
                 self.processes.swap_with_next_thread()
 
-        return
+        return self.zos.syscall_manager.generate_break_state()
 
     def _run(self, p):
         t = p.current_thread
