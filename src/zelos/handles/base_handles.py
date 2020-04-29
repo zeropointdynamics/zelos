@@ -18,6 +18,7 @@ from __future__ import print_function
 
 import io
 import logging
+import os
 
 from collections import defaultdict
 from typing import List, Optional, Tuple
@@ -75,13 +76,22 @@ class Handle(object):
 
 class FileHandle(Handle):
     def __init__(
-        self, name, file_system, parent_thread, access=0, is_dir=False
+        self,
+        name,
+        file_system,
+        parent_thread,
+        access=0,
+        is_dir=False,
+        file=None,
     ):
         super().__init__(name, parent_thread, access)
         self._file_system = file_system
         self._file = None
         self.is_dir = is_dir
         if is_dir:
+            return
+        if file is not None:
+            self._file = file
             return
         # Keep in mind that only files that are in the sandbox are
         # writable.
@@ -93,6 +103,20 @@ class FileHandle(Handle):
                 )
         except IsADirectoryError:
             self.is_dir = True
+
+    def truncate(self, size) -> None:
+        if size > 0x100 * 0x1000 * 0x1000:
+            self._file_system.logger.warning("Limiting truncate to 0x100 MB")
+
+        try:
+            self._file.truncate(size)
+        except io.UnsupportedOperation:
+            self._copy_on_write()
+            self._file.truncate(size)
+
+    def size(self) -> int:
+        fileno = self._file.fileno()
+        return os.fstat(fileno).st_size
 
     def tell(self) -> int:
         return self._file.tell()
@@ -115,19 +139,23 @@ class FileHandle(Handle):
         try:
             self._file.write(data)
         except io.UnsupportedOperation:
-            # We should replace the file that we are using with one in
-            # the sandbox that contains the same data, that way we can
-            # write it.
-            offset = self._file.tell()
-            f = self._file_system.open_sandbox_file(
-                self.Name, create_if_not_exists=True
-            )
-            original_file_contents = self._file.read()
-            f.write(original_file_contents)
-            f.seek(offset)
-            self._file = f
+            self._copy_on_write()
             self._file.write(data)
+            self._file.flush()
         return len(data)
+
+    def _copy_on_write(self):
+        # We should replace the file that we are using with one in
+        # the sandbox that contains the same data, that way we can
+        # write it.
+        offset = self._file.tell()
+        f = self._file_system.open_sandbox_file(
+            self.Name, create_if_not_exists=True
+        )
+        original_file_contents = self._file.read()
+        f.write(original_file_contents)
+        f.seek(offset)
+        self._file = f
 
     def read(self, size: int) -> bytes:
         if self._file is None:
@@ -211,6 +239,10 @@ class ThreadHandle(Handle):
         self.tid = tid
         self.flags = flags
 
+    def __str__(self) -> str:
+        return f"ThreadHandle tid:{self.tid:x}, Refs {self.Refs}\tAccess"
+        f" {self.Access:08x}\t\t{self.Name}"
+
 
 class PipeInHandle(Handle):
     def __init__(self, name, pipe, parent_thread=None, access=0):
@@ -237,7 +269,11 @@ class PipeOutHandle(Handle):
         self.pipe.read_end_closed = True
 
 
-class StdIn(Handle):
+class StreamHandle(Handle):
+    pass
+
+
+class StdIn(StreamHandle):
     def __init__(self, parent_thread="unknown"):
         super().__init__("StdIn", parent_thread)
 
@@ -245,7 +281,7 @@ class StdIn(Handle):
         return b""
 
 
-class StdOut(Handle):
+class StdOut(StreamHandle):
     def __init__(self, parent_thread="unknown"):
         super().__init__("StdOut", parent_thread)
 
@@ -253,7 +289,7 @@ class StdOut(Handle):
         print(f'{colored("[StdOut]:", "green")} \'{data}\'')
 
 
-class StdErr(Handle):
+class StdErr(StreamHandle):
     def __init__(self, parent_thread="unknown"):
         super().__init__("StdErr", parent_thread)
 
@@ -288,7 +324,7 @@ class Handles:
             HookType.PROCESS.CREATE, init_handles
         )
 
-    def add_handle(self, handle, handle_num=None, pid=None):
+    def add_handle(self, handle, handle_num=None, pid=None) -> int:
         """ Returns the handle id for the handle"""
         if pid is None:
             pid = self.processes.current_process.pid
@@ -335,10 +371,12 @@ class Handles:
         handle_num = self.add_handle(handle, handle_num=handle_num)
         return handle_num
 
-    def new_file(self, name, access=0, handle_num=None, is_dir=False):
+    def new_file(
+        self, name, access=0, handle_num=None, is_dir=False, file=None
+    ):
         parent_thread = self._current_thread_name()
         handle = FileHandle(
-            name, self.file_system, parent_thread, access, is_dir
+            name, self.file_system, parent_thread, access, is_dir, file=file
         )
         handle_num = self.add_handle(handle, handle_num=handle_num)
         return handle_num
