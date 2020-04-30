@@ -293,7 +293,7 @@ class Trace(IPlugin):
                 )
             else:
                 raise e
-        except MemoryReadUnmapped as e:
+        except MemoryReadUnmapped:
             print("Unable to read instruction at address %x" % address)
 
     def regs(self):
@@ -631,7 +631,7 @@ class x86CommentGenerator:
             if e.errno == UC_ERR_READ_UNMAPPED:
                 return ""
             raise e
-        except MemoryReadUnmapped as e:
+        except MemoryReadUnmapped:
             print("Unable to read instruction at address %x" % address)
 
         s = ""
@@ -640,7 +640,7 @@ class x86CommentGenerator:
         except UcError as e:
             if e.errno != UC_ERR_READ_UNMAPPED:
                 raise e
-        except MemoryReadUnmapped as e:
+        except MemoryReadUnmapped:
             print("Unable to read instruction at address %x" % address)
 
         # Require a certain amount of valid characters to reduce false
