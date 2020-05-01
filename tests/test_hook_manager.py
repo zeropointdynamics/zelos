@@ -201,6 +201,17 @@ class HookManagerTest(unittest.TestCase):
         z.step()
         mock_hook.assert_not_called()
 
+        # Ensure that deleted hooks are not called even from new processes.
+        pid = z.internal_engine.processes.new_process("test_process_2")
+        p = z.internal_engine.processes.get_process(pid)
+        p.new_thread(start_addr)
+        p.memory.copy(z.internal_engine.memory)
+        z.internal_engine.processes.load_process(pid)
+
+        mock_hook.assert_not_called()
+        z.step()
+        mock_hook.assert_not_called()
+
     def test_cross_process_hooks_existing_process(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
 
