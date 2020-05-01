@@ -314,6 +314,7 @@ class HookManager:
             closure = functools.partial(self._delete_unicorn_hook, handle)
             self._stop_to_delete_hook(closure)
             return
+        del self._cross_process_hooks[handle]
         for p in self.z.processes.process_list:
             p.hooks._delete_unicorn_hook(handle)
 
@@ -400,7 +401,7 @@ class HookManager:
                     end_addr=end_addr,
                 )
 
-        self._cross_process_hooks[name] = HookInfo(
+        self._cross_process_hooks[handle] = HookInfo(
             hook_type,
             wrapped_callback,
             handle,
@@ -410,7 +411,7 @@ class HookManager:
             end_condition,
         )
 
-        return self._cross_process_hooks[name]
+        return self._cross_process_hooks[handle]
 
     def _get_hooks(self, hook_type):
         return self._hooks[hook_type].values()
