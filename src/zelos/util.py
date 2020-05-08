@@ -85,6 +85,10 @@ def dumpstruct(struct_obj, indent_level=0):
         except Exception:
             pass
         print(f"{indent}{field[0]}: {val}")
+        try:
+            dumpstruct(val, indent_level=indent_level + 1)
+        except Exception:
+            pass
 
 
 def columnate(input_list, num_columns, delimiter=", "):
