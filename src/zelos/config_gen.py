@@ -195,12 +195,7 @@ def generate_parser():
         "--no_log_syscalls",
         dest="log_syscalls",
         action="store_false",
-        help="Disable logging of calls to exported functions.",
-    )
-    group_logging.add_argument(
-        "--trigger_syscall_recording",
-        action="store_true",
-        help="Save syscalls to reporter available post-run. (default: off)",
+        help="Disable logging of syscalls.",
     )
     group_fs.add_argument(
         "--mount",

@@ -20,10 +20,11 @@ import ctypes
 import logging
 import sys
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from termcolor import colored
 
+from zelos.breakpoints import BreakState
 from zelos.hooks import HookType
 
 
@@ -117,7 +118,7 @@ class SyscallManager(object):
             self.syscall_break_name = syscall_name
             self.z.scheduler.stop("syscall breakpoint")
 
-    def generate_break_state(self):
+    def generate_break_state(self) -> Optional[BreakState]:
         if self.z.current_thread is None:
             return None
         if self.syscall_break_name is None:

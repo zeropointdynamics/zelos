@@ -52,9 +52,9 @@ class EmuHelperTest(unittest.TestCase):
         self.assertEqual(b"A", emu.mem_read(0x2FFF, 1))
         self.assertEqual(b"A", emu.mem_read(0x1FFF, 1))
         self.assertEqual(b"AAA", emu.mem_read(0x2000, 3))
-        self.assertEqual(b"AAA", emu.mem_read(0x1fff, 3))
+        self.assertEqual(b"AAA", emu.mem_read(0x1FFF, 3))
         self.assertEqual(data1, emu.mem_read(mr1.address, mr1.size))
-        self.assertEqual(b"AABB", emu.mem_read(0x3ffe, 4))
+        self.assertEqual(b"AABB", emu.mem_read(0x3FFE, 4))
 
         emu.mem_map_file(0xA00000000, __file__)
         mr3 = emu.mem_region(0xA00000000)

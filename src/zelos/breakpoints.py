@@ -23,6 +23,10 @@ from typing import Dict
 from zelos.hooks import HookType
 
 
+# TODO: improve BreakState structure
+BreakState = dict
+
+
 class Breakpoint:
     """
     Keeps track of information regarding a breakpoint.

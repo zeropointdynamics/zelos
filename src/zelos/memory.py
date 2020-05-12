@@ -20,24 +20,17 @@ from __future__ import absolute_import, print_function
 import ctypes
 import logging
 import os
-import struct
 
 from collections import defaultdict
-from ctypes import string_at
-from string import printable
 from typing import List, Optional
 
 from sortedcontainers import SortedListWithKey
 
 import zelos.util as util
 
-from zelos.enums import ProtType
 from zelos.emulator.base import MemoryRegion
-from zelos.exceptions import (
-    OutOfMemoryException,
-    MemoryWriteUnmapped,
-    MemoryReadUnmapped,
-)
+from zelos.enums import ProtType
+from zelos.exceptions import OutOfMemoryException
 
 
 class Memory:
@@ -52,7 +45,7 @@ class Memory:
     MAX_UINT64 = 0xFFFFFFFFFFFFFFFF
     MAX_UINT32 = 0xFFFFFFFF
 
-    def __init__(self, emu, state, disableNX: bool = False,) -> None:
+    def __init__(self, emu, state, disableNX: bool = False) -> None:
         self.emu = emu
         self.state = state
         self.logger = logging.getLogger(__name__)
@@ -387,6 +380,7 @@ class Memory:
                 highest available address instead of the lowest.
             prot: RWX permissions of the mapped region. Defaults to
                 granting all permissions.
+            shared: if True, region is shared with subprocesses.
         Returns:
             Start address of mapped region.
         """
@@ -446,6 +440,7 @@ class Memory:
                 highest available address instead of the lowest.
             prot: RWX permissions of the mapped region. Defaults to
                 granting all permissions.
+            shared: if True, region is shared with subprocesses.
         Returns:
             Start address of mapped region.
         """
@@ -500,6 +495,7 @@ class Memory:
             prot: An integer representing the RWX protection to be set
                 on the mapped region.
             ptr: If specified, creates a memory map from the pointer.
+            shared: if True, region is shared with subprocesses.
             reserve: Reserves memory to prepare for mapping. An option
                 used in Windows.
 
@@ -550,6 +546,7 @@ class Memory:
             prot: An integer representing the RWX protection to be set
                 on the mapped region.
             ptr: If specified, creates a memory map from the pointer.
+            shared: if True, region is shared with subprocesses.
             reserve: Reserves memory to prepare for mapping. An option
                 used in Windows.
 
@@ -751,35 +748,34 @@ class Memory:
         return self.read_int(addr, sz=1, signed=False)
 
     def write_ptr(self, addr: int, value: int) -> int:
-        self.write_int(addr, value)
+        return self.write_int(addr, value)
 
     def write_size_t(self, addr: int, value: int) -> int:
-        self.write_int(addr, value)
+        return self.write_int(addr, value)
 
     def write_int64(self, addr: int, value: int) -> int:
-        self.write_int(addr, value, sz=8, signed=True)
+        return self.write_int(addr, value, sz=8, signed=True)
 
     def write_uint64(self, addr: int, value: int) -> int:
-        self.write_int(addr, value, sz=8, signed=False)
+        return self.write_int(addr, value, sz=8, signed=False)
 
     def write_int32(self, addr: int, value: int) -> int:
-        self.write_int(addr, value, sz=4, signed=True)
+        return self.write_int(addr, value, sz=4, signed=True)
 
     def write_uint32(self, addr, value):
-        self.write(addr, struct.pack("<I", value & 0xFFFFFFFF))
-        # return self.write_int(addr, value, sz=4, signed=False)
+        return self.write_int(addr, value, sz=4, signed=False)
 
     def write_int16(self, addr: int, value: int) -> int:
-        self.write_int(addr, value, sz=2, signed=True)
+        return self.write_int(addr, value, sz=2, signed=True)
 
     def write_uint16(self, addr: int, value: int) -> int:
-        self.write_int(addr, value, sz=2, signed=False)
+        return self.write_int(addr, value, sz=2, signed=False)
 
     def write_int8(self, addr: int, value: int) -> int:
-        self.write_int(addr, value, sz=1, signed=True)
+        return self.write_int(addr, value, sz=1, signed=True)
 
     def write_uint8(self, addr: int, value: int) -> int:
-        self.write_int(addr, value, sz=1, signed=False)
+        return self.write_int(addr, value, sz=1, signed=False)
 
     def _has_overlap(self, requested_addr, size):
         """

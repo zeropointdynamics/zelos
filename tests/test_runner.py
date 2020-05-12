@@ -44,14 +44,9 @@ class RunnerTest(unittest.TestCase):
         z.internal_engine.thread_manager.swap_with_thread("main")
 
         def stop():
-            triggers = z.internal_engine.triggers
-            return any(
-                [
-                    syscall.name == "fstat64"
-                    for syscall_list in triggers.syscalls_called.values()
-                    for syscall in syscall_list
-                ]
-            )
+            # stop when we reach `uname` at 0x81356e2
+            if z.regs.getIP() == 0x81356E2:
+                return True
 
         z.plugins.runner.stop_when(stop)
         z.start()

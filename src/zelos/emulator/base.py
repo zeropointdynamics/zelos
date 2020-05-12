@@ -21,15 +21,13 @@ import logging
 import mmap
 import os
 
-from collections import defaultdict
 from ctypes import memmove
-from sortedcontainers import SortedDict, SortedListWithKey
 from struct import pack, unpack
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List
+
+from sortedcontainers import SortedDict
 
 from zelos.enums import ProtType
-from zelos.util import columnate, align
-
 from zelos.exceptions import (
     InvalidRegException,
     MemoryReadUnmapped,
@@ -37,6 +35,7 @@ from zelos.exceptions import (
     OutOfMemoryException,
     ZelosLoadException,
 )
+from zelos.util import align, columnate
 
 
 class MemoryRegion:
@@ -166,9 +165,7 @@ class PageTable:
             section: the memory region to add.
 
         """
-        for addr in range(
-            section.address, section.address + section.size, 0x1000
-        ):
+        for addr in range(section.address, section.end, 0x1000):
             self._pages[addr] = section
 
     def remove(self, section) -> None:
@@ -179,9 +176,7 @@ class PageTable:
             section: the memory region to remove.
 
         """
-        for addr in range(
-            section.address, section.address + section.size, 0x1000
-        ):
+        for addr in range(section.address, section.end, 0x1000):
             del self._pages[addr]
 
     def exists(self, address: int) -> bool:
@@ -517,7 +512,7 @@ class IEmuHelper:
         with open(filename, "r+b") as f:
             basename = os.path.basename(filename)
             file_map = mmap.mmap(
-                f.fileno(), length=0, offset=offset, access=mmap.ACCESS_COPY,
+                f.fileno(), length=0, offset=offset, access=mmap.ACCESS_COPY
             )
             ptr = ctypes.POINTER(ctypes.c_void_p)(
                 ctypes.c_void_p.from_buffer(file_map)
@@ -582,7 +577,7 @@ class IEmuHelper:
         count = 0
         while count < size:
             mr = self.mem_region(addr)
-            length = min(size - count, mr.end + 1 - addr)
+            length = min(size - count, mr.size)
             self._split_region(mr, addr, length)
             mr = self.mem_region(addr)
             mr.prot = prot

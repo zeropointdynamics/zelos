@@ -23,6 +23,7 @@ import os
 from collections import namedtuple
 from shutil import copyfile
 from tempfile import mkstemp
+from typing import Optional
 
 import unicorn
 import verboselogs
@@ -43,7 +44,7 @@ from capstone import (
 from unicorn import UcError
 
 from zelos import util
-from zelos.breakpoints import BreakpointManager
+from zelos.breakpoints import BreakpointManager, BreakState
 from zelos.config_gen import _generate_without_binary, generate_config
 from zelos.exceptions import UnsupportedBinaryError, ZelosLoadException
 from zelos.file_system import FileSystem
@@ -502,7 +503,7 @@ class Engine:
             self.step()
         return True
 
-    def start(self, timeout=0, swap_threads=True) -> None:
+    def start(self, timeout=0, swap_threads=True) -> Optional[BreakState]:
         """
         Starts execution of the program at the given offset or entry
         point.

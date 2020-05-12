@@ -19,7 +19,7 @@ from __future__ import absolute_import
 # License along with this program.  If not, see
 import unittest
 
-from unicorn import UC_ARCH_X86, UC_MODE_32, Uc
+from unicorn import UC_ARCH_X86, UC_MODE_32
 
 from zelos import Zelos
 from zelos.emulator import create_emulator
@@ -30,9 +30,7 @@ from zelos.state import State
 class MemoryTest(unittest.TestCase):
     def test_memory_manager_map_anywhere(self):
         state = State(None, None, None)
-        mm = Memory(
-            create_emulator(UC_ARCH_X86, UC_MODE_32, state), state
-        )
+        mm = Memory(create_emulator(UC_ARCH_X86, UC_MODE_32, state), state)
         address1 = mm.map_anywhere(0x1000, name="name1", kind="size1")
 
         self.assertEqual(mm.get_region(address1).name, "name1")
@@ -49,9 +47,7 @@ class MemoryTest(unittest.TestCase):
     def test_map_anywhere_bounded(self):
         # Check mapping when given bounds
         state = State(None, None, None)
-        mm = Memory(
-            create_emulator(UC_ARCH_X86, UC_MODE_32, state), state
-        )
+        mm = Memory(create_emulator(UC_ARCH_X86, UC_MODE_32, state), state)
         min_addr = 0x10000
         max_addr = 0x12000
         address1 = mm.map_anywhere(
@@ -68,9 +64,7 @@ class MemoryTest(unittest.TestCase):
 
     def test_map_anywhere_bounded_preexisting_sections(self):
         state = State(None, None, None)
-        mm = Memory(
-            create_emulator(UC_ARCH_X86, UC_MODE_32, state), state
-        )
+        mm = Memory(create_emulator(UC_ARCH_X86, UC_MODE_32, state), state)
         mm.map(0x10000, 0x1000)
         mm.map(0x15000, 0x1000)
         min_addr = 0x12000

@@ -179,9 +179,7 @@ class ElfLoader(Loader):
         for s in elf.Sections:
             try:
                 self.memory.protect(
-                    s.Address,
-                    align(s.VirtualSize, s.Alignment),
-                    s.Permissions,
+                    s.Address, align(s.VirtualSize, s.Alignment), s.Permissions
                 )
             except Exception:
                 raise ZelosLoadException(

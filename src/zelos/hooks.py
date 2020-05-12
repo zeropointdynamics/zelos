@@ -580,7 +580,7 @@ class InterruptHooks:
             return
 
         self.logger.spam(
-            "Got interrupt", intno, "on thread", zelos.thread.name
+            f"Got interrupt 0x{intno:x} on thread {zelos.thread.name}"
         )
 
         handler = self.interrupt_handlers.get(intno, None)

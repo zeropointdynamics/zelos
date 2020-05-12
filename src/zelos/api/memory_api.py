@@ -17,8 +17,6 @@
 
 import ctypes
 
-from typing import Optional
-
 from zelos.enums import ProtType
 
 
