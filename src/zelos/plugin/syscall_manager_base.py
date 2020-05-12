@@ -212,7 +212,6 @@ class SyscallManager(object):
         """
         sys_num = self.get_syscall_number()
         sys_name = self.find_syscall_name_by_number(sys_num)
-        self.z.triggers.tr_call_syscall(sys_name)
         sys_fn = self.find_syscall(sys_name)
         try:
             # The current thread might get modified by the syscall.

@@ -372,6 +372,8 @@ class Memory:
                 debugging.
             kind: String used to identify the purpose of the mapped
                 region. Used for debugging.
+            module_name: String used to identify the module that mapped
+                this region.
             min_addr: The lowest address that could be mapped.
             max_addr: The highest address that could be mapped.
             alignment: Ensures the size and start address are multiples
@@ -424,14 +426,12 @@ class Memory:
         alignment.
 
         Args:
-            size: # of bytes to map. This will be rounded up to match
-                the alignment.
+            filename: Name of the file to memory map
+            offset: Page-aligned offset of file to start mapping
+            size: # of bytes to map. This will be rounded up to the
+                nearest page.
             preferred_address: If the specified address is available,
                 it will be used for the mapping.
-            name: String used to identify mapped region. Used for
-                debugging.
-            kind: String used to identify the purpose of the mapped
-                region. Used for debugging.
             min_addr: The lowest address that could be mapped.
             max_addr: The highest address that could be mapped.
             alignment: Ensures the size and start address are multiples
@@ -535,20 +535,13 @@ class Memory:
 
         Args:
             address: Address to map.
+            filename: Name of the file to memory map
+            offset: page-aligned offset of file to start mapping
             size: # of bytes to map. This will be rounded up to the
-                nearest 0x1000.
-            name: String used to identify mapped region. Used for
-                debugging.
-            kind: String used to identify the purpose of the mapped
-                region. Used for debugging.
-            module_name: String used to identify the module that mapped
-                this region.
+                nearest page.
             prot: An integer representing the RWX protection to be set
                 on the mapped region.
-            ptr: If specified, creates a memory map from the pointer.
             shared: if True, region is shared with subprocesses.
-            reserve: Reserves memory to prepare for mapping. An option
-                used in Windows.
 
         """
         self.emu.mem_map_file(

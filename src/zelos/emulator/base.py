@@ -64,10 +64,8 @@ class MemoryRegion:
         size = align(size)
         self.emu = emu
         self.address = address
-        self.start = address
         self.size = size
         self.prot = prot
-        self.end = address + size - 1
         self.name = name
         self.kind = kind
         self.module_name = module_name
@@ -84,6 +82,14 @@ class MemoryRegion:
             self._managed_object = managed_object
         self.host_data = (ctypes.c_char * size).from_address(self.host_address)
 
+    @property
+    def start(self) -> int:
+        return self.address
+
+    @property
+    def end(self) -> int:
+        return self.address + self.size - 1
+
     def shrink(self, address: int, size: int):
         offset = address - self.address
         if (
@@ -93,9 +99,7 @@ class MemoryRegion:
         ):
             raise ValueError("invalid argument: {address, size} out of bounds")
         self.address = address
-        self.start = address
         self.size = size
-        self.end = address + size - 1
         self.host_address = self.host_address + offset
         self.host_data = (ctypes.c_char * size).from_address(self.host_address)
 
@@ -233,7 +237,7 @@ class PageTable:
                 )
             offset = address - mr.address
             bytes_to_read = min(size, mr.size - offset)
-            data += mr.host_data[offset : offset + size]
+            data += mr.host_data[offset : offset + bytes_to_read]
             size -= bytes_to_read
             address += bytes_to_read
         return data
@@ -245,9 +249,6 @@ class PageTable:
         Args:
             address: The address to read.
             size: The size of the data to fetch in bytes.
-
-        Returns:
-            The data at the specified address.
 
         """
         if len(data) == 0:
@@ -509,7 +510,7 @@ class IEmuHelper:
             raise ValueError("invalid argument: address not aligned")
         if offset % 0x1000 != 0:
             raise ValueError("invalid argument: offset not aligned")
-        with open(filename, "r+b") as f:
+        with open(filename, "rb") as f:
             basename = os.path.basename(filename)
             file_map = mmap.mmap(
                 f.fileno(), length=0, offset=offset, access=mmap.ACCESS_COPY
