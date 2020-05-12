@@ -16,6 +16,7 @@
 # ======================================================================
 
 import ctypes
+import logging
 import struct
 import time
 
@@ -77,14 +78,23 @@ def str2struct(struct_obj, data):
 
 
 def dumpstruct(struct_obj, indent_level=0):
+    logger = logging.getLogger("dumpstruct")
     indent = "  " * indent_level
     for field in struct_obj._fields_:
         val = getattr(struct_obj, field[0])
+        is_struct = False
         try:
             val = hex(val)
-        except Exception:
-            pass
+        except TypeError:
+            is_struct = True
         print(f"{indent}{field[0]}: {val}")
+        if is_struct:
+            try:
+                dumpstruct(val, indent_level=indent_level + 1)
+            except Exception as e:
+                logger.error(
+                    f"Unexpected error while dumping a nested structure: {e}"
+                )
 
 
 def columnate(input_list, num_columns, delimiter=", "):
