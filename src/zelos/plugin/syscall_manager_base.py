@@ -20,10 +20,11 @@ import ctypes
 import logging
 import sys
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from termcolor import colored
 
+from zelos.breakpoints import BreakState
 from zelos.hooks import HookType
 
 
@@ -117,7 +118,9 @@ class SyscallManager(object):
             self.syscall_break_name = syscall_name
             self.z.scheduler.stop("syscall breakpoint")
 
-    def generate_break_state(self):
+    def generate_break_state(self) -> Optional[BreakState]:
+        if self.z.current_thread is None:
+            return None
         if self.syscall_break_name is None:
             syscall = None
         else:
@@ -148,7 +151,7 @@ class SyscallManager(object):
         """
         if not self.z.plugins.trace.should_print_thread():
             return
-        if not self.should_print_syscalls:
+        if not self.should_print_syscalls or not self.z.config.log_syscalls:
             return
         if len(string) > max_len:
             string = str(string[:max_len]) + "..."
@@ -209,7 +212,6 @@ class SyscallManager(object):
         """
         sys_num = self.get_syscall_number()
         sys_name = self.find_syscall_name_by_number(sys_num)
-        self.logger.spam(f"Executing syscall {sys_name}")
         sys_fn = self.find_syscall(sys_name)
         try:
             # The current thread might get modified by the syscall.
@@ -218,7 +220,7 @@ class SyscallManager(object):
             retval = sys_fn(self, process)
             if retval is not None:
                 self.set_return_value(retval)
-            if self.should_print_syscalls:
+            if self.z.config.log_syscalls and self.should_print_syscalls:
                 self.print_syscall(
                     thread, sys_name, self.last_syscall_args, retval
                 )

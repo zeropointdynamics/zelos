@@ -21,9 +21,16 @@ import capstone.arm_const as cs_arm
 import capstone.x86_const as cs_x86
 
 from termcolor import colored
-from unicorn import UC_ERR_READ_UNMAPPED, UcError
 
 from zelos import HookType, IPlugin
+from zelos.exceptions import MemoryReadUnmapped
+
+
+class Comment:
+    def __init__(self, address, thread_id, text):
+        self.address = address
+        self.thread_id = thread_id
+        self.text = text
 
 
 class Trace(IPlugin):
@@ -278,13 +285,8 @@ class Trace(IPlugin):
             else:
                 for insn in insns:
                     self.ins(insn)
-        except UcError as e:
-            if e.errno == UC_ERR_READ_UNMAPPED:
-                self.logger.error(
-                    f"Unable to read instruction at address {address:x}"
-                )
-            else:
-                raise e
+        except MemoryReadUnmapped:
+            print("Unable to read instruction at address %x" % address)
 
     def regs(self):
         """ Prints registers at the current address"""
@@ -463,13 +465,6 @@ class Trace(IPlugin):
         return result
 
 
-class Comment:
-    def __init__(self, address, thread_id, text):
-        self.address = address
-        self.thread_id = thread_id
-        self.text = text
-
-
 class EmptyCommentGenerator:
     def get_comment(self, insn):
         return ""
@@ -613,21 +608,19 @@ class x86CommentGenerator:
         self.functions_called = {}
 
     def _get_ptr_val_string(self, ptr: int) -> str:
-        """Returns a string representing the data pointed to by 'ptr' if 'ptr'
-        is a valid pointer. Otherwise, reutrns an empty string."""
+        """Returns a string representing the data pointed to by 'ptr'
+        if 'ptr' is a valid pointer. Otherwise, reutrns an empty string.
+        """
         try:
             pointer_data = self.zelos.memory.read_int(ptr)
-        except UcError as e:
-            if e.errno == UC_ERR_READ_UNMAPPED:
-                return ""
-            raise e
+        except MemoryReadUnmapped:
+            print("Unable to read instruction at address %x" % ptr)
 
         s = ""
         try:
             s = self.zelos.memory.read_string(ptr, 8)
-        except UcError as e:
-            if e.errno != UC_ERR_READ_UNMAPPED:
-                raise e
+        except MemoryReadUnmapped:
+            print("Unable to read instruction at address %x" % ptr)
 
         # Require a certain amount of valid characters to reduce false
         # positives for string identification.

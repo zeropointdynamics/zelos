@@ -247,7 +247,7 @@ class ZelosTest(unittest.TestCase):
 
         z.start()
 
-        brk = 0x0815B575
+        brk = 0x0815B577
 
         self.assertEqual(z.thread.getIP(), brk)
 

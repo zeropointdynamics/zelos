@@ -23,6 +23,7 @@ from typing import Any, Callable, Optional
 
 from zelos.api.memory_api import MemoryApi
 from zelos.api.regs_api import RegsApi
+from zelos.breakpoints import BreakState
 from zelos.config_gen import generate_config, generate_config_from_cmdline
 from zelos.engine import Engine
 from zelos.hooks import HookInfo, HookType
@@ -305,7 +306,7 @@ class Zelos:
 
     # **** Begin Debugging API ****
 
-    def start(self, timeout: float = 0) -> None:
+    def start(self, timeout: float = 0) -> Optional[BreakState]:
         """
         Begin emulation. When called for the first time, begins
         execution at the binary entry point. If the emulation is
@@ -326,7 +327,7 @@ class Zelos:
                 z.start()
 
         """
-        self.internal_engine.start(timeout=timeout)
+        return self.internal_engine.start(timeout=timeout)
 
     def step(self, count=1) -> None:
         """
@@ -336,7 +337,7 @@ class Zelos:
             count: Maximum number of instructions to execute before
                 stopping
         """
-        self.internal_engine.step(count=count)
+        return self.internal_engine.step(count=count)
 
     def next(self, count=1) -> None:
         """
@@ -347,7 +348,7 @@ class Zelos:
             count: Maximum number of instructions to execute before
                 stopping.
         """
-        self.internal_engine.step_over(count=count)
+        return self.internal_engine.step_over(count=count)
 
     def stop(self, reason: str = "plugin"):
         """

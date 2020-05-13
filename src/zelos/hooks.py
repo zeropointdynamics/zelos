@@ -580,11 +580,8 @@ class InterruptHooks:
             )
             return
 
-        address = zelos.regs.getIP()
-
         self.logger.spam(
-            f"Got interrupt {intno:x} at 0x{address:x} "
-            f"on thread {zelos.thread.name}"
+            f"Got interrupt 0x{intno:x} on thread {zelos.thread.name}"
         )
 
         handler = self.interrupt_handlers.get(intno, None)

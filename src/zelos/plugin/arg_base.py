@@ -27,7 +27,7 @@ class Args:
         args = [ { 'type': 'PCHAR', 'name': 'buf', 'value': 0x12345 } ]
         """
         return [
-            {"type": arg.type, "name": arg.name, "value": arg.val}
+            {"type": arg.type, "name": arg.name, "value": arg.value}
             for arg in self._args
         ]
 

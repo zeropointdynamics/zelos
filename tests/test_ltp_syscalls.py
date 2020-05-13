@@ -158,3 +158,11 @@ class ZelosTest(unittest.TestCase):
         # self._ltp_run('ltp_x64/syscalls/write03')
         # self._ltp_run('ltp_x64/syscalls/write04')
         # self._ltp_run('ltp_x64/syscalls/write05')
+
+
+def main():
+    unittest.main()
+
+
+if __name__ == "__main__":
+    main()

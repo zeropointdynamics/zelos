@@ -191,6 +191,12 @@ def generate_parser():
         action="store_true",
         help="Enable logging of calls to exported functions. (default: off)",
     )
+    group_logging.add_argument(
+        "--no_log_syscalls",
+        dest="log_syscalls",
+        action="store_false",
+        help="Disable logging of syscalls.",
+    )
     group_fs.add_argument(
         "--mount",
         action="append",

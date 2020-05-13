@@ -23,6 +23,7 @@ import os
 from collections import namedtuple
 from shutil import copyfile
 from tempfile import mkstemp
+from typing import Optional
 
 import unicorn
 import verboselogs
@@ -43,7 +44,7 @@ from capstone import (
 from unicorn import UcError
 
 from zelos import util
-from zelos.breakpoints import BreakpointManager
+from zelos.breakpoints import BreakpointManager, BreakState
 from zelos.config_gen import _generate_without_binary, generate_config
 from zelos.exceptions import UnsupportedBinaryError, ZelosLoadException
 from zelos.file_system import FileSystem
@@ -478,7 +479,7 @@ class Engine:
         self.hook_manager.register_exec_hook(
             HookType.EXEC.INST, step_n, end_condition=quit_step_n
         )
-        self.start(swap_threads=False)
+        return self.start(swap_threads=False)
 
     def step_over(self, count: int = 1) -> None:
         """
@@ -502,7 +503,7 @@ class Engine:
             self.step()
         return True
 
-    def start(self, timeout=0, swap_threads=True) -> None:
+    def start(self, timeout=0, swap_threads=True) -> Optional[BreakState]:
         """
         Starts execution of the program at the given offset or entry
         point.
@@ -522,7 +523,7 @@ class Engine:
             self.processes.logger.info(
                 "No more processes or threads to execute."
             )
-            return
+            return None
 
         self.ehCount = 0
 
@@ -564,7 +565,7 @@ class Engine:
                     break
                 self.processes.swap_with_next_thread()
 
-        return
+        return self.zos.syscall_manager.generate_break_state()
 
     def _run(self, p):
         t = p.current_thread
@@ -579,12 +580,10 @@ class Engine:
                 "You are entering untested waters"
             )
 
-        t.emu.is_running = True
         try:
             t.emu.emu_start(t.getIP(), 0)
         finally:
             stop_addr = p.threads.scheduler._pop_stop_addr(t.id)
-            t.emu.is_running = False
             self.hook_manager._clear_deleted_hooks()
 
         # Only set the stop addr if you stopped benignly

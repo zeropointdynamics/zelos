@@ -284,6 +284,12 @@ class x86EmuHelper(IEmuHelper):
         "flags",
     ]
 
+    def msr_read(self, msr_id):
+        return self._uc.msr_read(msr_id)
+
+    def msr_write(self, msr_id, value):
+        return self._uc.msr_write(msr_id, value)
+
 
 class x86_64EmuHelper(IEmuHelper):
     ip_reg = "rip"
@@ -303,3 +309,9 @@ class x86_64EmuHelper(IEmuHelper):
         "rip",
         "flags",
     ]
+
+    def msr_read(self, msr_id):
+        return self._uc.msr_read(msr_id)
+
+    def msr_write(self, msr_id, value):
+        return self._uc.msr_write(msr_id, value)

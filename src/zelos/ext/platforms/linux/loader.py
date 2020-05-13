@@ -167,24 +167,19 @@ class ElfLoader(Loader):
             module_name
         )
         data = bytearray(elf.Data)
-        base = self.memory._alloc_at(
-            "",
-            "main",
-            basename(normalized_module_name),
-            elf.ImageBase,
+        base = self.memory.map_anywhere(
             elf.VirtualSize,
+            preferred_address=elf.ImageBase,
+            name="",
+            kind="main",
+            module_name=basename(normalized_module_name),
         )
         self.memory.write(base, bytes(data))
         # Set proper permissions for each section of the module
         for s in elf.Sections:
             try:
                 self.memory.protect(
-                    s.Address,
-                    align(s.VirtualSize, s.Alignment),
-                    s.Permissions,
-                    # s.Name,
-                    # "main",
-                    # module_name=basename(module_path),
+                    s.Address, align(s.VirtualSize, s.Alignment), s.Permissions
                 )
             except Exception:
                 raise ZelosLoadException(
