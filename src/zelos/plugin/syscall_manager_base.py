@@ -151,7 +151,7 @@ class SyscallManager(object):
         """
         if not self.z.plugins.trace.should_print_thread():
             return
-        if not self.should_print_syscalls:
+        if not self.should_print_syscalls or not self.z.config.log_syscalls:
             return
         if len(string) > max_len:
             string = str(string[:max_len]) + "..."
