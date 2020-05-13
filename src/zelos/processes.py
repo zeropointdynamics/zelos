@@ -291,6 +291,8 @@ class Processes:
         parent_pid: int = None,
         main_module=None,
         cmdline_args: List = [],
+        virtual_filename: str = None,
+        virtual_path: str = None,
     ) -> int:
         """
         Creates a new process.
@@ -324,6 +326,8 @@ class Processes:
             main_module=main_module,
             cmdline_args=cmdline_args,
             disableNX=self.disableNX,
+            virtual_filename=virtual_filename,
+            virtual_path=virtual_path,
         )
 
         for hook in self._hook_manager._get_hooks(HookType.PROCESS.CREATE):
