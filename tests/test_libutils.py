@@ -19,7 +19,15 @@ from __future__ import absolute_import
 # License along with this program.  If not, see
 import unittest
 
+from io import StringIO
+from unittest.mock import patch
+
 import zelos.util as util
+
+from zelos.ext.platforms.linux.syscalls.syscall_structs import (
+    MMSGHDR,
+    SIGACTION,
+)
 
 
 class UtilTest(unittest.TestCase):
@@ -31,3 +39,16 @@ class UtilTest(unittest.TestCase):
 
         self.assertEqual(0x14, util.align(0x11, alignment=0x4))
         self.assertEqual(0x10, util.align(0xF, alignment=0x4))
+
+    def test_dumpstruct(self):
+        mmsghdr = MMSGHDR()  # nested struct
+        sigact = SIGACTION()  # flat struct
+        with patch("sys.stdout", new=StringIO()) as stdout:
+            util.dumpstruct(mmsghdr)
+            self.assertIn("MSGHDR object at", stdout.getvalue())
+            self.assertIn("msg_name: 0x0", stdout.getvalue())
+            self.assertIn("msg_len: 0x0", stdout.getvalue())
+
+            util.dumpstruct(sigact)
+            self.assertIn("sa_handler: 0x0", stdout.getvalue())
+            self.assertIn("sa_mask: 0x0", stdout.getvalue())

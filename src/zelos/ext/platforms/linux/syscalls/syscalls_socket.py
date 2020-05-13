@@ -493,7 +493,8 @@ def setsockopt(sm, p, args_addr):
 
     try:
         (level, name) = _socktopt_linux_to_python(args.level, args.optname)
-        return socket.setsockopt(args.level, args.optname, optval)
+        socket.setsockopt(args.level, args.optname, optval)
+        return 0
     except Exception as e:
         print("[setsockopt] failed:", e)
 
