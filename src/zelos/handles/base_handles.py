@@ -329,7 +329,7 @@ class Handles:
         if pid is None:
             pid = self.processes.current_process.pid
         if handle_num is None:
-            handle_num = self._get_handle_num()
+            handle_num = self._get_handle_num(pid=pid)
         if self.exists(handle_num, pid):
             self.close(handle_num, pid)
             self.logger.notice(f"Closed existing handle at '{handle_num}'")
@@ -559,7 +559,7 @@ class Handles:
             )
         return handles
 
-    def _get_handle_num(self, requested_num=None):
+    def _get_handle_num(self, requested_num=None, pid=None):
         """
         Allocates a handle number if not provided, and checks if the
         handle is valid.
@@ -569,7 +569,7 @@ class Handles:
             self.handle_index += 4
             handle_num = self.handle_index
 
-        if self.exists(handle_num):
+        if self.exists(handle_num, pid=pid):
             self.logger.error(f"Handle {handle_num} has already been taken")
             return None
         return handle_num
