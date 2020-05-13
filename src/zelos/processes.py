@@ -467,9 +467,10 @@ class Processes:
         If that is not possible, attempts to swap processes.
         """
         if self.current_process.is_active:
+            old_thread = self.current_thread
             self.current_process.threads.swap_with_next_thread()
             for hook in self._hook_manager._get_hooks(HookType.THREAD.SWAP):
-                hook(self.current_thread)
+                hook(old_thread)
         else:
             self.load_next_process()
 
