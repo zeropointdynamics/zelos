@@ -65,3 +65,31 @@ class TraceTest(unittest.TestCase):
             z.start()
             # self.assertIn("[0815b56f]", stdout.getvalue())
             self.assertNotIn("[0815b575]", stdout.getvalue())
+
+    def test_x86_comments(self):
+        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"), verbosity=1)
+        expected_comments = [
+            ("ebp = 0x0"),  # xor ebp, ebp
+            ("esi = 0x1"),  # pop esi
+            ("ecx = 0xff08eea4 -> ff08ef41"),  # mov ecx, esp
+            ("esp = 0xff08eea0 -> 1"),  # and esp, 0xfffffff0
+            ("push(0x0)"),  # push eax
+            ("push(0xff08ee98) -> ff08ee9c"),  # push esp
+            ("push(0x0)"),  # push edx
+            ("call(0x8048ba3)"),  # call 0x8048ba3
+        ]
+
+        # Wrap the get_comment method to extract its output from a
+        # real run.
+        get_comment = z.plugins.trace.comment_generator.get_comment
+        recieved_comments = []
+
+        def comment_wrapper(insn):
+            comment = get_comment(insn)
+            recieved_comments.append(comment)
+            return comment
+
+        z.plugins.trace.comment_generator.get_comment = comment_wrapper
+
+        z.plugins.runner.run_to_addr(0x08048BA3)
+        self.assertEqual(expected_comments, recieved_comments)

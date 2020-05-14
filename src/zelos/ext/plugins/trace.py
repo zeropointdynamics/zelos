@@ -608,26 +608,26 @@ class x86CommentGenerator:
         self.functions_called = {}
 
     def _get_ptr_val_string(self, ptr: int) -> str:
-        """Returns a string representing the data pointed to by 'ptr'
-        if 'ptr' is a valid pointer. Otherwise, reutrns an empty string.
+        """
+        Returns a string representing the data pointed to by 'ptr' if
+        'ptr' is a valid pointer. Otherwise, reutrns an empty string.
         """
         try:
-            pointer_data = self.zelos.memory.read_int(ptr)
-        except MemoryReadUnmapped:
-            print("Unable to read instruction at address %x" % ptr)
-
-        s = ""
-        try:
             s = self.zelos.memory.read_string(ptr, 8)
+            # Require a certain amount of valid characters to reduce
+            # false positives for string identification.
+            if len(s) > 2:
+                return f' -> "{s}"'
         except MemoryReadUnmapped:
-            print("Unable to read instruction at address %x" % ptr)
+            pass  # Just checking whether the string exists.
 
-        # Require a certain amount of valid characters to reduce false
-        # positives for string identification.
-        if len(s) > 2:
-            return f' -> "{s}"'
+        try:
+            pointer_data = self.zelos.memory.read_int(ptr)
+            return f" -> {pointer_data:x}"
+        except MemoryReadUnmapped:
+            pass  # Just checking whether this is a valid pointer.
 
-        return f" -> {pointer_data:x}"
+        return ""
 
     def get_comment(self, insn):
         cmt = ""
@@ -649,7 +649,7 @@ class x86CommentGenerator:
         # target = op.value.imm
         target = self.zelos.regs.getIP()
         self.functions_called[target] = True
-        cmt = insn.mnemonic + "(0x{0:x}) ".format(target)
+        cmt = insn.mnemonic + "(0x{0:x})".format(target)
         if target in self._modules.reverse_module_functions:
             cmt += " " + self._modules.reverse_module_functions[target]
         return cmt
