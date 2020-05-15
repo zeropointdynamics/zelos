@@ -287,6 +287,15 @@ class ZelosTest(unittest.TestCase):
 
         self.assertEqual(d, "2019-03-03")
 
+    def test_memory_search(self):
+        z = Zelos(None)
+        z.memory.map(0x1000, 0x1000)
+        z.memory.write(0x1000, b"\x00\x01\x02\x03\x00\x01\x02\x00\x01\x01\x01")
+        self.assertEqual(
+            [0x1000, 0x1004, 0x1007], z.memory.search(b"\x00\x01")
+        )
+        self.assertEqual([0x1008], z.memory.search(b"\x01\x01"))
+
 
 def main():
     unittest.main()

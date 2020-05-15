@@ -17,6 +17,8 @@
 
 import ctypes
 
+from typing import List
+
 from zelos.enums import ProtType
 
 
@@ -120,7 +122,7 @@ class MemoryApi:
         Returns:
             String read from memory.
         """
-        return self._memory.write_wstring(addr, size)
+        return self._memory.read_wstring(addr, size)
 
     def read_punicode_string(self, addr: int) -> str:
         """
@@ -375,3 +377,10 @@ class MemoryApi:
 
     def write_uint8(self, addr: int, value: int) -> int:
         return self._memory.write_uint8(addr, value)
+
+    def search(self, value_to_search: bytes) -> List[int]:
+        """
+        Search for a sequence of bytes in memory. Returns a list of the
+        starting address of all nonoverlapping matches.
+        """
+        return self._memory.search(value_to_search)
