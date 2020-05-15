@@ -20,6 +20,7 @@ from __future__ import absolute_import, print_function
 import ctypes
 import logging
 import os
+import re
 
 from collections import defaultdict
 from typing import List, Optional
@@ -823,6 +824,20 @@ class Memory:
         if gap_size >= size:
             return gap_begin
         return None
+
+    def search(self, needle: bytes) -> List[int]:
+        """
+        Search for a sequence of bytes in memory. Returns all sequences
+        that match
+        """
+        addrs = []
+        for region in self.get_regions():
+            haystack = self.read(region.start, region.size)
+            addrs += [
+                x.start(0) + region.start
+                for x in re.finditer(needle, haystack)
+            ]
+        return addrs
 
     def _save_state(self):
         data = []
