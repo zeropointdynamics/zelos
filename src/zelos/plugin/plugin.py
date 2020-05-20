@@ -20,8 +20,7 @@ import logging
 import pkgutil
 
 from collections import defaultdict
-from os import walk
-from os.path import basename, isabs
+from os.path import isabs
 from typing import Callable
 
 import zelos.ext.platforms
@@ -54,9 +53,7 @@ def load(paths):
     global plugins_loaded
 
     # Load plugins that come with zelos
-    for path in walk(zelos.ext.plugins.__path__._path[0]):
-        if basename(path[0]) != "__pycache__":
-            paths.append(path[0])
+    paths += zelos.ext.plugins.__path__._path
     paths += zelos.ext.platforms.__path__._path
 
     paths = {p for p in paths if isabs(p) and p not in plugins_loaded}
