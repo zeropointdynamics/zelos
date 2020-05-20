@@ -43,9 +43,11 @@ class Snapshotter(IPlugin):
             if z.config.verbosity == 0:
                 self.logger.error(
                     (
-                        f"You will not get comments without running in "
-                        f'verbose mode. Add this flag ("-vv --fasttrace") '
-                        f"if you want comments in your snapshot/overlay."
+                        f"You will not get instruction comments without "
+                        f'running in verbose mode. Include this flag ("-vv") '
+                        f"if you want instruction comments in your snapshot. "
+                        f"For an additional speedup, consider also including "
+                        f'the fasttrace flag ("-vv --fasttrace").'
                     )
                 )
             original_file_name = z.internal_engine.original_file_name
