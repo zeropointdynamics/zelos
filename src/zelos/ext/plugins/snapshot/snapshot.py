@@ -31,7 +31,7 @@ CommandLineOption(
 
 class Snapshotter(IPlugin):
     """
-    Output a snapshot of memory regions at the end of emulation.
+    Provides functionality for memory snapshots.
     """
 
     def __init__(self, z: Zelos):
@@ -53,7 +53,8 @@ class Snapshotter(IPlugin):
             original_file_name = z.internal_engine.original_file_name
 
             def closure():
-                self.snapshot(original_file_name + ".zmu")
+                with open(f"{original_file_name}.zmu", "w") as f:
+                    self.snapshot(f)
                 self.logger.info(
                     f"Wrote snaphot to: "
                     f"{os.path.abspath(original_file_name)}.zmu"
@@ -82,7 +83,15 @@ class Snapshotter(IPlugin):
 
         return False
 
-    def snapshot(self, outfile="emu.out"):
+    def snapshot(self, outfile=None):
+        """
+        Dumps memory regions.
+
+        Args:
+            outfile: A file-like object to which output will be written. If
+                not specified, snapshot will create a file with the name
+                "memory_dump.zmu" to which output will be written.
+        """
         z = self.zelos.internal_engine
         out_map = {}
         out_map["entrypoint"] = z.main_module.EntryPoint
@@ -199,7 +208,13 @@ class Snapshotter(IPlugin):
 
         r = json.dumps(out_map)
         loaded_r = json.loads(r)
-        with open(outfile, "w") as text_file:
-            text_file.write(
+
+        if outfile is None:
+            with open("memory_dump.zmu", "w") as f:
+                f.write(
+                    "DISAS\n" + json.dumps(loaded_r, indent=4, sort_keys=True)
+                )
+        else:
+            outfile.write(
                 "DISAS\n" + json.dumps(loaded_r, indent=4, sort_keys=True)
             )
