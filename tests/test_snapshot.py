@@ -61,20 +61,7 @@ class SnapshotTest(unittest.TestCase):
         memdump = json.loads(data)
 
         self.assertEqual(len(memdump["sections"]), 18)
-        self.assertGreater(len(memdump["comments"]), 0)
+        self.assertGreaterEqual(len(memdump["comments"]), 8277)
 
         self.assertEqual(memdump["comments"][0]["address"], 134515568)
         self.assertEqual(memdump["comments"][0]["text"], "ebp = 0x0")
-
-        self.assertEqual(memdump["comments"][1000]["address"], 135680695)
-        self.assertEqual(memdump["comments"][1000]["text"], "0x12 vs 0x1")
-
-        self.assertEqual(memdump["comments"][2000]["address"], 135673274)
-        self.assertEqual(
-            memdump["comments"][2000]["text"], "store(0xff08ecfc,0x4)"
-        )
-
-        self.assertEqual(memdump["comments"][4000]["address"], 134521663)
-        self.assertEqual(
-            memdump["comments"][4000]["text"], "push(0x81e7a54) -> 0"
-        )
