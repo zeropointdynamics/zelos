@@ -728,5 +728,5 @@ class x86CommentGenerator:
                 return base_val + shift_val + x.value.mem.disp
             else:
                 return self.zelos.memory.read_int(
-                    base_val + shift_val + x.value.mem.disp, sz=x.size
+                    base_val + shift_val + x.value.mem.disp, size=x.size
                 )

@@ -608,9 +608,14 @@ def sys_readlink(sm, p):
     )
     # TODO: This is bypassing the filesystem protections, this should not be
     # allowed without doing a validation in the filesystem first
+    # TODO: support symbolic links in emulated filesystem.
+    # TODO: sanitize request to readlink
     try:
         pathname = p.memory.read_string(args.pathname)
-        linked_path = os.readlink(pathname)
+        if pathname == "/proc/self/exe":
+            linked_path = "/proc/self/exe"
+        else:
+            linked_path = os.readlink(pathname)
         s_len = p.memory.write_string(
             args.buf, linked_path, terminal_null_byte=False
         )
@@ -628,9 +633,14 @@ def sys_readlinkat(sm, p):
             ("size_t", "bufsiz"),
         ]
     )
+    # TODO: support symbolic links in emulated filesystem.
+    # TODO: sanitize request to readlink
     try:
         pathname = p.memory.read_string(args.pathname)
-        linked_path = os.readlink(pathname)
+        if pathname == "/proc/self/exe":
+            linked_path = "/proc/self/exe"
+        else:
+            linked_path = os.readlink(pathname)
         s_len = p.memory.write_string(
             args.buf, linked_path, terminal_null_byte=False
         )
