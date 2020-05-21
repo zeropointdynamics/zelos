@@ -62,9 +62,12 @@ class Snapshotter(IPlugin):
 
             self.zelos.hook_close(closure)
 
+        self.max_section_size = 0x100000000
+        self.max_pct_zero = 0.999999
+
     def _bad_section(self, data):
         # if size is too large, this is a bad section
-        if len(data) > 0x100000000:
+        if len(data) > self.max_section_size:
             self.logger.info(f"Data too large: 0x{len(data):x}")
             return True
 
@@ -77,11 +80,21 @@ class Snapshotter(IPlugin):
             return num / (1.0 * len(data))
 
         pct_zeros = percent_zeros(data)
-        if pct_zeros > 0.999999:
+        if pct_zeros > self.max_pct_zero:
             self.logger.info(f"Mostly zeros, pct: {pct_zeros}")
             return True
 
         return False
+
+    def _dump_section(self, name, addr, perm, data, out_map):
+        if "base_address" not in out_map:
+            out_map["base_address"] = addr
+        section = {}
+        section["name"] = name
+        section["address"] = addr
+        section["permissions"] = perm
+        section["data"] = base64.b64encode(data).decode()
+        return section
 
     def snapshot(self, outfile=None):
         """
@@ -92,22 +105,23 @@ class Snapshotter(IPlugin):
                 not specified, snapshot will create a file with the name
                 "memory_dump.zmu" to which output will be written.
         """
-        z = self.zelos.internal_engine
         out_map = {}
-        out_map["entrypoint"] = z.main_module.EntryPoint
+        out_map[
+            "entrypoint"
+        ] = self.zelos.internal_engine.main_module.EntryPoint
         out_map["sections"] = []
         out_map["functions"] = []
         out_map["comments"] = []
 
-        regions = self.emu.mem_regions()
+        regions = self.zelos.internal_engine.emu.mem_regions()
         for region in sorted(regions):
             addr = region.address
             size = region.size
             perm = region.prot
             name = "<unk>"
             kind = "<unk>"
-            if self.memory.get_region(addr) is not None:
-                region = self.memory.get_region(addr)
+            region = self.zelos.internal_engine.memory.get_region(addr)
+            if region is not None:
                 name = region.name
                 kind = region.kind
             if addr == 0x80000000:
@@ -116,36 +130,31 @@ class Snapshotter(IPlugin):
 
             # Dump main binary
             if kind == "main" or name == "main":
-                if "base_address" not in out_map:
-                    out_map["base_address"] = addr
-                section = {}
                 section_name = name
                 tmpname = name.split(" ")
                 if len(tmpname) > 1:
                     section_name = tmpname[1]
-
-                section["name"] = section_name
-                section["address"] = addr
-                section["permissions"] = perm
+                data = self.zelos.memory.read(addr, size)
                 # Temporary hack. The MEW packer requires executable
                 # header section. But, we mark it non-executable for the
                 # dump.
                 if section_name == ".pe":
-                    section["permissions"] = 0x1
-                data = self.memory.read(addr, size)
-                section["data"] = base64.b64encode(data).decode()
+                    section = self._dump_section(
+                        section_name, addr, 0x1, data, out_map
+                    )
+                else:
+                    section = self._dump_section(
+                        section_name, addr, perm, data, out_map
+                    )
                 dumped = True
 
             # Dump main and thread stacks binary
             if kind == "stack" and "dll_main" not in name:
-                if "base_address" not in out_map:
-                    out_map["base_address"] = addr
-                section = {}
-                section["name"] = "stack_" + name
-                section["address"] = addr
-                section["permissions"] = perm
+                section_name = f"stack_{name}"
                 data = self.memory.read(addr, size)
-                section["data"] = base64.b64encode(data).decode()
+                section = self._dump_section(
+                    section_name, addr, perm, data, out_map
+                )
                 dumped = True
 
             # Dump heap, sections, virtualalloc'd regions. Note that currently
@@ -156,23 +165,18 @@ class Snapshotter(IPlugin):
                 or kind == "valloc"
                 or kind == "section"
             ):
-                if "base_address" not in out_map:
-                    out_map["base_address"] = addr
-                section = {}
-                section["name"] = kind + "_" + name
-                section["address"] = addr
-                section["permissions"] = perm
+                section_name = f"{kind}_{name}"
                 data = self.memory.read(addr, size)
                 if kind == "heap" and name == "main_heap":
                     # Truncate unused portion of heap
-                    section["data"] = base64.b64encode(
-                        data[
-                            : self.memory.heap.current_offset
-                            - self.memory.HEAP_BASE
-                        ]
-                    ).decode()
-                else:
-                    section["data"] = base64.b64encode(data).decode()
+                    data = data[
+                        : self.zelos.internal_engine.memory.heap.current_offset
+                        - self.zelos.internal_engine.memory.HEAP_BASE
+                    ]
+
+                section = self._dump_section(
+                    section_name, addr, perm, data, out_map
+                )
                 dumped = True
 
             line = (
@@ -191,20 +195,19 @@ class Snapshotter(IPlugin):
             else:
                 print(line)
 
-        for c in z.plugins.trace.comments:
+        for c in self.zelos.plugins.trace.comments:
             cmt = {}
             cmt["address"] = c.address
             cmt["thread_id"] = c.thread_id
             cmt["text"] = c.text
             out_map["comments"].append(cmt)
 
-        for addr in z.plugins.trace.functions_called.keys():
-            if addr < 0x10000000:
-                function = {}
-                function["address"] = addr
-                function["name"] = "traced_{0:x}".format(addr)
-                function["is_import"] = False
-                out_map["functions"].append(function)
+        for addr in self.zelos.plugins.trace.functions_called.keys():
+            function = {}
+            function["address"] = addr
+            function["name"] = "traced_{0:x}".format(addr)
+            function["is_import"] = False
+            out_map["functions"].append(function)
 
         r = json.dumps(out_map)
         loaded_r = json.loads(r)
