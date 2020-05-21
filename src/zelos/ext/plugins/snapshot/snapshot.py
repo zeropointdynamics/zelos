@@ -72,14 +72,7 @@ class Snapshotter(IPlugin):
             return True
 
         # if the data contains mostly zeros, we can ignore it
-        def percent_zeros(data):
-            num = 0
-            for c in data:
-                if c == 0:
-                    num += 1
-            return num / (1.0 * len(data))
-
-        pct_zeros = percent_zeros(data)
+        pct_zeros = data.count(b"\x00") / (1.0 * len(data))
         if pct_zeros > self.max_pct_zero:
             self.logger.info(f"Mostly zeros, pct: {pct_zeros}")
             return True
