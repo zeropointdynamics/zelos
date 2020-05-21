@@ -610,7 +610,10 @@ def sys_readlink(sm, p):
     # allowed without doing a validation in the filesystem first
     try:
         pathname = p.memory.read_string(args.pathname)
-        linked_path = os.readlink(pathname)
+        if pathname == "/proc/self/exe":
+            linked_path = "/proc/self/exe"
+        else:
+            linked_path = os.readlink(pathname)
         s_len = p.memory.write_string(
             args.buf, linked_path, terminal_null_byte=False
         )
@@ -630,7 +633,10 @@ def sys_readlinkat(sm, p):
     )
     try:
         pathname = p.memory.read_string(args.pathname)
-        linked_path = os.readlink(pathname)
+        if pathname == "/proc/self/exe":
+            linked_path = "/proc/self/exe"
+        else:
+            linked_path = os.readlink(pathname)
         s_len = p.memory.write_string(
             args.buf, linked_path, terminal_null_byte=False
         )
