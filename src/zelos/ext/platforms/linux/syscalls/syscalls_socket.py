@@ -175,7 +175,9 @@ def socket(sm, p, args_addr):
         (domain, type, protocol) = _socket_linux_to_python(
             args.domain, args.type, args.protocol
         )
-        socket_handle_num = sm.z.network.create_socket(domain, type, protocol)
+        socket_handle_num = sm.z.network.create_socket_handle(
+            domain, type, protocol
+        )
     except Exception as e:
         print("socket error :", e)
         return -1

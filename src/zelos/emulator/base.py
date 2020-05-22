@@ -97,7 +97,9 @@ class MemoryRegion:
             or offset >= self.size
             or self.address + size >= self.end + 1
         ):
-            raise ValueError("invalid argument: {address, size} out of bounds")
+            raise ValueError(
+                f"invalid argument: {address, size} out of bounds"
+            )
         self.address = address
         self.size = size
         self.host_address = self.host_address + offset
