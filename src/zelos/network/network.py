@@ -84,15 +84,16 @@ class Network(IManager):
         if len(self.attempted_connections) > 10:
             self.triggers.tr_contacts_many_domains(self.attempted_connections)
 
-    def create_socket(self, domain, type, protocol=0):
-        sock = self.socket_class(self, domain, type, protocol)
-
-        sock_handle_num = self.handles.new_socket(
-            "sock#{0:03d}".format(self.num_sockets), sock
+    def create_socket_handle(self, domain, type, protocol=0):
+        sock = self.create_socket(domain, type, protocol)
+        socket_handle_num = self.handles.new_socket(
+            f"sock#{self.num_sockets:03d}", sock
         )
         self.num_sockets += 1
+        return socket_handle_num
 
-        return sock_handle_num
+    def create_socket(self, domain, type, protocol=0):
+        return self.socket_class(self, domain, type, protocol)
 
     def enable_whitelist(self):
         self.ignore_whitelist = False
