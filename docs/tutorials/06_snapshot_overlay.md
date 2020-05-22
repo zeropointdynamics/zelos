@@ -48,14 +48,14 @@ with open("snapshot.zmu", "w") as f:
     z.plugins.snapshotter.snapshot(f)
 ```
 
-To include instruction-level comments in the snapshot, again be sure to enable _verbose_ mode by including `-vv` (and optionally `fasttrace=True`) in the Zelos constructor.
+To include instruction-level comments in the snapshot, again be sure to enable _verbose_ mode by including `verbosity=1` (and optionally `fasttrace=True`) in the Zelos constructor.
 
 ```python
 from zelos import Zelos
 
 z = Zelos(
     "/path/to/my_binary",
-    "-vv", # include instruction-level comments
+    verbosity=1, # include instruction-level comments
     fasttrace=True,
 )
 z.start()
@@ -78,7 +78,7 @@ from zelos import Zelos
 
 z = Zelos(
     "tests/data/static_elf_helloworld",
-    "-vv", # include instruction-level comments
+    verbosity=1, # include instruction-level comments
     fasttrace=True,
 )
 z.start()
@@ -135,7 +135,7 @@ from zelos import Zelos
 
 z = Zelos(
     "static_elf_helloworld",
-    "-vv", # include instruction-level comments
+    verbosity=1, # include instruction-level comments
     fasttrace=True,
 )
 z.start()
