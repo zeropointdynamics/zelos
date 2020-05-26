@@ -130,24 +130,14 @@ wget https://raw.githubusercontent.com/zeropointdynamics/zelos/master/src/zelos/
 
 First, we are going to use zelos to emulate an executable and generate a snapshot with comments. The executable that we are emulating is a basic "hello world", statically-compiled, ELF binary which can be found in the repo [here](https://github.com/zeropointdynamics/zelos/blob/master/tests/data/static_elf_helloworld).
 
-```python
-from zelos import Zelos
-
-z = Zelos(
-    "static_elf_helloworld",
-    verbosity=1, # include instruction-level comments
-    fasttrace=True,
-)
-z.start()
-
-# After emulation finishes
-
-# Open a new file for writing a snapshot
-with open("snapshot.zmu", "w") as f:
-    # Create a snapshot
-    z.plugins.snapshotter.snapshot(f)
+```console
+python -m zelos static_elf_helloworld --snapshot -vv --fasttrace
 ```
 
-After generating a snapshot (with comments), go ahead and open `static_elf_helloworld` in IDA Pro for disassembly. Wait for IDA to load the executable and the finish the initial autoanalysis. Once this completes, assuming you installed the zelos IDA plugin correctly, you should be able to see a View menu option that says "Load Zelos Overlay...". Click on this, and when prompted, navigate to and select the `snapshot.zmu` snapshot file that we generated above.
+After generating a snapshot (with comments), go ahead and open `static_elf_helloworld` in IDA Pro for disassembly. Wait for IDA to load the executable and the finish the initial autoanalysis. Once this completes, assuming you installed the zelos IDA plugin correctly, you should be able to see a View menu option that says "Load Zelos Overlay...". Click on this, and when prompted, navigate to and select the `static_elf_helloworld.zmu` snapshot file that we generated above.
+
+![Image](https://raw.githubusercontent.com/zeropointdynamics/zelos/master/docs/_static/plugin_select.png)
 
 After a moment, you will notice that the IDA View has been updated. The yellow highlighting indicates an operation that has been emulated in zelos, and the updated comment string at each address describes the value of the emulated operands.
+
+![Image](https://raw.githubusercontent.com/zeropointdynamics/zelos/master/docs/_static/plugin_active.png)
