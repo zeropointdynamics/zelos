@@ -99,7 +99,9 @@ class Snapshotter(IPlugin):
                 "memory_dump.zmu" to which output will be written.
         """
         out_map = {}
-        out_map["entrypoint"] = self.zelos.process.main_module.EntryPoint
+        out_map[
+            "entrypoint"
+        ] = self.zelos.internal_engine.main_module.EntryPoint
         out_map["sections"] = []
         out_map["functions"] = []
         out_map["comments"] = []
