@@ -296,6 +296,18 @@ class ZelosTest(unittest.TestCase):
         )
         self.assertEqual([0x1008], z.memory.search(b"\x01\x01"))
 
+    def test_get_region(self):
+        z = Zelos(None)
+        self.assertEqual(len(z.memory.get_regions()), 2)
+        z.memory.map(0x1000, 0x1000)
+        reg = z.memory.get_region(0x1000)
+        self.assertIsNotNone(reg)
+        self.assertEqual(len(z.memory.get_regions()), 3)
+        z.memory.map(0x2000, 0x1000)
+        reg = z.memory.get_region(0x2000)
+        self.assertIsNotNone(reg)
+        self.assertEqual(len(z.memory.get_regions()), 4)
+
 
 def main():
     unittest.main()
