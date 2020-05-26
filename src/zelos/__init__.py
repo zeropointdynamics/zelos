@@ -34,6 +34,7 @@ import sys
 import colorama
 
 from .api.zelos_api import Zelos
+from .emulator.base import MemoryRegion
 from .engine import Engine
 from .exceptions import (
     InvalidHookTypeException,
@@ -64,6 +65,7 @@ __all__ = [
     "CommandLineOption",
     "HookType",
     "ProtType",
+    "MemoryRegion",
 ]
 
 """ Initialize colorama only once """
