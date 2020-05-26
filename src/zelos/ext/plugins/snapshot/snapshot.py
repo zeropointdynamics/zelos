@@ -99,21 +99,19 @@ class Snapshotter(IPlugin):
                 "memory_dump.zmu" to which output will be written.
         """
         out_map = {}
-        out_map[
-            "entrypoint"
-        ] = self.zelos.internal_engine.main_module.EntryPoint
+        out_map["entrypoint"] = self.zelos.process.main_module.EntryPoint
         out_map["sections"] = []
         out_map["functions"] = []
         out_map["comments"] = []
 
-        regions = self.zelos.internal_engine.emu.mem_regions()
+        regions = self.zelos.memory.get_regions()
         for region in sorted(regions):
             addr = region.address
             size = region.size
             perm = region.prot
             name = "<unk>"
             kind = "<unk>"
-            region = self.zelos.internal_engine.memory.get_region(addr)
+            region = self.zelos.memory.get_region(addr)
             if region is not None:
                 name = region.name
                 kind = region.kind
