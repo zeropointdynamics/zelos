@@ -106,9 +106,6 @@ class Trace(IPlugin):
     def strace(self):
         return self.zelos.config.strace
 
-    def get_region(self, addr):
-        return self.zelos.internal_engine.memory.get_region(addr)
-
     def set_hook_granularity(self, granularity: HookType.EXEC):
         """
         Sets the code hook granularity to be either every instruction
@@ -351,7 +348,9 @@ class Trace(IPlugin):
         indent_count = self.zelos.thread._callstack_indent_count
         try:
             caller_module = (
-                self.get_region(return_address).module_name.split(".")[0]
+                self.zelos.memory.get_region(return_address).module_name.split(
+                    "."
+                )[0]
                 + "_____"
             )[:8]
         except Exception:
@@ -376,7 +375,10 @@ class Trace(IPlugin):
         return_address = self.current_return_address
         indent_count = self.zelos.thread._callstack_indent_count
         caller_module = (
-            self.get_region(return_address).module_name.split(".")[0] + "_____"
+            self.zelos.memory.get_region(return_address).module_name.split(
+                "."
+            )[0]
+            + "_____"
         )[:8]
         if indent_count == -1:
             indent_count = 0
