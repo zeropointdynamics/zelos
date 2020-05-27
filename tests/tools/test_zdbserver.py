@@ -47,7 +47,7 @@ class Transport(xmlrpc.client.Transport):
 
 def server_process(target, srv_ready, srv_error):
     try:
-        rpc_server = create_server(target)
+        rpc_server = create_server(["--virtual_filename=test", target])
         srv_ready.set()
         rpc_server.serve_forever()
     except Exception as e:
