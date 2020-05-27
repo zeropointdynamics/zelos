@@ -51,22 +51,23 @@ class Overlay(IPlugin):
         self.fns = False
 
         if z.config.export_instrs:
-            if z.config.verbosity == 0:
-                self.logger.error(
-                    (
-                        f"You will not get instruction comments without "
-                        f'running in verbose mode. Include this flag ("-vv") '
-                        f"if you want instruction comments in your overlay. "
-                        f"For an additional speedup, consider also including "
-                        f'the fasttrace flag ("-vv --fasttrace").'
-                    )
-                )
             self.instrs = True
-        if z.config.export_mem:
-            self.mem = True
         if z.config.export_fns:
             self.fns = True
+        if z.config.export_mem:
+            self.mem = True
 
+        if (self.instrs or self.fns) and z.config.verbosity == 0:
+            self.logger.error(
+                (
+                    f"You will not get instruction comments or function "
+                    f"information if you are not running in verbose mode. "
+                    f'Include this flag ("-vv") if you want instruction '
+                    f"comments or function information in your overlay. "
+                    f"For an additional speedup, consider also including "
+                    f'the fasttrace flag ("-vv --fasttrace").'
+                )
+            )
         if self.mem or self.instrs or self.fns:
             original_file_name = basename(z.main_binary_path)
 
