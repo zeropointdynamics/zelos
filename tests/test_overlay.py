@@ -31,7 +31,7 @@ DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 
 
 class OverlayTest(unittest.TestCase):
-    def test_snapshot_memory(self):
+    def test_overlay_memory(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
 
         z.start()
@@ -46,7 +46,7 @@ class OverlayTest(unittest.TestCase):
         self.assertEqual(len(memdump["sections"]), 18)
         self.assertEqual(len(memdump["comments"]), 0)
 
-    def test_snapshot_comments(self):
+    def test_overlay_comments(self):
         z = Zelos(
             path.join(DATA_DIR, "static_elf_helloworld"),
             verbosity=1,
@@ -67,7 +67,7 @@ class OverlayTest(unittest.TestCase):
         self.assertEqual(memdump["comments"][0]["address"], 134515568)
         self.assertEqual(memdump["comments"][0]["text"], "ebp = 0x0")
 
-    def test_snapshot_functions(self):
+    def test_overlay_functions(self):
         z = Zelos(
             path.join(DATA_DIR, "static_elf_helloworld"),
             verbosity=1,
