@@ -101,7 +101,7 @@ class TestZdbServer(unittest.TestCase):
         try:
             self.assertEqual(
                 zdb.get_filepath(),
-                path.join(DATA_DIR, "static_elf_helloworld"),
+                path.abspath(path.join(DATA_DIR, "static_elf_helloworld")),
             )
 
             # Test syscall breaks
