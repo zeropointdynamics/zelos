@@ -86,10 +86,10 @@ class TestZdbServer(unittest.TestCase):
         if srv.is_alive():
             srv.terminate()
 
-    # @pytest.mark.usefixtures("serial")
-    # def test_server_connect(self):
-    #     proc, rpc = self.start_server()
-    #     self.stop_server(proc, rpc)
+    @pytest.mark.usefixtures("serial")
+    def test_server_connect(self):
+        proc, rpc = self.start_server()
+        self.stop_server(proc, rpc)
 
     @pytest.mark.usefixtures("serial")
     def test_server_api(self):
@@ -161,12 +161,6 @@ class TestZdbServer(unittest.TestCase):
             buf = zdb.read_register("edi")
             zdb.write_memory(buf, b"Hello World! I'm a Zelos Test!")
 
-            # Test watchpoint
-            zdb.set_watchpoint(buf, True, True, False)
-            break_state = zdb.run()
-            self.assertEqual(break_state, "asdf")
-            zdb.remove_watchpoint(buf)
-
             # Test memory read, write (continued)
             zdb.set_syscall_breakpoint("write")
             break_state = zdb.run()
@@ -174,6 +168,13 @@ class TestZdbServer(unittest.TestCase):
             count = int(break_state["syscall"]["args"][2]["value"], 16)
             stdout = zdb.read_memory(buf, count)
             self.assertEqual(stdout, b"Hello World! I'm a Zelos Test!")
+
+            # Test watchpoint
+            addr = 0x081E9934
+            zdb.set_watchpoint(f"0x{addr:x}", True, True, False)
+            break_state = zdb.run()
+            self.assertEqual("0x81096f3", zdb.read_register("pc"))
+            zdb.remove_watchpoint(f"0x{addr:x}")
 
             # Run until program end
             break_state = zdb.run()
