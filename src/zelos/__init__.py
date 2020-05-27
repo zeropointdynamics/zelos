@@ -33,7 +33,7 @@ import sys
 
 import colorama
 
-from .api.zelos_api import Zelos
+from .api.zelos_api import Zelos, ZelosCmdline
 from .emulator.base import MemoryRegion
 from .engine import Engine
 from .exceptions import (
@@ -52,6 +52,7 @@ from .plugin import CommandLineOption, IPlugin, ISubcommand
 
 __all__ = [
     "Zelos",
+    "ZelosCmdline",
     "Engine",
     "ZelosException",
     "ZelosLoadException",

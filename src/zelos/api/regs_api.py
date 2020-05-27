@@ -54,6 +54,12 @@ class RegsApi:
     def __setattr__(self, attr, value):
         self._current_thread.set_reg(attr, value)
 
+    def __getitem__(self, key):
+        return self._current_thread.get_reg(key)
+
+    def __setitem__(self, key, value):
+        self._current_thread.set_reg(key, value)
+
     def getIP(self) -> int:
         """
         Returns the platform-agnostic instruction pointer. On x86, this

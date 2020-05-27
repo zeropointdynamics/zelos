@@ -65,6 +65,7 @@ EXTRAS_REQUIRE = {
         "pytest-cov",
         "pytest>=4.3.0",
         "pytest-xdist",
+        "filelock",
     ],
 }
 EXTRAS_REQUIRE["dev"] = (
