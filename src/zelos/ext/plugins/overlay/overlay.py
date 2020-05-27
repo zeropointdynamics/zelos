@@ -102,6 +102,13 @@ class Overlay(IPlugin):
         section["data"] = base64.b64encode(data).decode()
         return section
 
+    def _dump_heap(self, data):
+        """ Truncate unused portion of heap data. """
+        for i in range(len(data) - 1, 0, -1):
+            if data[i] != 0:
+                return data[: i + 1]
+        return data
+
     def export(self, outfile=None, mem=False, instrs=False, fns=False):
         """
         Exports memory, instruction, or function info of the main binary.
@@ -181,12 +188,7 @@ class Overlay(IPlugin):
                     section_name = f"{kind}_{name}"
                     data = self.memory.read(addr, size)
                     if kind == "heap" and name == "main_heap":
-                        # Truncate unused portion of heap
-                        heap = self.zelos.internal_engine.memory.heap
-                        data = data[
-                            : heap.current_offset
-                            - self.zelos.internal_engine.memory.HEAP_BASE
-                        ]
+                        data = self._dump_heap(data)
 
                     section = self._dump_section(
                         section_name, addr, perm, data, out_map
