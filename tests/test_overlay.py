@@ -30,14 +30,14 @@ from zelos import Zelos
 DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 
 
-class SnapshotTest(unittest.TestCase):
-    def test_simple_snapshot(self):
+class OverlayTest(unittest.TestCase):
+    def test_snapshot_memory(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
 
         z.start()
 
         output = StringIO()
-        z.plugins.snapshotter.snapshot(output)
+        z.plugins.overlay.export(output, mem=True)
         output.seek(0)
 
         data = output.read()[len("DISAS\n") :]
@@ -48,20 +48,39 @@ class SnapshotTest(unittest.TestCase):
 
     def test_snapshot_comments(self):
         z = Zelos(
-            path.join(DATA_DIR, "static_elf_helloworld"), "-vv", fasttrace=True
+            path.join(DATA_DIR, "static_elf_helloworld"),
+            verbosity=1,
+            fasttrace=True,
         )
 
         z.start()
 
         output = StringIO()
-        z.plugins.snapshotter.snapshot(output)
+        z.plugins.overlay.export(output, instrs=True)
         output.seek(0)
 
         data = output.read()[len("DISAS\n") :]
         memdump = json.loads(data)
 
-        self.assertEqual(len(memdump["sections"]), 18)
         self.assertGreaterEqual(len(memdump["comments"]), 8277)
 
         self.assertEqual(memdump["comments"][0]["address"], 134515568)
         self.assertEqual(memdump["comments"][0]["text"], "ebp = 0x0")
+
+    def test_snapshot_functions(self):
+        z = Zelos(
+            path.join(DATA_DIR, "static_elf_helloworld"),
+            verbosity=1,
+            fasttrace=True,
+        )
+
+        z.start()
+
+        output = StringIO()
+        z.plugins.overlay.export(output, fns=True)
+        output.seek(0)
+
+        data = output.read()[len("DISAS\n") :]
+        memdump = json.loads(data)
+
+        self.assertGreaterEqual(len(memdump["functions"]), 200)
