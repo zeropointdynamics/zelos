@@ -17,7 +17,7 @@
 
 from .arg_base import ArgFactory
 from .loader_base import Loader
-from .parser_base import Parser, Section
+from .parser_base import ParsedBinary, Section
 from .plugin import (
     CommandLineOption,
     IPlugin,
@@ -40,7 +40,7 @@ __all__ = [
     "PluginCommands",
     "SyscallManager",
     "Loader",
-    "Parser",
+    "ParsedBinary",
     "Section",
     "ArgFactory",
 ]

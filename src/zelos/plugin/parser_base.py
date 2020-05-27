@@ -118,7 +118,7 @@ class Symbol(object):
         self.Type = 0x0
 
 
-class Parser(object):
+class ParsedBinary(object):
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.Filepath = ""
