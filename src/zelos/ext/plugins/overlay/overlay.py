@@ -26,13 +26,19 @@ from zelos import CommandLineOption, IPlugin, Zelos
 
 
 CommandLineOption(
-    "snapshot", action="store_true", help="Output a snapshot of memory."
+    "export_mem", action="store_true", help="Export memory regions."
 )
 
+CommandLineOption(
+    "export_instrs", action="store_true", help="Export instructions."
+)
 
-class Snapshotter(IPlugin):
+CommandLineOption("export_fns", action="store_true", help="Export functions.")
+
+
+class Overlay(IPlugin):
     """
-    Provides functionality for memory snapshots.
+    Provides functionality for exporting memory & instruction overlays.
     """
 
     def __init__(self, z: Zelos):
@@ -40,24 +46,37 @@ class Snapshotter(IPlugin):
 
         self.logger = logging.getLogger(__name__)
 
-        if z.config.snapshot:
+        self.mem = False
+        self.instrs = False
+        self.fns = False
+
+        if z.config.export_instrs:
             if z.config.verbosity == 0:
                 self.logger.error(
                     (
                         f"You will not get instruction comments without "
                         f'running in verbose mode. Include this flag ("-vv") '
-                        f"if you want instruction comments in your snapshot. "
+                        f"if you want instruction comments in your overlay. "
                         f"For an additional speedup, consider also including "
                         f'the fasttrace flag ("-vv --fasttrace").'
                     )
                 )
+            self.instrs = True
+        if z.config.export_mem:
+            self.mem = True
+        if z.config.export_fns:
+            self.fns = True
+
+        if self.mem or self.instrs or self.fns:
             original_file_name = basename(z.main_binary_path)
 
             def closure():
                 with open(f"{original_file_name}.zmu", "w") as f:
-                    self.snapshot(f)
-                self.logger.info(
-                    f"Wrote snaphot to: " f"{abspath(original_file_name)}.zmu"
+                    self.export(
+                        f, mem=self.mem, instrs=self.instrs, fns=self.fns
+                    )
+                print(
+                    f"Wrote overlay to: " f"{abspath(original_file_name)}.zmu"
                 )
 
             self.zelos.hook_close(closure)
@@ -89,14 +108,21 @@ class Snapshotter(IPlugin):
         section["data"] = base64.b64encode(data).decode()
         return section
 
-    def snapshot(self, outfile=None):
+    def export(self, outfile=None, mem=False, instrs=False, fns=False):
         """
-        Dumps memory regions.
+        Exports memory, instruction, or function info of the main binary.
 
         Args:
             outfile: A file-like object to which output will be written. If
                 not specified, snapshot will create a file with the name
                 "memory_dump.zmu" to which output will be written.
+            mem: Bool that determines whether or not to export mapped memory
+                regions
+            instrs: Bool that determines whether or not to export traced
+                instructions
+            fns: Bool that determines whether or not to export traced
+                functions
+
         """
         out_map = {}
         out_map["entrypoint"] = self.zelos.main_binary.EntryPoint
@@ -104,107 +130,112 @@ class Snapshotter(IPlugin):
         out_map["functions"] = []
         out_map["comments"] = []
 
-        regions = self.zelos.memory.get_regions()
-        for region in sorted(regions):
-            addr = region.address
-            size = region.size
-            perm = region.prot
-            name = "<unk>"
-            kind = "<unk>"
-            region = self.zelos.memory.get_region(addr)
-            if region is not None:
-                name = region.name
-                kind = region.kind
-            if addr == 0x80000000:
-                continue  # GDT only
-            dumped = False
+        if mem:
+            regions = self.zelos.memory.get_regions()
+            for region in sorted(regions):
+                addr = region.address
+                size = region.size
+                perm = region.prot
+                name = "<unk>"
+                kind = "<unk>"
+                region = self.zelos.memory.get_region(addr)
+                if region is not None:
+                    name = region.name
+                    kind = region.kind
+                if addr == 0x80000000:
+                    continue  # GDT only
+                dumped = False
 
-            # Dump main binary
-            if kind == "main" or name == "main":
-                section_name = name
-                tmpname = name.split(" ")
-                if len(tmpname) > 1:
-                    section_name = tmpname[1]
-                data = self.zelos.memory.read(addr, size)
-                # Temporary hack. The MEW packer requires executable
-                # header section. But, we mark it non-executable for the
-                # dump.
-                if section_name == ".pe":
-                    section = self._dump_section(
-                        section_name, addr, 0x1, data, out_map
-                    )
-                else:
+                # Dump main binary
+                if kind == "main" or name == "main":
+                    section_name = name
+                    tmpname = name.split(" ")
+                    if len(tmpname) > 1:
+                        section_name = tmpname[1]
+                    data = self.zelos.memory.read(addr, size)
+                    # Temporary hack. The MEW packer requires executable
+                    # header section. But, we mark it non-executable for the
+                    # dump.
+                    if section_name == ".pe":
+                        section = self._dump_section(
+                            section_name, addr, 0x1, data, out_map
+                        )
+                    else:
+                        section = self._dump_section(
+                            section_name, addr, perm, data, out_map
+                        )
+                    dumped = True
+
+                # Dump main and thread stacks binary
+                if kind == "stack" and "dll_main" not in name:
+                    section_name = f"stack_{name}"
+                    data = self.memory.read(addr, size)
                     section = self._dump_section(
                         section_name, addr, perm, data, out_map
                     )
-                dumped = True
+                    dumped = True
 
-            # Dump main and thread stacks binary
-            if kind == "stack" and "dll_main" not in name:
-                section_name = f"stack_{name}"
-                data = self.memory.read(addr, size)
-                section = self._dump_section(
-                    section_name, addr, perm, data, out_map
+                # Dump heap, sections, virtualalloc'd regions. Note that
+                # currently we don't make use of dynamically allocated heaps,
+                # and so they are excluded. Once that changes, we should
+                # include them here
+                if (
+                    (kind == "heap" and name != "heap")
+                    or kind == "valloc"
+                    or kind == "section"
+                ):
+                    section_name = f"{kind}_{name}"
+                    data = self.memory.read(addr, size)
+                    if kind == "heap" and name == "main_heap":
+                        # Truncate unused portion of heap
+                        heap = self.zelos.internal_engine.memory.heap
+                        data = data[
+                            : heap.current_offset
+                            - self.zelos.internal_engine.memory.HEAP_BASE
+                        ]
+
+                    section = self._dump_section(
+                        section_name, addr, perm, data, out_map
+                    )
+                    dumped = True
+
+                line = (
+                    f"Region: 0x{addr:08x} Size: 0x{size:08x} "
+                    f"Perm: 0x{perm:x} \t{kind}\t\t{name}"
                 )
-                dumped = True
 
-            # Dump heap, sections, virtualalloc'd regions. Note that currently
-            # we don't make use of dynamically allocated heaps, and so they are
-            # excluded. Once that changes, we should include them here
-            if (
-                (kind == "heap" and name != "heap")
-                or kind == "valloc"
-                or kind == "section"
-            ):
-                section_name = f"{kind}_{name}"
-                data = self.memory.read(addr, size)
-                if kind == "heap" and name == "main_heap":
-                    # Truncate unused portion of heap
-                    data = data[
-                        : self.zelos.internal_engine.memory.heap.current_offset
-                        - self.zelos.internal_engine.memory.HEAP_BASE
-                    ]
+                if dumped is True and self._bad_section(data):
+                    # Doppler cannot handle files that are this large at the
+                    # moment.
+                    dumped = False
 
-                section = self._dump_section(
-                    section_name, addr, perm, data, out_map
-                )
-                dumped = True
+                if dumped:
+                    print(colored(line, "white", attrs=["bold"]))
+                    out_map["sections"].append(section)
+                else:
+                    print(line)
 
-            line = (
-                f"Region: 0x{addr:08x} Size: 0x{size:08x} "
-                f"Perm: 0x{perm:x} \t{kind}\t\t{name}"
-            )
+        if instrs:
+            for c in self.zelos.plugins.trace.comments:
+                cmt = {}
+                cmt["address"] = c.address
+                cmt["thread_id"] = c.thread_id
+                cmt["text"] = c.text
+                out_map["comments"].append(cmt)
 
-            if dumped is True and self._bad_section(data):
-                # Doppler cannot handle files that are this large at the
-                # moment.
-                dumped = False
-
-            if dumped:
-                print(colored(line, "white", attrs=["bold"]))
-                out_map["sections"].append(section)
-            else:
-                print(line)
-
-        for c in self.zelos.plugins.trace.comments:
-            cmt = {}
-            cmt["address"] = c.address
-            cmt["thread_id"] = c.thread_id
-            cmt["text"] = c.text
-            out_map["comments"].append(cmt)
-
-        for addr in self.zelos.plugins.trace.functions_called.keys():
-            function = {}
-            function["address"] = addr
-            function["name"] = "traced_{0:x}".format(addr)
-            function["is_import"] = False
-            out_map["functions"].append(function)
+        if fns:
+            for addr in self.zelos.plugins.trace.functions_called.keys():
+                function = {}
+                function["address"] = addr
+                function["name"] = f"traced_{addr:x}"
+                function["is_import"] = False
+                out_map["functions"].append(function)
 
         r = json.dumps(out_map)
         loaded_r = json.loads(r)
 
         if outfile is None:
-            with open("memory_dump.zmu", "w") as f:
+            with open("overlay.zmu", "w") as f:
                 f.write(
                     "DISAS\n" + json.dumps(loaded_r, indent=4, sort_keys=True)
                 )
