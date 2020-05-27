@@ -45,6 +45,17 @@ class Transport(xmlrpc.client.Transport):
         return conn
 
 
+def server_process(target, srv_ready, srv_error):
+    try:
+        rpc_server = create_server(target)
+        srv_ready.set()
+        rpc_server.serve_forever()
+    except Exception as e:
+        print("start_server Exception:", e)
+        srv_error.set()
+        srv_ready.set()
+
+
 class TestZdbServer(unittest.TestCase):
     def start_server(
         self,
@@ -54,18 +65,9 @@ class TestZdbServer(unittest.TestCase):
 
         srv_ready = multiprocessing.Event()
         srv_error = multiprocessing.Event()
-
-        def server_process():
-            try:
-                rpc_server = create_server(target)
-                srv_ready.set()
-                rpc_server.serve_forever()
-            except Exception as e:
-                print("start_server Exception:", e)
-                srv_error.set()
-                srv_ready.set()
-
-        srv = multiprocessing.Process(target=server_process)
+        srv = multiprocessing.Process(
+            target=server_process, args=(target, srv_ready, srv_error)
+        )
         srv.start()
         srv_ready.wait(10)
         self.assertTrue(srv_ready.is_set())
