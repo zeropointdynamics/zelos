@@ -1,6 +1,7 @@
 
 [run]
 branch = True
+concurrency = multiprocessing
 source =
     zelos
 
