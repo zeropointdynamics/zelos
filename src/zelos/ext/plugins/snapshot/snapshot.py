@@ -51,7 +51,7 @@ class Snapshotter(IPlugin):
                         f'the fasttrace flag ("-vv --fasttrace").'
                     )
                 )
-            original_file_name = basename(z.main_module_path)
+            original_file_name = basename(z.main_binary_path)
 
             def closure():
                 with open(f"{original_file_name}.zmu", "w") as f:
@@ -99,7 +99,7 @@ class Snapshotter(IPlugin):
                 "memory_dump.zmu" to which output will be written.
         """
         out_map = {}
-        out_map["entrypoint"] = self.zelos.main_module.EntryPoint
+        out_map["entrypoint"] = self.zelos.main_binary.EntryPoint
         out_map["sections"] = []
         out_map["functions"] = []
         out_map["comments"] = []

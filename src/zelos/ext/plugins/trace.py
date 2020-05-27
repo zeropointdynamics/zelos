@@ -396,8 +396,8 @@ class Trace(IPlugin):
             sep = "*"
         address = insn.address
         ins_string = self._get_insn_string(insn)
-        if address in self.zelos.main_module.exported_functions:
-            function_name = self.zelos.main_module.exported_functions[address]
+        if address in self.zelos.main_binary.exported_functions:
+            function_name = self.zelos.main_binary.exported_functions[address]
             if self.strace:
                 s = f"<{function_name}>"
             else:
@@ -555,8 +555,8 @@ class ArmCommentGenerator:
         Returns a comment on branch to label.
         """
         src_val = self._get_reg_or_mem_val(insn, insn.operands[0])
-        if src_val in self.zelos.main_module.exported_functions:
-            func_name = self.zelos.main_module.exported_functions[src_val]
+        if src_val in self.zelos.main_binary.exported_functions:
+            func_name = self.zelos.main_binary.exported_functions[src_val]
             return f"<{func_name:s}> (0x{src_val:x})"
         return f"<0x{src_val:x}>"
 

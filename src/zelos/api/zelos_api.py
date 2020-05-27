@@ -28,7 +28,7 @@ from zelos.breakpoints import BreakState
 from zelos.config_gen import generate_config, generate_config_from_cmdline
 from zelos.engine import Engine
 from zelos.hooks import HookInfo, HookType
-from zelos.plugin import Parser, Plugins
+from zelos.plugin import ParsedBinary, Plugins
 from zelos.processes import Process
 from zelos.threads import Thread
 
@@ -634,19 +634,19 @@ class Zelos:
         return self.internal_engine.current_process.current_thread
 
     @property
-    def main_module(self) -> Optional[Parser]:
+    def main_binary(self) -> Optional[ParsedBinary]:
         """
-        Returns the parsed main module, if it exists, otherwise returns None.
+        Returns the parsed main binary, if it exists, otherwise returns None.
 
-        :type: :py:class:`zelos.plugin.Parser`
+        :type: :py:class:`zelos.plugin.ParsedBinary`
 
         """
         return self.internal_engine.main_module
 
     @property
-    def main_module_path(self) -> Optional[str]:
+    def main_binary_path(self) -> Optional[str]:
         """
-        Returns the absolute path to the main module, if it exists, otherwise
+        Returns the absolute path to the main binary, if it exists, otherwise
         returns None.
 
         :type: str

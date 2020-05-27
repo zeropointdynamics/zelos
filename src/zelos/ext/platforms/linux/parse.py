@@ -22,10 +22,10 @@ import zelos.util as util
 
 from zelos.exceptions import UnsupportedBinaryError
 from zelos.file_system import FileSystem
-from zelos.plugin import Parser, Section
+from zelos.plugin import ParsedBinary, Section
 
 
-class LiefELF(Parser):
+class LiefELF(ParsedBinary):
     def __init__(self, file_system: FileSystem, path: str, binary):
         super().__init__()
         self._files = file_system
