@@ -29,7 +29,6 @@ DEFAULT_PORT = 62433
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("zdbserver")
-logger.setLevel(logging.DEBUG)
 
 
 class ZdbServer:
@@ -64,7 +63,7 @@ class ZdbServer:
         data = self.z.memory.read(address, nbytes)
         return xmlrpc.client.Binary(data)
 
-    def write_memory(self, address: str, value: xmlrpc.client.Binary) -> bool:
+    def write_memory(self, address: str, value: xmlrpc.client.Binary) -> int:
         """
         Writes specified bytes to memory.
 
@@ -73,12 +72,11 @@ class ZdbServer:
             value: Binary data to write in memory.
 
         Returns:
-            True if no exception occurred.
+            The number of bytes written.
         """
         address = int(address, 0)
         logger.debug(f"[debug] write_memory(0x{address:x}, {value.data})")
-        self.z.memory.write(address, value.data)
-        return True
+        return self.z.memory.write(address, value.data)
 
     def read_register(self, register: str) -> str:
         """
@@ -93,10 +91,10 @@ class ZdbServer:
         logger.debug(f"[debug] read_register('{register}')")
         register = register.lower()
         if register == "pc":
-            return "0x{0:x}".format(self.z.regs.getIP())
-        return "0x{0:x}".format(self.z.regs[register])
+            return f"0x{self.z.regs.getIP():x}"
+        return f"0x{self.z.regs[register]:x}"
 
-    def write_register(self, register: str, value: str) -> bool:
+    def write_register(self, register: str, value: str) -> str:
         """
         Writes specified register of the current thread.
 
@@ -105,16 +103,16 @@ class ZdbServer:
             value: register value to set.
 
         Returns:
-            True if no exception occurred.
+            The value written to the register.
         """
         logger.debug(f"[debug] write_register('{register}', {value})")
-        value = int(value, 0)
+        int_value = int(value, 0)
         register = register.lower()
         if register == "pc":
-            self.z.regs.setIP(value)
+            self.z.regs.setIP(int_value)
         else:
-            self.z.regs[register] = value
-        return True
+            self.z.regs[register] = int_value
+        return value
 
     def set_breakpoint(self, address: str, temporary: bool) -> bool:
         """
@@ -197,7 +195,7 @@ class ZdbServer:
         """
         logger.debug(f"[debug] get_mappings()")
         vmmap = []
-        regions = self.z.internal_engine.memory.get_regions()
+        regions = self.z.memory.get_regions()
         for region in regions:
             entry = {
                 "start_address": f"0x{region.start:x}",
@@ -236,15 +234,15 @@ class ZdbServer:
         # RPC-serializable values.
         if break_state is None:
             return {}
-        break_state["pc"] = "0x{0:x}".format(break_state["pc"])
+        break_state["pc"] = f"0x{break_state['pc']:x}"
         if break_state.get("syscall", None) is None:
             break_state["syscall"] = {}
         else:
-            break_state["syscall"]["retval"] = "0x{0:x}".format(
-                break_state["syscall"]["retval"]
-            )
+            break_state["syscall"][
+                "retval"
+            ] = f"0x{break_state['syscall']['retval']:x}"
             for arg in break_state["syscall"]["args"]:
-                arg["value"] = "0x{0:x}".format(arg["value"])
+                arg["value"] = f"0x{arg['value']:x}"
         return break_state
 
     def stop(self) -> bool:
@@ -295,7 +293,7 @@ class ZdbServer:
         Returns:
             The full path to the emulated binary.
         """
-        return self.z.internal_engine.main_module_name
+        return self.z.main_binary_path
 
 
 def create_server(cmdline_options: str) -> SimpleXMLRPCServer:
