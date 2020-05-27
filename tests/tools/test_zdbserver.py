@@ -96,7 +96,6 @@ class TestZdbServer(unittest.TestCase):
         # Do this all in one test so we're not creating many
         # sub-processes.
         proc, zdb = self.start_server()
-
         zdb_exception = None
 
         try:
@@ -148,16 +147,6 @@ class TestZdbServer(unittest.TestCase):
             ecx = int(zdb.read_register("ecx"), 16)
             self.assertEqual(ecx, 0x81E9CA0)
 
-            # Test `zdbserver` exceptions
-            # ...
-
-            # Test memory read after break
-            stack_var = int(zdb.read_register("esp"), 16) + 0x1C
-            data = zdb.read_memory(f"0x{stack_var:x}", 4)
-            print(data.data)
-            # self.assertEqual(data.data, b"\xc0\x00\x00\x90")  # after inst
-            self.assertEqual(data.data, b"\x80\x00\x00\x90")  # before inst
-
             # Test memory map list
             mappings = zdb.get_mappings()
             self.assertEqual(len(mappings), 21)
@@ -174,11 +163,11 @@ class TestZdbServer(unittest.TestCase):
 
             # Test watchpoint
             zdb.set_watchpoint(buf, True, True, False)
-            # break_state = zdb.run()
-            # self.assertEqual(break_state, "asdf")
+            break_state = zdb.run()
+            self.assertEqual(break_state, "asdf")
             zdb.remove_watchpoint(buf)
 
-            # Test memory write, continued
+            # Test memory read, write (continued)
             zdb.set_syscall_breakpoint("write")
             break_state = zdb.run()
             buf = break_state["syscall"]["args"][1]["value"]

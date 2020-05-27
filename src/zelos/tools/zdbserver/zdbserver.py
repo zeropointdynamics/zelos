@@ -320,9 +320,6 @@ def create_server(cmdline_options: str) -> SimpleXMLRPCServer:
         "debug_port", type=int, default=DEFAULT_PORT, help="debug network port"
     )
     z = zelos.ZelosCmdline(cmdline_options)
-    if z.thread is None:
-        # Load the initial thread
-        z.swap_thread()
     dbg = ZdbServer(z)
     rpc = SimpleXMLRPCServer(
         (z.config.debug_interface, z.config.debug_port), logRequests=False
