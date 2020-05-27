@@ -17,7 +17,8 @@
 import base64
 import json
 import logging
-import os
+
+from os.path import abspath, basename
 
 from termcolor import colored
 
@@ -50,14 +51,13 @@ class Snapshotter(IPlugin):
                         f'the fasttrace flag ("-vv --fasttrace").'
                     )
                 )
-            original_file_name = z.internal_engine.original_file_name
+            original_file_name = basename(z.main_binary_path)
 
             def closure():
                 with open(f"{original_file_name}.zmu", "w") as f:
                     self.snapshot(f)
                 self.logger.info(
-                    f"Wrote snaphot to: "
-                    f"{os.path.abspath(original_file_name)}.zmu"
+                    f"Wrote snaphot to: " f"{abspath(original_file_name)}.zmu"
                 )
 
             self.zelos.hook_close(closure)
@@ -99,9 +99,7 @@ class Snapshotter(IPlugin):
                 "memory_dump.zmu" to which output will be written.
         """
         out_map = {}
-        out_map[
-            "entrypoint"
-        ] = self.zelos.internal_engine.main_module.EntryPoint
+        out_map["entrypoint"] = self.zelos.main_binary.EntryPoint
         out_map["sections"] = []
         out_map["functions"] = []
         out_map["comments"] = []
