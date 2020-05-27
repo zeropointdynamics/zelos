@@ -46,16 +46,9 @@ class Overlay(IPlugin):
 
         self.logger = logging.getLogger(__name__)
 
-        self.mem = False
-        self.instrs = False
-        self.fns = False
-
-        if z.config.export_instrs:
-            self.instrs = True
-        if z.config.export_fns:
-            self.fns = True
-        if z.config.export_mem:
-            self.mem = True
+        self.mem = True if z.config.export_mem else False
+        self.instrs = True if z.config.export_instrs else False
+        self.fns = True if z.config.export_fns else False
 
         if (self.instrs or self.fns) and z.config.verbosity == 0:
             self.logger.error(
