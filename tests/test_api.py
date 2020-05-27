@@ -308,6 +308,17 @@ class ZelosTest(unittest.TestCase):
         self.assertIsNotNone(reg)
         self.assertEqual(len(z.memory.get_regions()), 4)
 
+    def test_main_module(self):
+        z = Zelos(None)
+        self.assertIsNone(z.main_module)
+        self.assertIsNone(z.main_module_path)
+
+        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
+        self.assertIsNotNone(z.main_module)
+        self.assertEqual(
+            path.basename(z.main_module_path), "static_elf_helloworld"
+        )
+
 
 def main():
     unittest.main()

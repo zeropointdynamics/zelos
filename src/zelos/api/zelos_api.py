@@ -19,6 +19,7 @@
 import logging
 
 from collections import defaultdict
+from os.path import abspath
 from typing import Any, Callable, Optional
 
 from zelos.api.memory_api import MemoryApi
@@ -27,7 +28,7 @@ from zelos.breakpoints import BreakState
 from zelos.config_gen import generate_config, generate_config_from_cmdline
 from zelos.engine import Engine
 from zelos.hooks import HookInfo, HookType
-from zelos.plugin import Plugins
+from zelos.plugin import Parser, Plugins
 from zelos.processes import Process
 from zelos.threads import Thread
 
@@ -631,6 +632,29 @@ class Zelos:
 
         """
         return self.internal_engine.current_process.current_thread
+
+    @property
+    def main_module(self) -> Optional[Parser]:
+        """
+        Returns the parsed main module, if it exists, otherwise returns None.
+
+        :type: :py:class:`zelos.plugin.Parser`
+
+        """
+        return self.internal_engine.main_module
+
+    @property
+    def main_module_path(self) -> Optional[str]:
+        """
+        Returns the absolute path to the main module, if it exists, otherwise
+        returns None.
+
+        :type: str
+
+        """
+        if self.internal_engine.main_module_name:
+            return abspath(self.internal_engine.main_module_name)
+        return None
 
 
 class ZelosCmdline(Zelos):
