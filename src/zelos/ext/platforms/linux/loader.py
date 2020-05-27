@@ -15,6 +15,8 @@
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
 
+import posixpath
+
 from os.path import basename
 
 from unicorn import UC_ERR_EXCEPTION
@@ -214,7 +216,9 @@ class ElfLoader(Loader):
         #   https://github.com/torvalds/linux/blob/v3.19/include/uapi/linux/auxvec.h
 
         module_path_ptr, str_len = self.memory.heap.allocstr(
-            f"{self._z.config.virtual_path}/{self._z.config.virtual_filename}",
+            posixpath.join(
+                self._z.config.virtual_path, self._z.config.virtual_filename
+            ),
             alloc_name="Module Path",
         )
         cpu_string_ptr, _ = self.memory.heap.allocstr(
