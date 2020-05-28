@@ -154,17 +154,9 @@ class Overlay(IPlugin):
                     if len(tmpname) > 1:
                         section_name = tmpname[1]
                     data = self.zelos.memory.read(addr, size)
-                    # Temporary hack. The MEW packer requires executable
-                    # header section. But, we mark it non-executable for the
-                    # dump.
-                    if section_name == ".pe":
-                        section = self._dump_section(
-                            section_name, addr, 0x1, data, out_map
-                        )
-                    else:
-                        section = self._dump_section(
-                            section_name, addr, perm, data, out_map
-                        )
+                    section = self._dump_section(
+                        section_name, addr, perm, data, out_map
+                    )
                     dumped = True
 
                 # Dump main and thread stacks binary
@@ -201,8 +193,6 @@ class Overlay(IPlugin):
                 )
 
                 if dumped is True and self._bad_section(data):
-                    # Doppler cannot handle files that are this large at the
-                    # moment.
                     dumped = False
 
                 if dumped:
