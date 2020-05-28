@@ -56,7 +56,7 @@ class OverlayTest(unittest.TestCase):
         z.start()
 
         output = StringIO()
-        z.plugins.overlay.export(output, instrs=True)
+        z.plugins.overlay.export(output, insts=True)
         output.seek(0)
 
         data = output.read()[len("DISAS\n") :]
@@ -77,7 +77,7 @@ class OverlayTest(unittest.TestCase):
         z.start()
 
         output = StringIO()
-        z.plugins.overlay.export(output, fns=True)
+        z.plugins.overlay.export(output, funcs=True)
         output.seek(0)
 
         data = output.read()[len("DISAS\n") :]

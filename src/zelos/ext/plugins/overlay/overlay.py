@@ -30,10 +30,12 @@ CommandLineOption(
 )
 
 CommandLineOption(
-    "export_instrs", action="store_true", help="Export instructions."
+    "export_insts", action="store_true", help="Export instructions."
 )
 
-CommandLineOption("export_fns", action="store_true", help="Export functions.")
+CommandLineOption(
+    "export_funcs", action="store_true", help="Export functions."
+)
 
 
 class Overlay(IPlugin):
@@ -47,10 +49,10 @@ class Overlay(IPlugin):
         self.logger = logging.getLogger(__name__)
 
         self.mem = True if z.config.export_mem else False
-        self.instrs = True if z.config.export_instrs else False
-        self.fns = True if z.config.export_fns else False
+        self.insts = True if z.config.export_insts else False
+        self.funcs = True if z.config.export_funcs else False
 
-        if (self.instrs or self.fns) and z.config.verbosity == 0:
+        if (self.insts or self.funcs) and z.config.verbosity == 0:
             self.logger.error(
                 (
                     f"You will not get instruction comments or function "
@@ -61,13 +63,13 @@ class Overlay(IPlugin):
                     f'the fasttrace flag ("-vv --fasttrace").'
                 )
             )
-        if self.mem or self.instrs or self.fns:
+        if self.mem or self.insts or self.funcs:
             original_file_name = basename(z.main_binary_path)
 
             def closure():
                 with open(f"{original_file_name}.zmu", "w") as f:
                     self.export(
-                        f, mem=self.mem, instrs=self.instrs, fns=self.fns
+                        f, mem=self.mem, insts=self.insts, funcs=self.funcs
                     )
                 print(
                     f"Wrote overlay to: " f"{abspath(original_file_name)}.zmu"
@@ -109,7 +111,7 @@ class Overlay(IPlugin):
                 return data[: i + 1]
         return data
 
-    def export(self, outfile=None, mem=False, instrs=False, fns=False):
+    def export(self, outfile=None, mem=False, insts=False, funcs=False):
         """
         Exports memory, instruction, or function info of the main binary.
 
@@ -119,9 +121,9 @@ class Overlay(IPlugin):
                 "memory_dump.zmu" to which output will be written.
             mem: Bool that determines whether or not to export mapped memory
                 regions
-            instrs: Bool that determines whether or not to export traced
+            insts: Bool that determines whether or not to export traced
                 instructions
-            fns: Bool that determines whether or not to export traced
+            funcs: Bool that determines whether or not to export traced
                 functions
 
         """
@@ -201,7 +203,7 @@ class Overlay(IPlugin):
                 else:
                     print(line)
 
-        if instrs:
+        if insts:
             for c in self.zelos.plugins.trace.comments:
                 cmt = {}
                 cmt["address"] = c.address
@@ -209,7 +211,7 @@ class Overlay(IPlugin):
                 cmt["text"] = c.text
                 out_map["comments"].append(cmt)
 
-        if fns:
+        if funcs:
             for addr in self.zelos.plugins.trace.functions_called.keys():
                 function = {}
                 function["address"] = addr
