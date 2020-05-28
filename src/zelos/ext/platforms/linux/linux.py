@@ -66,6 +66,8 @@ class Linux(OSPlugin):
         }[binary.header.machine_type]
         if not self.initial_parse:
             self._first_parse_setup(arch)
+        if self.z.config.virtual_filename is None:
+            self.z.config.virtual_filename = os.path.basename(path)
         emulated_path = self._get_emulated_path(self.z.config, path)
         if self.z is not None:
             self.z.cmdline_args.insert(0, emulated_path)
