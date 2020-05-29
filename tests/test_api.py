@@ -319,6 +319,11 @@ class ZelosTest(unittest.TestCase):
             path.basename(z.main_binary_path), "static_elf_helloworld"
         )
 
+    def test_memory_api_pack(self):
+        z = Zelos(None)
+        self.assertEqual(123, z.memory.unpack(z.memory.pack(123)))
+        self.assertEqual(-1, z.memory.unpack(z.memory.pack(-1), signed=True))
+
 
 def main():
     unittest.main()
