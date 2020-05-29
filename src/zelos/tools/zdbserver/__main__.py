@@ -14,7 +14,11 @@
 # License along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
-from .snapshot import Snapshotter
 
+if __name__ == "__main__":
+    import sys
 
-__all__ = ["Snapshotter"]
+    from .zdbserver import create_server
+
+    server = create_server(sys.argv[1:])
+    server.serve_forever()
