@@ -14,33 +14,7 @@
 # License along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
-
-from .arg_base import ArgFactory
-from .loader_base import Loader
-from .parser_base import ParsedBinary, Section
-from .plugin import (
-    CommandLineOption,
-    IPlugin,
-    ISubcommand,
-    OSPlugin,
-    OSPlugins,
-    PluginCommands,
-    Plugins,
-)
-from .syscall_manager_base import SyscallManager
+from .overlay import Overlay
 
 
-__all__ = [
-    "IPlugin",
-    "Plugins",
-    "CommandLineOption",
-    "OSPlugin",
-    "OSPlugins",
-    "ISubcommand",
-    "PluginCommands",
-    "SyscallManager",
-    "Loader",
-    "ParsedBinary",
-    "Section",
-    "ArgFactory",
-]
+__all__ = ["Overlay"]
