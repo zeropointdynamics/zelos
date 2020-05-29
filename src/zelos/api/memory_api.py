@@ -330,7 +330,7 @@ class MemoryApi:
         Unpacks an integer from a byte format. Defaults to the
         current architecture bytes and endianness.
         """
-        return self._memory.pack(
+        return self._memory.emu.pack(
             x, bytes=bytes, little_endian=little_endian, signed=signed
         )
 
@@ -345,7 +345,7 @@ class MemoryApi:
         Unpacks an integer from a byte format. Defaults to the
         current architecture bytes and endianness.
         """
-        return self._memory.unpack(
+        return self._memory.emu.unpack(
             x, bytes=bytes, little_endian=little_endian, signed=signed
         )
 

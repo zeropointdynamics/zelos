@@ -196,10 +196,10 @@ class Zelos:
                 specified event occurs. The function should accept the
                 following inputs: (zelos, address, size).
                 The return value of "callback" is ignored.
-            mem_low: If specified, only executes callback if the
+            ip_low: If specified, only executes callback if the
                 event occurs at an address greater than or equal to
                 this.
-            mem_high: If specified, only executes callback if the
+            ip_high: If specified, only executes callback if the
                 event occurs at an address less than or equal to this.
             name: An identifier for this hook. Used for debugging.
             end_condition: If specified, executes after the callback. If
