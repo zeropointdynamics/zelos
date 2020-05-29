@@ -5,7 +5,7 @@ This tutorial explains how to use zelos to export instruction overlays and impor
 ## Overview
 
 The Overlay Plugin provides the ability to export runtime information from zelos, which can include:
-  * Memory contents of all memory regions
+  * Contents of all memory regions
   * Instruction-level comments & runtime values for all executed instructions
   * Function information for all executed functions
 
