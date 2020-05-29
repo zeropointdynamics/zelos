@@ -14,7 +14,7 @@
 # License along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
-from .snapshot import Snapshotter
+from .overlay import Overlay
 
 
-__all__ = ["Snapshotter"]
+__all__ = ["Overlay"]
