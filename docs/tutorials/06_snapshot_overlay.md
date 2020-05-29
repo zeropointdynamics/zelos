@@ -9,7 +9,43 @@ The Overlay Plugin provides the ability to export runtime information from zelos
   * Instruction-level comments & runtime values for all executed instructions
   * Function information for all executed functions
 
-These overlays are intended to be used for integrating the results of zelos emulation into other tools. To demonstrate this using the zelos IDA plugin, described below, overlays can be imported into IDA Pro to improve static analysis by highlighting the exact behavior of the emulated binary.
+These overlays are intended to be used for integrating the results of zelos emulation into other tools. To demonstrate this using the zelos IDA plugin, described below, overlays can be imported into IDA Pro to improve static analysis by highlighting the runtime behavior of the emulated binary. The IDA plugin will recolor the IDA graph view to show the execution paths observed during zelos dynamic analysis, as well as annotate traced instructions with their corresponding runtime values. This is helpful for honing in on the most important areas of an executable during static analysis.
+
+![Image](https://raw.githubusercontent.com/zeropointdynamics/zelos/master/docs/_static/plugin_active.png)
+
+### Using the IDA Plugin
+
+First, we are going to use zelos to emulate an executable and generate an overlay with comments. The executable that we are emulating is a basic "hello world", statically-compiled, ELF binary which can be found in the repo [here](https://github.com/zeropointdynamics/zelos/blob/master/tests/data/static_elf_helloworld).
+
+```console
+python -m zelos static_elf_helloworld --export_insts -vv --fasttrace
+```
+
+After generating an overlay (with comments), go ahead and open `static_elf_helloworld` in IDA Pro for disassembly. Wait for IDA to load the executable and the finish the initial autoanalysis. Once this completes, assuming you installed the zelos IDA plugin correctly, you should be able to see a View menu option that says "Load Zelos Overlay...". Click on this, and when prompted, navigate to and select the `static_elf_helloworld.zmu` overlay file that we generated above.
+
+![Image](https://raw.githubusercontent.com/zeropointdynamics/zelos/master/docs/_static/plugin_select.png)
+
+After a moment, you will notice that the IDA View has been updated. The yellow highlighting indicates an operation that has been emulated in zelos, and the updated comment string at each address describes the value of the emulated operands.
+
+### Getting the IDA Plugin
+
+After generating an overlay with instruction-level comments, it can be imported into IDA Pro using the zelos IDA plugin (which you can get [here](https://raw.githubusercontent.com/zeropointdynamics/zelos/master/src/zelos/ext/plugins/snapshot/zelos_ida.py)).
+
+#### Installing the IDA Plugin
+
+The plugin source can be viewed and manually downloaded from [here](https://raw.githubusercontent.com/zeropointdynamics/zelos/master/src/zelos/ext/plugins/snapshot/zelos_ida.py). To install, save this file into your IDA Pro install location's `plugins/` directory. On windows, this will typically be something like `C:\Program Files\IDA 7.0\plugins\`. On linux, this will typically be `<ida_install_dir>/plugins/`.
+
+If you would instead prefer a script, if you are using windows, __modify the following powershell command for your IDA install location__:
+
+```console
+wget "https://raw.githubusercontent.com/zeropointdynamics/zelos/master/src/zelos/ext/plugins/snapshot/zelos_ida.py" -outfile "C:\Program Files\IDA 7.0\plugins\zelos_ida.py"
+```
+
+If you are using linux, __modify the following bash command for your IDA install location__:
+
+```console
+wget https://raw.githubusercontent.com/zeropointdynamics/zelos/master/src/zelos/ext/plugins/snapshot/zelos_ida.py -O <ida_install_dir>/plugins/zelos_ida.py
+```
 
 ## Creating Instruction Overlays
 
@@ -53,76 +89,3 @@ with open("overlay.zmu", "w") as f:
     # Export an overlay
     z.plugins.overlay.export(f)
 ```
-
-### Interacting With Snapshots
-
-Snapshots are formatted as ordinary json documents prepended with `DISAS\n` on the first line, so they can be parsed loaded with standard json libraries. The following example demonstrates generating an instruction overlay, and then using `json.loads` to load it and get the number of instruction comments.
-
-```python
-import json
-from zelos import Zelos
-
-z = Zelos(
-    "/path/to/my_binary",
-    verbosity=1, # include instruction-level comments
-    fasttrace=True,
-    export_insts=True,
-)
-z.start()
-
-# After emulation finishes
-
-# Open a new file for creating an overlay
-f = open("snapshot.zmu", "w+")
-
-# Export an overlay
-z.plugins.overlay.export(f)
-
-# Reset seek position
-f.seek(0)
-
-# Read the overlay file, skipping 'DISAS\n'
-data = f.read()[len('DISAS\n'):]
-
-# Load the json data
-overlay = json.loads(data)
-
-# Number of instruction comments
-print(len(overlay["comments"]))
-```
-
-## Zelos Overlay IDA Plugin
-
-After generating an overlay with instruction-level comments, it can be imported into IDA Pro using the zelos IDA plugin (which you can get [here](https://raw.githubusercontent.com/zeropointdynamics/zelos/master/src/zelos/ext/plugins/snapshot/zelos_ida.py)). The zelos IDA plugin will highlight the IDA View to indicate which addresses were actually emulated, as well as annotate each address with a comment describing the operation and operand values.
-
-### Installing the IDA Plugin
-
-The plugin source can be viewed and manually downloaded from [here](https://raw.githubusercontent.com/zeropointdynamics/zelos/master/src/zelos/ext/plugins/snapshot/zelos_ida.py). To install, save this file into your IDA Pro install location's `plugins/` directory. On windows, this will typically be something like `C:\Program Files\IDA 7.0\plugins\`. On linux, this will typically be `<ida_install_dir>/plugins/`.
-
-If you would instead prefer a script, if you are using windows, __modify the following powershell command for your IDA install location__:
-
-```console
-wget "https://raw.githubusercontent.com/zeropointdynamics/zelos/master/src/zelos/ext/plugins/snapshot/zelos_ida.py" -outfile "C:\Program Files\IDA 7.0\plugins\zelos_ida.py"
-```
-
-If you are using linux, __modify the following bash command for your IDA install location__:
-
-```console
-wget https://raw.githubusercontent.com/zeropointdynamics/zelos/master/src/zelos/ext/plugins/snapshot/zelos_ida.py -O <ida_install_dir>/plugins/zelos_ida.py
-```
-
-### Using the IDA Plugin
-
-First, we are going to use zelos to emulate an executable and generate a snapshot with comments. The executable that we are emulating is a basic "hello world", statically-compiled, ELF binary which can be found in the repo [here](https://github.com/zeropointdynamics/zelos/blob/master/tests/data/static_elf_helloworld).
-
-```console
-python -m zelos static_elf_helloworld --export_insts -vv --fasttrace
-```
-
-After generating an overlay (with comments), go ahead and open `static_elf_helloworld` in IDA Pro for disassembly. Wait for IDA to load the executable and the finish the initial autoanalysis. Once this completes, assuming you installed the zelos IDA plugin correctly, you should be able to see a View menu option that says "Load Zelos Overlay...". Click on this, and when prompted, navigate to and select the `static_elf_helloworld.zmu` overlay file that we generated above.
-
-![Image](https://raw.githubusercontent.com/zeropointdynamics/zelos/master/docs/_static/plugin_select.png)
-
-After a moment, you will notice that the IDA View has been updated. The yellow highlighting indicates an operation that has been emulated in zelos, and the updated comment string at each address describes the value of the emulated operands.
-
-![Image](https://raw.githubusercontent.com/zeropointdynamics/zelos/master/docs/_static/plugin_active.png)
