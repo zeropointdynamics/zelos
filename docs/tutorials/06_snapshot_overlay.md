@@ -29,22 +29,22 @@ After a moment, you will notice that the IDA View has been updated. The yellow h
 
 ### Getting the IDA Plugin
 
-After generating an overlay with instruction-level comments, it can be imported into IDA Pro using the zelos IDA plugin (which you can get [here](https://raw.githubusercontent.com/zeropointdynamics/zelos/master/src/zelos/ext/plugins/snapshot/zelos_ida.py)).
+After generating an overlay with instruction-level comments, it can be imported into IDA Pro using the zelos IDA plugin (which you can get [here](https://raw.githubusercontent.com/zeropointdynamics/zelos/master/src/zelos/ext/plugins/overlay/zelos_ida.py)).
 
 #### Installing the IDA Plugin
 
-The plugin source can be viewed and manually downloaded from [here](https://raw.githubusercontent.com/zeropointdynamics/zelos/master/src/zelos/ext/plugins/snapshot/zelos_ida.py). To install, save this file into your IDA Pro install location's `plugins/` directory. On windows, this will typically be something like `C:\Program Files\IDA 7.0\plugins\`. On linux, this will typically be `<ida_install_dir>/plugins/`.
+The plugin source can be viewed and manually downloaded from [here](https://raw.githubusercontent.com/zeropointdynamics/zelos/master/src/zelos/ext/plugins/overlay/zelos_ida.py). To install, save this file into your IDA Pro install location's `plugins/` directory. On windows, this will typically be something like `C:\Program Files\IDA 7.0\plugins\`. On linux, this will typically be `<ida_install_dir>/plugins/`.
 
 If you would instead prefer a script, if you are using windows, __modify the following powershell command for your IDA install location__:
 
 ```console
-wget "https://raw.githubusercontent.com/zeropointdynamics/zelos/master/src/zelos/ext/plugins/snapshot/zelos_ida.py" -outfile "C:\Program Files\IDA 7.0\plugins\zelos_ida.py"
+wget "https://raw.githubusercontent.com/zeropointdynamics/zelos/master/src/zelos/ext/plugins/overlay/zelos_ida.py" -outfile "C:\Program Files\IDA 7.0\plugins\zelos_ida.py"
 ```
 
 If you are using linux, __modify the following bash command for your IDA install location__:
 
 ```console
-wget https://raw.githubusercontent.com/zeropointdynamics/zelos/master/src/zelos/ext/plugins/snapshot/zelos_ida.py -O <ida_install_dir>/plugins/zelos_ida.py
+wget https://raw.githubusercontent.com/zeropointdynamics/zelos/master/src/zelos/ext/plugins/overlay/zelos_ida.py -O <ida_install_dir>/plugins/zelos_ida.py
 ```
 
 ## Creating Instruction Overlays
