@@ -84,6 +84,7 @@ nitpick_ignore = [
     ("py:class", "callables"),
     ("py:class", "tuple of types"),
     ("py:class", "object"),
+    ("py:class", "lark.visitors.Transformer"),
 ]
 
 # -- Options for HTML output -------------------------------------------------
