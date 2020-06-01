@@ -308,7 +308,7 @@ class ZelosTest(unittest.TestCase):
         self.assertIsNotNone(reg)
         self.assertEqual(len(z.memory.get_regions()), 4)
 
-    def test_main_binary(self):
+    def test_binary_paths(self):
         z = Zelos(None)
         self.assertIsNone(z.main_binary)
         self.assertIsNone(z.main_binary_path)
@@ -317,6 +317,18 @@ class ZelosTest(unittest.TestCase):
         self.assertIsNotNone(z.main_binary)
         self.assertEqual(
             path.basename(z.main_binary_path), "static_elf_helloworld"
+        )
+        self.assertEqual(
+            path.basename(z.target_binary_path), "static_elf_helloworld"
+        )
+
+        z = Zelos(path.join(DATA_DIR, "dynamic_elf_helloworld"))
+        self.assertIsNotNone(z.main_binary)
+        self.assertNotEqual(
+            path.basename(z.main_binary_path), "dynamic_elf_helloworld"
+        )
+        self.assertEqual(
+            path.basename(z.target_binary_path), "dynamic_elf_helloworld"
         )
 
     def test_memory_api_pack(self):

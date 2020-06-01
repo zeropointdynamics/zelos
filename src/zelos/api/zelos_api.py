@@ -637,6 +637,12 @@ class Zelos:
     def main_binary(self) -> Optional[ParsedBinary]:
         """
         Returns the parsed main binary, if it exists, otherwise returns None.
+        Note that the "main" binary denotes the binary that is loaded by
+        Zelos during emulation, not necessarily the binary that
+        is specified as input. When the specified input binary is statically
+        linked, it is also the main binary. However, when the specified
+        input binary is dynamically linked, the "main" binary instead refers
+        to the dynamic linker/loader.
 
         :type: :py:class:`zelos.plugin.ParsedBinary`
 
@@ -648,12 +654,32 @@ class Zelos:
         """
         Returns the absolute path to the main binary, if it exists, otherwise
         returns None.
+        Note that the "main" binary denotes the binary that is loaded by
+        Zelos during emulation, not necessarily the binary that
+        is specified as input. When the specified input binary is statically
+        linked, it is also the main binary. However, when the specified
+        input binary is dynamically linked, the "main" binary instead refers
+        to the dynamic linker/loader.
 
         :type: str
 
         """
         if self.internal_engine.main_module_name:
             return abspath(self.internal_engine.main_module_name)
+        return None
+
+    @property
+    def target_binary_path(self) -> Optional[str]:
+        """
+        Returns the absolute path to the target binary, if it exists, otherwise
+        returns None. Note that the "target" binary denotes the binary
+        specified as input to Zelos.
+
+        :type: str
+
+        """
+        if self.internal_engine.target_binary_path:
+            return abspath(self.internal_engine.target_binary_path)
         return None
 
 
