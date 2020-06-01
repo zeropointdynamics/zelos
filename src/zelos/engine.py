@@ -54,6 +54,7 @@ from zelos.plugin import OSPlugins
 from zelos.processes import Processes
 from zelos.state import State
 from zelos.triggers import Triggers
+from zelos.zml import ZmlParser
 
 
 class Engine:
@@ -109,6 +110,7 @@ class Engine:
 
         self.timer = util.Timer()
 
+        self.zml_parser = ZmlParser(self)
         self.hook_manager = HookManager(self, self.api)
         self.breakpoints = BreakpointManager(self.hook_manager)
         self.interrupt_handler = InterruptHooks(self.hook_manager, self)
