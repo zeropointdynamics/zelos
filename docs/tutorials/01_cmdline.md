@@ -41,14 +41,14 @@ To specify a memory limit in mb, after which an exception is thrown an emulation
 $ zelos -m 1024 my_binary
 ```
 
-To specify a virtual filename, the name that will be used for the binary during emulation, use the `--virtual-filename` flag:
+To specify a virtual filename, the name that will be used for the binary during emulation, use the `--virtual_filename` flag:
 ```console
-$ zelos --virtual-filename virtualname my_binary
+$ zelos --virtual_filename virtualname my_binary
 ```
 
-To specify a virtual file path, the path that will be used for the binary during emulation, use the `--virtual-path` flag:
+To specify a virtual file path, the path that will be used for the binary during emulation, use the `--virtual_path` flag:
 ```console
-$ zelos --virtual-path /home/admin/ my_binary
+$ zelos --virtual_path /home/admin/ my_binary
 ```
 
 To specify environment variables to use during emulation, use the `--env-vars` flag:
