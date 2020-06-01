@@ -128,7 +128,7 @@ class Linux(OSPlugin):
         if self.z.config.virtual_path is None:
             self.z.config.virtual_path = "/home/admin/zelos_dir/"
 
-        self.z.files.setup(self.z.config.virtual_path)
+        self.z.files.setup(posixpath.abspath(self.z.config.virtual_path))
 
         rootfs = {}
         for s in self.z.config.linux_rootfs:
