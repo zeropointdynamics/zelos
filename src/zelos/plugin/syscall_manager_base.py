@@ -18,7 +18,6 @@
 # ======================================================================
 import ctypes
 import logging
-import sys
 
 from typing import Dict, List, Optional
 
@@ -65,8 +64,6 @@ class SyscallManager(object):
         self.logger = logging.getLogger(__name__)
         self.z = engine
 
-        self.strace_file = sys.stdout
-
         self.breakpoints = set()
 
         # Reference to the last Args() created from get_args(). Used to
@@ -86,6 +83,10 @@ class SyscallManager(object):
     @property
     def emu(self):
         return self.z.current_process.emu
+
+    @property
+    def trace_file(self):
+        return self.z.plugins.trace.trace_file
 
     def set_breakpoint(self, syscall_name):
         self.breakpoints.add(syscall_name)
@@ -141,9 +142,6 @@ class SyscallManager(object):
             "bits": self.z.state.bits,
         }
 
-    def set_strace_file(self, filename):
-        self.strace_file = self.z.files.unsafe_open(filename, "w")
-
     def print(self, string, max_len=1000):
         """
         Used to print additional debug information within a syscall.
@@ -162,16 +160,17 @@ class SyscallManager(object):
         """Used to print auxiliary information to the strace file"""
         if not self.z.plugins.trace.should_print_thread():
             return
-        if self.strace_file is sys.stdout:
+        if self.trace_file is None:
             s = (
                 colored(f"[{self.z.current_thread.name}]", "magenta")
                 + " "
                 + colored(f"[INFO]", "white")
                 + f" {string}"
             )
+            print(s)
         else:
             s = f"[{self.z.current_thread.name}] " + f"[INFO] {string}"
-        print(s, file=self.strace_file, flush=True)
+            print(s, file=self.trace_file, flush=True)
 
     def print_syscall(self, thread, syscall_name, args, retval):
         """
@@ -187,7 +186,7 @@ class SyscallManager(object):
         if args is None:
             self.z.logger.warning("Syscall did not call get_args")
 
-        if self.strace_file is sys.stdout:
+        if self.trace_file is None:
             s = (
                 colored(f"[{thread.name}]", "magenta")
                 + " "
@@ -196,14 +195,14 @@ class SyscallManager(object):
                 + colored(f"{syscall_name}", "white", attrs=["bold"])
                 + f" ( {args} ) -> {retstr}"
             )
+            print(s)
         else:
             ip = thread.getIP()
             s = (
                 f"[{thread.name}] "
                 f"[0x{ip:x}] {syscall_name} ( {args} ) -> {retstr}"
             )
-
-        print(s, file=self.strace_file, flush=True)
+            print(s, file=self.trace_file, flush=True)
 
     def handle_syscall(self, process):
         """
@@ -213,6 +212,7 @@ class SyscallManager(object):
         sys_num = self.get_syscall_number()
         sys_name = self.find_syscall_name_by_number(sys_num)
         sys_fn = self.find_syscall(sys_name)
+
         try:
             # The current thread might get modified by the syscall.
             thread = self.z.current_thread
