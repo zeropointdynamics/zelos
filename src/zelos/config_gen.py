@@ -49,6 +49,9 @@ def generate_config(
     for k, v in kwargs.items():
         if v in [False, True]:
             flags.append(f"--{k}")
+        elif type(v) is list:
+            for item in v:
+                flags.append(f"--{k}={item}")
         else:
             flags.append(f"--{k}={v}")
     flag_string = " ".join(flags)
