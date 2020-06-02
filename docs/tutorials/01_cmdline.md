@@ -61,6 +61,11 @@ To specify the date in YYYY-MM-DD format, use the `--date` flag. This is primari
 $ zelos --date 2020-03-04 my_binary
 ```
 
+To see an example of the above, you can use zelos to emulate the `date` GNU coreutil. This is included on most linux systems at `/bin/date`. The source code for `date` is available [here](https://github.com/coreutils/coreutils/blob/master/src/date.c).
+```
+$ zelos --date 2020-03-04 /bin/date
+```
+
 To mount a specified file or path into the emulated filesystem, use the `--mount` flag. The format is `--mount ARCH,DEST,SRC`. `ARCH` is one of `x86`, `x86-64`, `arm`, or `mips`. `DEST` is the emulated path to mount the specified `SRC`. `SRC` is the absolute host path to the file or path to mount.
 ```
 $ zelos --mount x86,/path/to/dest,/path/to/src my_binary

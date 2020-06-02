@@ -19,8 +19,9 @@
 import unittest
 
 from collections import defaultdict
+from io import StringIO
 from os import path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from zelos import HookType, Zelos
 
@@ -277,15 +278,16 @@ class ZelosTest(unittest.TestCase):
         )
 
     def test_date(self):
-        z = Zelos(None)
-        d = z.date
+        z = Zelos(path.join(DATA_DIR, "date"))
 
-        self.assertEqual(d, "2019-02-02")
+        self.assertEqual(z.date, "2019-02-02")
 
         z.date = "2019-03-03"
-        d = z.date
+        self.assertEqual(z.date, "2019-03-03")
 
-        self.assertEqual(d, "2019-03-03")
+        with patch("sys.stdout", new=StringIO()) as stdout:
+            z.start()
+            self.assertIn("Sun Mar  3 05:00:00 UTC 2019", stdout.getvalue())
 
     def test_memory_search(self):
         z = Zelos(None)
