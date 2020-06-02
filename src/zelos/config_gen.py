@@ -211,7 +211,7 @@ def generate_parser():
         "key value pair. Can be specified multiple times to set multiple "
         "environment variables. Format: '--env_vars FOO:bar --env_vars "
         "ZERO:point'.",
-        action=ParseEnvVars,
+        action=_ParseEnvVars,
     )
 
     path = os.environ.get("ZELOS_PLUGIN_DIR", None)
@@ -232,7 +232,7 @@ def generate_config_from_cmdline(cmdline_string):
     return config
 
 
-class ParseEnvVars(argparse._AppendAction):
+class _ParseEnvVars(argparse._AppendAction):
     def __call__(self, parser, namespace, arg, option_string=None):
         d = {}
 
