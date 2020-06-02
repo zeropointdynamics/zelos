@@ -51,9 +51,9 @@ To specify a virtual file path, the path that will be used for the binary during
 $ zelos --virtual_path /home/admin/ my_binary
 ```
 
-To specify environment variables to use during emulation, use the `--env-vars` flag:
+To specify environment variables to use during emulation, use the `--env_vars` flag:
 ```console
-$ zelos --env-vars FOO:bar my_binary
+$ zelos --env_vars FOO:bar my_binary
 ```
 
 To specify the date in YYYY-MM-DD format, use the `--date` flag. This is primarily used when emulating date-related system calls such as __time__ and __gettimeofday__.
@@ -71,7 +71,7 @@ To mount a specified file or path into the emulated filesystem, use the `--mount
 $ zelos --mount x86,/path/to/dest,/path/to/src my_binary
 ```
 
-To specify a directory to use as the rootfs directory during emulation of a linux system, use `--linux-rootfs` flag. The format is `--linux-rootfs ARCH,PATH`. `ARCH` is one of `x86`, `x86-64`, `arm`, or `mips`. `PATH` is the absolute host path to the directory to be used as rootfs. For example, if you were running Zelos on a linux host machine, and you wanted to use your own root filesystem as the emulated rootfs, you would do the following:
+To specify a directory to use as the rootfs directory during emulation of a linux system, use `--linux_rootfs` flag. The format is `--linux_rootfs ARCH,PATH`. `ARCH` is one of `x86`, `x86-64`, `arm`, or `mips`. `PATH` is the absolute host path to the directory to be used as rootfs. For example, if you were running Zelos on a linux host machine, and you wanted to use your own root filesystem as the emulated rootfs, you would do the following:
 ```console
-$ zelos --linux-rootfs x86,/ my_binary
+$ zelos --linux_rootfs x86,/ my_binary
 ```
