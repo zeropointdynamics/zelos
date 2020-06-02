@@ -23,7 +23,7 @@ from collections import defaultdict
 from io import StringIO
 from itertools import islice
 from pathlib import Path
-from typing import IO, Generator, List
+from typing import Generator, List
 
 import zelos
 
@@ -34,6 +34,7 @@ CommandLineOption(
     "yara_file",
     type=str,
     action="append",
+    default=[],
     help="Scan memory for yara rules in the specified file(s)",
 )
 CommandLineOption(
@@ -46,6 +47,7 @@ CommandLineOption(
     "yara_rule",
     type=str,
     action="append",
+    default=[],
     help="Scan memory for the specified yara rule string(s).",
 )
 CommandLineOption(
@@ -95,19 +97,6 @@ def _get_scan_regions(
         yield mr
 
 
-def _count_xrefs(
-    address: int, memory: zelos.memory.Memory, max_count=100
-) -> int:
-    ptr = memory.emu.pack(address)
-    total_cnt = 0
-    for mr in _get_scan_regions(memory):
-        data = mr.get_data()
-        total_cnt += data.count(ptr)
-        if total_cnt > max_count:
-            return max_count
-    return 0
-
-
 class YaraString:
     """ Represents a string component of a yara rule match. """
 
@@ -154,7 +143,7 @@ class YaraMatch:
             self._xref_cnts = []
             self._xref_total = 0
             for s in self._strings:
-                cnt = _count_xrefs(mr.start + s[0], process.memory)
+                cnt = self._do_xref_count(mr.start + s[0], process.memory)
                 self._xref_total += cnt
                 self._xref_cnts.append(cnt)
 
@@ -163,6 +152,7 @@ class YaraMatch:
         desc = self._m.meta.get("description", None)
         if desc is None:
             desc = self._m.meta.get("Description", None)
+        return desc
 
     @property
     def namespace(self) -> str:
@@ -246,7 +236,7 @@ class YaraMatch:
                 if self._count_xrefs:
                     xref_info = f" xrefs: {self._xref_cnts[i]}"
                 return (
-                    f"Matched {self.namespace}.{self.rule}"
+                    f"Matched {self.namespace}.{self.rule} "
                     f"0x{s.address:08x} +0x{s.offset:x}{xref_info} "
                     f"{s.value[:100]}"
                 )
@@ -270,6 +260,18 @@ class YaraMatch:
             return filename
         return None
 
+    def _do_xref_count(
+        self, address: int, memory: zelos.memory.Memory, max_count=100
+    ) -> int:
+        ptr = memory.emu.pack(address)
+        total_cnt = 0
+        for mr in _get_scan_regions(memory):
+            data = mr.get_data()
+            total_cnt += data.count(ptr)
+            if total_cnt > max_count:
+                return max_count
+        return total_cnt
+
 
 class YaraScan(IPlugin):
     """
@@ -282,8 +284,8 @@ class YaraScan(IPlugin):
         self._cmdline_rules = None
         if (
             z.config.yara_file is None
-            and z.config.yara_rule is None
-            and z.config.yara_file_glob is None
+            and len(z.config.yara_rule) == 0
+            and len(z.config.yara_file_glob) == 0
         ):
             return
         self._yara = None
@@ -335,7 +337,7 @@ class YaraScan(IPlugin):
         self,
         pid: int = None,
         memdump: str = None,
-        yamldump: IO = None,
+        yamldump: str = None,
         brief: bool = False,
         xrefs: bool = False,
     ) -> Generator[YaraMatch, None, None]:
@@ -374,7 +376,7 @@ class YaraScan(IPlugin):
             yamlfile.close()
 
     def compile(
-        self, files: str = [], rules: str = [], glob_string: str = None
+        self, files: List[str], rules: List[str], glob_string: str = None
     ) -> int:
         """
         Compile yara rules.
@@ -390,14 +392,10 @@ class YaraScan(IPlugin):
         """
         if self._yara is None:
             return 0
-        if files is None:
-            files = []
-        if rules is None:
-            rules = []
         sources = {}
         for i, rule in enumerate(rules):
             if rule[0] not in ("{", "/"):
-                rule = '"' + rule + '" wide ascii nocase'
+                rule = f'"{rule}" wide ascii nocase'
             sources[f"cmdline"] = (
                 f"rule rule{i}"
                 + " { strings: $a = "
