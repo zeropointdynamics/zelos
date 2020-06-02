@@ -84,6 +84,22 @@ CommandLineOption(
 )
 
 
+def _get_scan_regions(
+    memory: zelos.memory.Memory,
+) -> Generator[zelos.MemoryRegion, None, None]:
+    for mr in sorted(memory.get_regions()):
+        # Skip "heap", which is a staging area for zelos, not the user
+        # mode heap.
+        if mr.kind == "heap":
+            continue
+        yield mr
+
+
+def _count_xrefs(address: int, memory: zelos.memory.Memory) -> int:
+    # TODO: count pointers to the given address across all memory
+    return 0
+
+
 class YaraString:
     """ Represents a string component of a yara rule match. """
 
@@ -130,7 +146,7 @@ class YaraMatch:
             self._xref_cnts = []
             self._xref_total = 0
             for s in self._strings:
-                cnt = self._find_xrefs(mr.start + s[0], process.memory)
+                cnt = _count_xrefs(mr.start + s[0], process.memory)
                 self._xref_total += cnt
                 self._xref_cnts.append(cnt)
 
@@ -172,10 +188,6 @@ class YaraMatch:
                 for i, s in enumerate(self._strings)
             ]
         return self._yara_strings
-
-    def _find_xrefs(self, address: int, memory: zelos.memory.Memory):
-        # TODO: count pointers to the given address across all memory
-        return 0
 
     def yaml(self, brief: bool = False) -> str:
         f = StringIO()
@@ -276,14 +288,6 @@ class YaraScan(IPlugin):
     def _log(self, s: str) -> None:
         self._z.logger.info(f"{s}")
 
-    def _get_regions(
-        self, memory: zelos.memory.Memory
-    ) -> Generator[zelos.MemoryRegion, None, None]:
-        for mr in sorted(memory.get_regions()):
-            if mr.kind == "heap":
-                continue
-            yield mr
-
     def _match(self, data: bytes):
         if self._cmdline_rules is not None:
             for m in self._cmdline_rules.match(data=data):
@@ -292,68 +296,11 @@ class YaraScan(IPlugin):
             for m in self._rules.match(data=data):
                 yield m
 
-    def _scan_region(
-        self,
-        mr: zelos.MemoryRegion,
-        process: zelos.processes.Process,
-        memdump: str = None,
-        yamldump: str = None,
-        brief=False,
-        xrefs=False,
-    ) -> Generator[YaraMatch, None, None]:
-        for m in self._match(bytes(mr.get_data())):
-            match = YaraMatch(m, process, mr, xrefs)
-            self._log(match.info(brief))
-            if memdump is not None:
-                self._log(f"Wrote {match.memdump(memdump)}")
-            if yamldump is not None:
-                yamldump.write(match.yaml(brief))
-            yield match
-
-    def _scan_process(
-        self,
-        process: zelos.processes.Process,
-        memdump: str = None,
-        yamldump: IO = None,
-        brief: bool = False,
-        xrefs: bool = False,
-    ) -> Generator[YaraMatch, None, None]:
-        for mr in self._get_regions(process.memory):
-            if not brief:
-                self._log(f"PID:{process.pid} {mr}")
-            yield from self._scan_region(
-                mr,
-                process,
-                memdump=memdump,
-                yamldump=yamldump,
-                brief=brief,
-                xrefs=xrefs,
-            )
-
-    def _scan_processes(
-        self,
-        pid: int = None,
-        memdump: str = None,
-        yamldump: IO = None,
-        brief: bool = False,
-        xrefs: bool = False,
-    ) -> Generator[YaraMatch, None, None]:
-        for process in self._z.internal_engine.processes.process_list:
-            if pid is not None and process.pid != pid:
-                continue
-            yield from self._scan_process(
-                process,
-                memdump=memdump,
-                yamldump=yamldump,
-                brief=brief,
-                xrefs=xrefs,
-            )
-
     def matches(
         self,
         pid: int = None,
         memdump: str = None,
-        yamldump: str = None,
+        yamldump: IO = None,
         brief: bool = False,
         xrefs: bool = False,
     ) -> Generator[YaraMatch, None, None]:
@@ -370,25 +317,26 @@ class YaraScan(IPlugin):
         Returns:
             A generator yielding YaraMatch.
         """
+        yamlfile = None
         if yamldump is not None:
             pathlib.Path(yamldump).parent.mkdir(parents=True, exist_ok=True)
-            with open(yamldump, "w") as f:
-                yield from self._scan_processes(
-                    pid=pid,
-                    memdump=memdump,
-                    yamldump=f,
-                    brief=brief,
-                    xrefs=xrefs,
-                )
-                self._log(f"Wrote matches in yaml format to: {yamldump}")
-        else:
-            yield from self._scan_processes(
-                pid=pid,
-                memdump=memdump,
-                yamldump=None,
-                brief=brief,
-                xrefs=xrefs,
-            )
+            yamlfile = open(yamldump, "w")
+        for process in self._z.internal_engine.processes.process_list:
+            if pid is not None and process.pid != pid:
+                continue
+            for mr in _get_scan_regions(process.memory):
+                if not brief:
+                    self._log(f"PID:{process.pid} {mr}")
+                for m in self._match(bytes(mr.get_data())):
+                    match = YaraMatch(m, process, mr, xrefs)
+                    self._log(match.info(brief))
+                    if memdump is not None:
+                        self._log(f"Wrote {match.memdump(memdump)}")
+                    if yamlfile is not None:
+                        yamlfile.write(match.yaml(brief))
+                    yield match
+        if yamlfile is not None:
+            yamlfile.close()
 
     def compile(
         self, files: str = [], rules: str = [], glob_string: str = None
@@ -405,6 +353,8 @@ class YaraScan(IPlugin):
         Returns:
             The number of files and rules loaded.
         """
+        if self._yara is None:
+            return 0
         if files is None:
             files = []
         if rules is None:
