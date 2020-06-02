@@ -765,7 +765,8 @@ def _statx(sm, p, struct):
 
     statinfo = os.stat(library_path)
 
-    retval = _handle_xstat64(sm, p, args.statbuf, statinfo, struct)
+    retval = _fill_out_stat_struct(statinfo, struct)
+    p.memory.writestruct(args.statbuf, struct)
     return retval
 
 
@@ -779,6 +780,8 @@ def sys_fstat64(sm, p):
 
 
 def _fstatx(sm, p, struct):
+    # TODO: Change _fstatx so the real os.stat isn't called, can lead to
+    # unintuitive behavior.
     args = sm.get_args([("int", "fd"), ("struct stat*", "statbuf")])
     if args.fd in [0, 1, 2]:
         statinfo = os.fstat(args.fd)
@@ -793,12 +796,18 @@ def _fstatx(sm, p, struct):
             return -1
 
         statinfo = os.stat(library_path)
-    retval = _handle_xstat64(sm, p, args.statbuf, statinfo, struct)
+    retval = _fill_out_stat_struct(statinfo, struct)
+    if args.fd in [0, 1, 2]:
+        # When st_mode is set from os.fstat, you may get different
+        # behavior in zelos when redirecting stdout. You probably want
+        # consistent behavior instead.
+        struct.st_mode = 8592
+    p.memory.writestruct(args.statbuf, struct)
+
     return retval
 
 
-def _handle_xstat64(sm, p, buf_addr, statinfo, stat_struct):
-
+def _fill_out_stat_struct(statinfo, stat_struct):
     stat_struct.st_dev = statinfo.st_dev
     stat_struct.st_ino = statinfo.st_ino
     stat_struct.st_mode = statinfo.st_mode
@@ -815,8 +824,6 @@ def _handle_xstat64(sm, p, buf_addr, statinfo, stat_struct):
     stat_struct.st_mtime_nsec = 0x400
     stat_struct.st_ctime = 0x500
     stat_struct.st_ctime_nsec = 0x600
-
-    p.memory.writestruct(buf_addr, stat_struct)
 
     return 0
 

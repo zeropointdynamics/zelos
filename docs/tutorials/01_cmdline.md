@@ -16,9 +16,9 @@ To print only the *first* time an instruction is executed, rather than *every* i
 $ zelos -v --fasttrace my_binary
 ```
 
-To write output to a file, instead of stdout, use the `--strace` flag:
+To write output to a file use the `--trace_file` flag:
 ```console
-$ zelos --strace /path/to/file my_binary
+$ zelos --trace_file /path/to/file my_binary
 ```
 
 To provide command line arguments to the emulated binary, specify them after the binary name:

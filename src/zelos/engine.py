@@ -105,7 +105,7 @@ class Engine:
 
         self.timer = util.Timer()
 
-        self.zml_parser = ZmlParser(self)
+        self.zml_parser = ZmlParser(self.api)
         self.hook_manager = HookManager(self, self.api)
         self.breakpoints = BreakpointManager(self.hook_manager)
         self.interrupt_handler = InterruptHooks(self.hook_manager, self)
@@ -155,8 +155,6 @@ class Engine:
                     f"Incorrectly formatted input to '--mount': {m}"
                 )
                 continue
-        if config.strace is not None:
-            self.zos.syscall_manager.set_strace_file(config.strace)
 
     def __del__(self):
         try:
