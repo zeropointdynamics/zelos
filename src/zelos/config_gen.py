@@ -54,12 +54,12 @@ def generate_config(
                 flags.append(f"--{k}={item}")
         else:
             flags.append(f"--{k}={v}")
-    flag_string = " ".join(flags)
 
-    cmdline_arg_string = " ".join(cmdline_args)
-    return generate_config_from_cmdline(
-        f"{flag_string} {binary_path} {cmdline_arg_string}"
-    )
+    cmdline_string = flags + [binary_path]
+    if cmdline_args:
+        cmdline_string += [*cmdline_args]
+
+    return generate_config_from_cmdline(cmdline_string)
 
 
 def _generate_without_binary(**kwargs):

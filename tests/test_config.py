@@ -61,8 +61,8 @@ class ConfigTest(unittest.TestCase):
 
     def test_env_vars(self):
         # specify single env_var
-        z = Zelos(None, env_vars="HELLO=world")
-        self.assertDictEqual(z.config.env_vars, {"HELLO": "world"})
+        z = Zelos(None, env_vars="HELLO=world test spaces")
+        self.assertDictEqual(z.config.env_vars, {"HELLO": "world test spaces"})
         # specify multiple env_vars
         z = Zelos(None, env_vars=["HELLO=world", "LOREM=ipsum"])
         self.assertDictEqual(
