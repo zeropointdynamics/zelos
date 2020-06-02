@@ -293,7 +293,7 @@ class ZdbServer:
         Returns:
             The full path to the emulated binary.
         """
-        return self.z.main_binary_path
+        return self.z.target_binary_path
 
 
 def create_server(cmdline_options: str) -> SimpleXMLRPCServer:
