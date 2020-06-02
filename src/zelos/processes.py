@@ -51,7 +51,7 @@ class Process:
         main_module: str = None,
         orig_file_name: str = "",
         cmdline_args: List = None,
-        environment_variables: List = None,
+        environment_variables: Dict = None,
         virtual_filename: str = None,
         virtual_path: str = None,
         disableNX: bool = False,
@@ -75,7 +75,7 @@ class Process:
         )
         self.cmdline_args = [] if cmdline_args is None else cmdline_args
         self.environment_variables = (
-            [] if environment_variables is None else environment_variables
+            {} if environment_variables is None else environment_variables
         )
         self.virtual_filename = virtual_filename
         self.virtual_path = virtual_path

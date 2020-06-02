@@ -53,7 +53,7 @@ $ zelos --virtual_path /home/admin/ my_binary
 
 To specify environment variables to use during emulation, use the `--env_vars` flag:
 ```console
-$ zelos --env_vars FOO:bar my_binary
+$ zelos --env_vars FOO=bar my_binary
 ```
 
 To specify the date in YYYY-MM-DD format, use the `--date` flag. This is primarily used when emulating date-related system calls such as __time__ and __gettimeofday__.

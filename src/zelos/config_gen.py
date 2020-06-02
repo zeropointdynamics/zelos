@@ -15,6 +15,7 @@
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
 
+import argparse
 import os
 
 from typing import Optional
@@ -202,13 +203,15 @@ def generate_parser():
         "mount multiple files.",
     )
     group_fs.add_argument(
+        "-ev",
         "--env_vars",
-        action="append",
-        default=[],
+        metavar="KEY=VALUE",
+        default={},
         help="Emulated environment variables. ENV_VARS is a comma separated "
         "key value pair. Can be specified multiple times to set multiple "
         "environment variables. Format: '--env_vars FOO:bar --env_vars "
         "ZERO:point'.",
+        action=ParseEnvVars,
     )
 
     path = os.environ.get("ZELOS_PLUGIN_DIR", None)
@@ -227,3 +230,18 @@ def generate_config_from_cmdline(cmdline_string):
     config = parser.parse_args(cmdline_string)
 
     return config
+
+
+class ParseEnvVars(argparse._AppendAction):
+    def __call__(self, parser, namespace, arg, option_string=None):
+        d = {}
+
+        if arg:
+            split_val = arg.split("=", 1)
+            key = split_val[0].strip()
+            value = split_val[1]
+            d[key] = value
+
+        dest = getattr(namespace, self.dest, {})
+        d.update(dest)
+        setattr(namespace, self.dest, d)
