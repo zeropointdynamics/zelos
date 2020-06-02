@@ -287,7 +287,8 @@ class ZelosTest(unittest.TestCase):
 
         with patch("sys.stdout", new=StringIO()) as stdout:
             z.start()
-            self.assertIn("Sun Mar  3 05:00:00 UTC 2019", stdout.getvalue())
+            self.assertIn("Sun Mar  3", stdout.getvalue())
+            self.assertIn("UTC 2019", stdout.getvalue())
 
     def test_memory_search(self):
         z = Zelos(None)
