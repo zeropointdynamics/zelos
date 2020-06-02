@@ -639,10 +639,11 @@ class Zelos:
         Returns the parsed main binary, if it exists, otherwise returns None.
         Note that the "main" binary denotes the binary that is loaded by
         Zelos during emulation, not necessarily the binary that
-        is specified as input. When the specified input binary is statically
-        linked, it is also the main binary. However, when the specified
-        input binary is dynamically linked, the "main" binary instead refers
-        to the dynamic linker/loader.
+        is specified as input (the "target" binary). When the specified
+        input binary ("target") is statically linked, it is also the "main"
+        binary. However, when the specified input binary ("target") is
+        dynamically linked, the "main" binary instead refers to the dynamic
+        linker/loader.
 
         :type: :py:class:`zelos.plugin.ParsedBinary`
 
@@ -656,10 +657,11 @@ class Zelos:
         returns None.
         Note that the "main" binary denotes the binary that is loaded by
         Zelos during emulation, not necessarily the binary that
-        is specified as input. When the specified input binary is statically
-        linked, it is also the main binary. However, when the specified
-        input binary is dynamically linked, the "main" binary instead refers
-        to the dynamic linker/loader.
+        is specified as input (the "target" binary). When the specified
+        input binary ("target") is statically linked, it is also the "main"
+        binary. However, when the specified input binary ("target") is
+        dynamically linked, the "main" binary instead refers to the dynamic
+        linker/loader.
 
         :type: str
 
