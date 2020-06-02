@@ -307,7 +307,7 @@ class YaraScan(IPlugin):
                 glob_string=z.config.yara_file_glob,
             )
             self._log("scanning memory...")
-            all(
+            list(
                 islice(
                     self.matches(
                         pid=z.config.yara_pid,
