@@ -98,6 +98,7 @@ class Engine:
         # If verbose is true, print lots of info, including every
         # instruction
         self.original_file_name = ""
+        self.target_binary_path = ""
         self.main_module_name = ""
         self.main_module = None
 
@@ -308,6 +309,8 @@ class Engine:
         This method simply loads the executable, without starting the
         emulation
         """
+
+        self.target_binary_path = module_path
 
         original_file_name = os.path.basename(module_path)
         self.original_file_name = original_file_name
