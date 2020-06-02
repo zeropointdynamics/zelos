@@ -95,8 +95,16 @@ def _get_scan_regions(
         yield mr
 
 
-def _count_xrefs(address: int, memory: zelos.memory.Memory) -> int:
-    # TODO: count pointers to the given address across all memory
+def _count_xrefs(
+    address: int, memory: zelos.memory.Memory, max_count=100
+) -> int:
+    ptr = memory.emu.pack(address)
+    total_cnt = 0
+    for mr in _get_scan_regions(memory):
+        data = mr.get_data()
+        total_cnt += data.count(ptr)
+        if total_cnt > max_count:
+            return max_count
     return 0
 
 
@@ -190,6 +198,15 @@ class YaraMatch:
         return self._yara_strings
 
     def yaml(self, brief: bool = False) -> str:
+        """
+        Get YAML-formatted output for this match.
+
+        Args:
+            brief: if True, omit rule string match details.
+
+        Returns:
+            A YAML-formatted string.
+        """
         f = StringIO()
         f.write(f"- {self.namespace}_{self.rule}:\n")
         if self.description is not None:
@@ -212,6 +229,15 @@ class YaraMatch:
         return f.getvalue()
 
     def info(self, brief: bool = False) -> str:
+        """
+        Get match summary information.
+
+        Args:
+            brief: if True, omit rule string match details.
+
+        Returns:
+            A one-line informational string.
+        """
         if brief:
             return f"Matched rule: {self.namespace}.{self.rule}"
         else:
@@ -226,6 +252,15 @@ class YaraMatch:
                 )
 
     def memdump(self, directory: str) -> str:
+        """
+        Dumps the match memory region data to the specified directory.
+
+        Args:
+            directory: folder to dump the region to.
+
+        Returns:
+            The full path of the dumped memory region file.
+        """
         filename = os.path.join(
             directory, f"PID{self.pid}_0x{self.region_address:x}.mem"
         )
