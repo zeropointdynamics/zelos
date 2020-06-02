@@ -72,7 +72,6 @@ def _generate_without_binary(**kwargs):
 def generate_parser():
     parser = configargparse.ArgumentParser()
     group_logging = parser.add_argument_group("logging")
-    group_reporting = parser.add_argument_group("reporting")
     group_limits = parser.add_argument_group("limits")
     group_networking = parser.add_argument_group("networking")
     group_fs = parser.add_argument_group("filesystem")
@@ -179,12 +178,6 @@ def generate_parser():
         "--disableNX",
         action="store_true",
         help="Disable the no-execute bit. All memory becomes executable.",
-    )
-    group_reporting.add_argument(
-        "--strace",
-        type=str,
-        default=None,
-        help="Writes the system call trace to the specified output file.",
     )
     group_logging.add_argument(
         "--log_exports",
