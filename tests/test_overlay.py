@@ -83,4 +83,4 @@ class OverlayTest(unittest.TestCase):
         data = output.read()[len("DISAS\n") :]
         memdump = json.loads(data)
 
-        self.assertEqual(len(memdump["functions"]), 239)
+        self.assertEqual(len(memdump["functions"]), 244)

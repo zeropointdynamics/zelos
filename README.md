@@ -40,9 +40,9 @@ You can print only the first time each instruction is executed, rather than *eve
 $ zelos -v --fasttrace my_binary
 ```
 
-By default, syscalls are emitted on stdout. To write syscalls to a file instead, use the `--strace` flag:
+By default, syscalls are emitted on stdout. To write syscalls to a file instead, use the `--trace_file` flag:
 ```console
-$ zelos --strace path/to/file my_binary
+$ zelos --trace_file path/to/file my_binary
 ```
 
 Specify any command line arguments after the binary name:
