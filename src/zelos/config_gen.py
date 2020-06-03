@@ -157,7 +157,7 @@ def generate_parser():
         default=[],
         const="",
         help=(
-            "If used, turns on the inst feed. A string containing "
+            "If used, turns on the inst feed. A ZML string containing "
             "conditions for the inst feed to turn on can be specified."
             "Multiple triggers can be specified by using this flag"
             "multiple times."
@@ -171,7 +171,7 @@ def generate_parser():
         default=[],
         const="",
         help=(
-            "If used, turns on the api feed. A string containing "
+            "If used, turns on the api feed. A ZML string containing "
             "conditions for the api feed to turn on can be specified. "
             "Multiple triggers can be specified by using this flag "
             "multiple times"
@@ -185,7 +185,7 @@ def generate_parser():
         default=[],
         const="",
         help=(
-            "If used, turns on the syscall feed. A string containing "
+            "If used, turns on the syscall feed. A ZML string containing "
             "conditions for the syscall feed to turn on can be "
             "specified. Multiple triggers can be specified by using "
             "this flag multiple times. This is the default feed level"
@@ -199,7 +199,7 @@ def generate_parser():
         default=[],
         const="",
         help=(
-            "If used, turns off all feeds. A string containing "
+            "If used, turns off all feeds. A ZML string containing "
             "conditions for feeds to be turned off can be specified. "
             "Multiple triggers can be specified by using this flag "
             "multiple times"

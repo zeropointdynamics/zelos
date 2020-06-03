@@ -15,6 +15,47 @@
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
 
+"""Implementation of feeds.
+
+Feeds are a way to subscribe to information that is retrieved from a
+dynamic execution of a binary, while respecting the performance
+optimizations that have been requested by the user. This way, a user can
+specify what kinds of information should be collected (each with their
+own performance cost) in a global way, without having to configure
+multiple plugins separately.
+
+To start with, there are different levels of feeds, each increasing in
+amount of verbosity as well as performance cost::
+
+                     -> Verbosity ->
+            None -> Syscalls -> Apis -> Instructions
+                    <- Performance <-
+
+The feed level determines what feeds are supplied with information. All
+feeds that are more verbose than the feed level are not provided data,
+and will not run subscribed callbacks.
+
+Example:
+    When the feed level is FeedLevel.API, subscribers to the syscall and
+    api feeds will be run, but no calls to inst feed subscribers will be
+    made.
+
+Feeds are made more powerful by command line arguments that provide ways
+to modify the feed level based on events and conditions. This allows the
+user to specify that only instructions between certain regions should be
+collected. The conditions are specified through the
+--(stop|syscall|api|inst)_feed command line flags.
+
+Example:
+    To trigger instructions to be printed only after the 'recv' syscall
+    has been called, specify '--inst_feed=syscall=recv' on the command
+    line. For a script, add 'inst_feed="syscall=recv"' as a keyword
+    argument in the Zelos constructor.
+
+For more information on what options are available for configuring feeds
+look at the zelos.zml module.
+"""
+
 
 import functools
 import logging
@@ -34,12 +75,24 @@ class FeedLevel(IntEnum):
 
 
 class FeedHandle:
+    """
+    Returned when subscribing to a feed. Used for unsubscribing to a
+    feed.
+    """
+
     def __init__(self, feed_level, num):
         self._feed_level = feed_level
         self._num = num
 
 
 class FeedManager:
+    """
+    Handles feed subscribers as well as the feed level.
+
+    Subscription is handled by passing a callback to the subscribe_to_*
+    functions.
+    """
+
     def __init__(
         self, config, zml_parser: ZmlParser, hook_manager: HookManager
     ):
