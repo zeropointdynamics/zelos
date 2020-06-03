@@ -67,6 +67,8 @@ EXTRAS_REQUIRE = {
         "pytest>=4.3.0",
         "pytest-xdist",
         "filelock",
+        "yara-python",
+        "mock",
     ],
 }
 EXTRAS_REQUIRE["dev"] = (
