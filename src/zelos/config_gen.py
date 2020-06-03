@@ -76,6 +76,7 @@ def _generate_without_binary(**kwargs):
 def generate_parser():
     parser = configargparse.ArgumentParser()
     group_logging = parser.add_argument_group("logging")
+    group_feeds = parser.add_argument_group("feeds")
     group_limits = parser.add_argument_group("limits")
     group_networking = parser.add_argument_group("networking")
     group_fs = parser.add_argument_group("filesystem")
@@ -128,8 +129,10 @@ def generate_parser():
         "--timeout",
         type=int,
         default=0,
-        help="If specified, execution will end after TIMEOUT seconds have "
-        "passed.",
+        help=(
+            "If specified, execution will end after TIMEOUT seconds"
+            "have passed."
+        ),
     )
     group_limits.add_argument(
         "-m",
@@ -142,8 +145,69 @@ def generate_parser():
         "--traceon",
         type=str,
         default="",
-        help="[Experimental] Enable verbose tracing after specified address "
-        "or API name.",
+        help=(
+            "[Experimental] Enable verbose tracing after specified"
+            "address or API name."
+        ),
+    )
+    group_feeds.add_argument(
+        "--inst_feed",
+        action="append",
+        nargs="?",
+        default=[],
+        const="",
+        help=(
+            "Provided without input, sets the feed level to INST. "
+            "This results in enabling the inst, api, and syscall feeds."
+            "Alternatively, A ZML string can be used to specify conditions"
+            "to set the feed level to INST. Multiple triggers can be "
+            "specified by using this flag multiple times."
+        ),
+    )
+
+    group_feeds.add_argument(
+        "--api_feed",
+        action="append",
+        nargs="?",
+        default=[],
+        const="",
+        help=(
+            "Provided without input, sets the feed level to API. "
+            "This results in enabling the api and syscall feeds."
+            "Alternatively, A ZML string can be used to specify conditions"
+            "to set the feed level to API. Multiple triggers can be "
+            "specified by using this flag multiple times."
+        ),
+    )
+
+    group_feeds.add_argument(
+        "--syscall_feed",
+        action="append",
+        nargs="?",
+        default=[],
+        const="",
+        help=(
+            "Provided without input, sets the feed level to SYSCALL. "
+            "This results in enabling only the syscall feed."
+            "Alternatively, A ZML string can be used to specify conditions"
+            "to set the feed level to SYSCALL. Multiple triggers can be "
+            "specified by using this flag multiple times. This is the "
+            "default feed level."
+        ),
+    )
+
+    group_feeds.add_argument(
+        "--stop_feed",
+        action="append",
+        nargs="?",
+        default=[],
+        const="",
+        help=(
+            "Provided without input, sets the feed level to NONE, disabling "
+            "all feeds. Alternatively, A ZML string can be used to specify "
+            "conditions to set the feed level to NONE. Multiple triggers  "
+            "can be specified by using this flag multiple times."
+        ),
     )
     group_logging.add_argument(
         "--traceoff",
