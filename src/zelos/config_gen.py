@@ -246,12 +246,11 @@ class _ParseEnvVars(argparse._AppendAction):
                 value = key_val[1]
                 d[key] = value
             except IndexError:
-                print(
-                    f'[ERROR] Unable to parse environment variable "{arg}". '
-                    f"Environment variables must be specified in the form: "
+                raise Exception(
+                    f'Unable to parse environment variable: "{arg}". '
+                    f"Environment variables must be of the form: "
                     f"KEY=VALUE. "
                 )
-                raise
 
         dest = getattr(namespace, self.dest, {})
         d.update(dest)
