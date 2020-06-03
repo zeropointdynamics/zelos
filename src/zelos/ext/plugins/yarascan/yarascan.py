@@ -215,7 +215,7 @@ class YaraMatch:
                 f.write(f"\t\t\toffset: 0x{s.offset:x}\n")
                 f.write(f'\t\t\tvalue: "{s.value[:1000]}"\n')
                 if self._count_xrefs:
-                    f.write(f"\t\t\txrefs: {self._xref_cnts[i]}\n")
+                    f.write(f"\t\t\txrefs: {s.xrefs}\n")
         return f.getvalue()
 
     def info(self, brief: bool = False) -> str:
@@ -280,25 +280,22 @@ class YaraScan(IPlugin):
 
     def __init__(self, z: Zelos):
         super().__init__(z)
+        self._yara = None
+        self._z = z
         self._rules = None
         self._cmdline_rules = None
         if (
-            z.config.yara_file is None
+            len(z.config.yara_file) == 0
             and len(z.config.yara_rule) == 0
-            and len(z.config.yara_file_glob) == 0
+            and z.config.yara_file_glob is None
         ):
             return
-        self._yara = None
-        try:
-            import yara
+        self._hook_closure()
 
-            self._yara = yara
-        except ModuleNotFoundError:
-            self._log(f"optional dependency `yara-python` not installed.")
-            self._log(f"yara rules will be IGNORED.")
-            self._log(f"try `pip install yara-python`.")
+    def _hook_closure(self):
+        if not self.import_yara():
             return
-        self._z = z
+        z = self._z
 
         def closure() -> None:
             self.compile(
@@ -321,6 +318,18 @@ class YaraScan(IPlugin):
             )
 
         z.hook_close(closure)
+
+    def import_yara(self):
+        try:
+            import yara
+
+            self._yara = yara
+        except ModuleNotFoundError:
+            self._log(f"optional dependency `yara-python` not installed.")
+            self._log(f"yara rules will be IGNORED.")
+            self._log(f"try `pip install yara-python`.")
+            return False
+        return True
 
     def _log(self, s: str) -> None:
         self._z.logger.info(f"{s}")
@@ -390,7 +399,7 @@ class YaraScan(IPlugin):
         Returns:
             The number of files and rules loaded.
         """
-        if self._yara is None:
+        if not self.import_yara():
             return 0
         sources = {}
         for i, rule in enumerate(rules):
