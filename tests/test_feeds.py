@@ -36,22 +36,22 @@ class FeedTest(unittest.TestCase):
         feeds = z.internal_engine.feeds
         self.assertEqual(feeds.get_feed_level(), FeedLevel.SYSCALL)
         self.assertFalse(feeds.inst_feed_on)
-        self.assertFalse(feeds.api_feed_on)
+        self.assertFalse(feeds.func_feed_on)
         self.assertTrue(feeds.syscall_feed_on)
 
-        feeds.set_feed_level(FeedLevel.API)
+        feeds.set_feed_level(FeedLevel.FUNC)
         self.assertFalse(feeds.inst_feed_on)
-        self.assertTrue(feeds.api_feed_on)
+        self.assertTrue(feeds.func_feed_on)
         self.assertTrue(feeds.syscall_feed_on)
 
         feeds.set_feed_level(FeedLevel.INST)
         self.assertTrue(feeds.inst_feed_on)
-        self.assertTrue(feeds.api_feed_on)
+        self.assertTrue(feeds.func_feed_on)
         self.assertTrue(feeds.syscall_feed_on)
 
         feeds.set_feed_level(FeedLevel.NONE)
         self.assertFalse(feeds.inst_feed_on)
-        self.assertFalse(feeds.api_feed_on)
+        self.assertFalse(feeds.func_feed_on)
         self.assertFalse(feeds.syscall_feed_on)
 
     def test_syscall_subscribe(self):
@@ -60,7 +60,7 @@ class FeedTest(unittest.TestCase):
             syscall_feed="syscall=set_thread_area",
             stop_feed="syscall=readlink",
             inst_feed="syscall=fstat64",
-            api_feed="syscall=write",
+            func_feed="syscall=write",
         )
 
         feeds = z.internal_engine.feeds
@@ -87,12 +87,12 @@ class FeedTest(unittest.TestCase):
 
         feeds.subscribe_to_inst_feed(inst_feed_subscriber)
 
-        apis = []
+        funcs = []
 
-        def api_feed_subscriber(zelos, apiname, args, retval):
-            apis.append(apiname)
+        def func_feed_subscriber(zelos, funcname, args, retval):
+            funcs.append(funcname)
 
-        feeds.subscribe_to_api_feed(api_feed_subscriber)
+        feeds.subscribe_to_func_feed(func_feed_subscriber)
 
         z.start()
 
@@ -110,5 +110,5 @@ class FeedTest(unittest.TestCase):
         )
         self.assertEqual(insts[0], 0x81356E2)
         self.assertEqual(insts[-1], 0x81356E0)
-        # TODO: Update 'apis' check once we support api feeds.
-        self.assertEqual(apis, [])
+        # TODO: Update 'funcs' check once we support func feeds.
+        self.assertEqual(funcs, [])
