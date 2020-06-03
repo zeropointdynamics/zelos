@@ -44,6 +44,7 @@ from zelos import util
 from zelos.breakpoints import BreakpointManager, BreakState
 from zelos.config_gen import _generate_without_binary, generate_config
 from zelos.exceptions import UnsupportedBinaryError, ZelosLoadException
+from zelos.feeds import FeedManager
 from zelos.file_system import FileSystem
 from zelos.hooks import ExceptionHooks, HookManager, HookType, InterruptHooks
 from zelos.network import Network
@@ -108,6 +109,9 @@ class Engine:
 
         self.zml_parser = ZmlParser(self.api)
         self.hook_manager = HookManager(self, self.api)
+        self.feeds = FeedManager(
+            self.config, self.zml_parser, self.hook_manager
+        )
         self.breakpoints = BreakpointManager(self.hook_manager)
         self.interrupt_handler = InterruptHooks(self.hook_manager, self)
         self.exception_handler = ExceptionHooks(self)
@@ -330,7 +334,11 @@ class Engine:
 
         # We need to create this file in the file system, so that other
         # files can access it.
-        self.files.create_file(self.files.zelos_file_prefix + module_path)
+        self.files.create_file(
+            self.files.emulated_path_module.join(
+                self.files.zelos_file_prefix, module_path
+            )
+        )
 
     def _initialize_zelos(self, binary=None):
         self.state = State(self, binary, self.date)

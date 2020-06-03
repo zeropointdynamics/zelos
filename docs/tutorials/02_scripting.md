@@ -134,7 +134,8 @@ program will execute code that prints "Correct!" vs "Incorrect". If the
 jump is taken, the program will print "Incorrect".
 
 To bypass this, we can ensure that this jump is never taken by writing
-`0x0` to the memory location that is used ub the `cmp` instruction.
+`0x0` to the memory location that is used as the first operand of the
+`cmp` instruction.
 
 ```python
 def patch_mem():
