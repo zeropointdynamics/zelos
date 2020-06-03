@@ -210,10 +210,10 @@ def generate_parser():
         "--env_vars",
         metavar="KEY=VALUE",
         default={},
-        help="Emulated environment variables. ENV_VARS is a comma separated "
-        "key value pair. Can be specified multiple times to set multiple "
-        "environment variables. Format: '--env_vars FOO:bar --env_vars "
-        "ZERO:point'.",
+        help="Emulated environment variables. ENV_VARS is a key value pair "
+        "of the form KEY=VALUE. Can be specified multiple times to set "
+        "multiple environment variables. Format: '--env_vars FOO=bar "
+        "--env_vars ZERO=point'.",
         action=_ParseEnvVars,
     )
 
@@ -239,11 +239,19 @@ class _ParseEnvVars(argparse._AppendAction):
     def __call__(self, parser, namespace, arg, option_string=None):
         d = {}
 
-        if arg:
-            split_val = arg.split("=", 1)
-            key = split_val[0].strip()
-            value = split_val[1]
-            d[key] = value
+        if arg.strip() != "":
+            key_val = [x.strip() for x in arg.split("=", 1) if x.strip() != ""]
+            try:
+                key = key_val[0]
+                value = key_val[1]
+                d[key] = value
+            except IndexError:
+                print(
+                    f'[ERROR] Unable to parse environment variable "{arg}". '
+                    f"Environment variables must be specified in the form: "
+                    f"KEY=VALUE. "
+                )
+                raise
 
         dest = getattr(namespace, self.dest, {})
         d.update(dest)
