@@ -15,6 +15,7 @@
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
 
+import argparse
 import os
 
 from typing import Optional
@@ -48,14 +49,17 @@ def generate_config(
     for k, v in kwargs.items():
         if v in [False, True]:
             flags.append(f"--{k}")
+        elif type(v) is list:
+            for item in v:
+                flags.append(f"--{k}={item}")
         else:
             flags.append(f"--{k}={v}")
-    flag_string = " ".join(flags)
 
-    cmdline_arg_string = " ".join(cmdline_args)
-    return generate_config_from_cmdline(
-        f"{flag_string} {binary_path} {cmdline_arg_string}"
-    )
+    cmdline_string = flags + [binary_path]
+    if cmdline_args:
+        cmdline_string += [*cmdline_args]
+
+    return generate_config_from_cmdline(cmdline_string)
 
 
 def _generate_without_binary(**kwargs):
@@ -202,13 +206,15 @@ def generate_parser():
         "mount multiple files.",
     )
     group_fs.add_argument(
+        "-ev",
         "--env_vars",
-        action="append",
-        default=[],
-        help="Emulated environment variables. ENV_VARS is a comma separated "
-        "key value pair. Can be specified multiple times to set multiple "
-        "environment variables. Format: '--env_vars FOO:bar --env_vars "
-        "ZERO:point'.",
+        metavar="KEY=VALUE",
+        default={},
+        help="Emulated environment variables. ENV_VARS is a key value pair "
+        "of the form KEY=VALUE. Can be specified multiple times to set "
+        "multiple environment variables. Format: '--env_vars FOO=bar "
+        "--env_vars ZERO=point'.",
+        action=_ParseEnvVars,
     )
 
     path = os.environ.get("ZELOS_PLUGIN_DIR", None)
@@ -227,3 +233,25 @@ def generate_config_from_cmdline(cmdline_string):
     config = parser.parse_args(cmdline_string)
 
     return config
+
+
+class _ParseEnvVars(argparse._AppendAction):
+    def __call__(self, parser, namespace, arg, option_string=None):
+        d = {}
+
+        if arg.strip() != "":
+            key_val = [x.strip() for x in arg.split("=", 1) if x.strip() != ""]
+            try:
+                key = key_val[0]
+                value = key_val[1]
+                d[key] = value
+            except IndexError:
+                raise Exception(
+                    f'Unable to parse environment variable: "{arg}". '
+                    f"Environment variables must be of the form: "
+                    f"KEY=VALUE. "
+                )
+
+        dest = getattr(namespace, self.dest, {})
+        d.update(dest)
+        setattr(namespace, self.dest, d)

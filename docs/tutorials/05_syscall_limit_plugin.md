@@ -42,7 +42,7 @@ CommandLineOption(
 ## Initializing the Plugin
 
 ```eval_rst
-We create the plugin by creating a class that subclasses :py:class:`zelos.IPlugin`. We initialize by invoking the superclass init function through :code:`super()__init__(z)` in the SyscallLimiter's :code:`__init__` function.
+We create the plugin by creating a class that subclasses :py:class:`zelos.IPlugin`. We initialize by invoking the superclass init function through :code:`super().__init__(z)` in the SyscallLimiter's :code:`__init__` function.
 ```
 
 ```python

@@ -231,7 +231,10 @@ class ElfLoader(Loader):
 
         env_strings = [f"{k}={v}\x00" for k, v in env_vars.items()]
         env_strings.extend(
-            [x + "\x00" for x in self.process.environment_variables]
+            [
+                f"{k}={v}\x00"
+                for k, v in self.process.environment_variables.items()
+            ]
         )
         arg_strings = [s + "\x00" for s in self.process.cmdline_args]
 

@@ -330,7 +330,11 @@ class Engine:
 
         # We need to create this file in the file system, so that other
         # files can access it.
-        self.files.create_file(self.files.zelos_file_prefix + module_path)
+        self.files.create_file(
+            self.files.emulated_path_module.join(
+                self.files.zelos_file_prefix, module_path
+            )
+        )
 
     def _initialize_zelos(self, binary=None):
         self.state = State(self, binary, self.date)
