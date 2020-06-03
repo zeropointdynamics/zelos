@@ -29,7 +29,7 @@ from zelos.feeds import FeedLevel
 DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 
 
-class TraceTest(unittest.TestCase):
+class FeedTest(unittest.TestCase):
     def test_feed_level(self):
         z = Zelos(None)
 

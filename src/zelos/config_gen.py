@@ -157,10 +157,11 @@ def generate_parser():
         default=[],
         const="",
         help=(
-            "If used, turns on the inst feed. A ZML string containing "
-            "conditions for the inst feed to turn on can be specified."
-            "Multiple triggers can be specified by using this flag"
-            "multiple times."
+            "Provided without input, sets the feed level to INST. "
+            "This results in enabling the inst, api, and syscall feeds."
+            "Alternatively, A ZML string can be used to specify conditions"
+            "to set the feed level to INST. Multiple triggers can be "
+            "specified by using this flag multiple times."
         ),
     )
 
@@ -171,10 +172,11 @@ def generate_parser():
         default=[],
         const="",
         help=(
-            "If used, turns on the api feed. A ZML string containing "
-            "conditions for the api feed to turn on can be specified. "
-            "Multiple triggers can be specified by using this flag "
-            "multiple times"
+            "Provided without input, sets the feed level to API. "
+            "This results in enabling the api and syscall feeds."
+            "Alternatively, A ZML string can be used to specify conditions"
+            "to set the feed level to API. Multiple triggers can be "
+            "specified by using this flag multiple times."
         ),
     )
 
@@ -185,10 +187,12 @@ def generate_parser():
         default=[],
         const="",
         help=(
-            "If used, turns on the syscall feed. A ZML string containing "
-            "conditions for the syscall feed to turn on can be "
-            "specified. Multiple triggers can be specified by using "
-            "this flag multiple times. This is the default feed level"
+            "Provided without input, sets the feed level to SYSCALL. "
+            "This results in enabling only the syscall feed."
+            "Alternatively, A ZML string can be used to specify conditions"
+            "to set the feed level to SYSCALL. Multiple triggers can be "
+            "specified by using this flag multiple times. This is the "
+            "default feed level."
         ),
     )
 
@@ -199,10 +203,10 @@ def generate_parser():
         default=[],
         const="",
         help=(
-            "If used, turns off all feeds. A ZML string containing "
-            "conditions for feeds to be turned off can be specified. "
-            "Multiple triggers can be specified by using this flag "
-            "multiple times"
+            "Provided without input, sets the feed level to NONE, disabling "
+            "all feeds. Alternatively, A ZML string can be used to specify "
+            "conditions to set the feed level to NONE. Multiple triggers  "
+            "can be specified by using this flag multiple times."
         ),
     )
     group_logging.add_argument(

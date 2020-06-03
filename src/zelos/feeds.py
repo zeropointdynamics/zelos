@@ -58,10 +58,9 @@ look at the zelos.zml module.
 
 
 import functools
-import logging
 
 from enum import IntEnum
-from typing import Callable, Dict
+from typing import Any, Callable, Dict
 
 from zelos.hooks import HookManager, HookType
 from zelos.zml import ZmlParser
@@ -97,12 +96,9 @@ class FeedManager:
         self, config, zml_parser: ZmlParser, hook_manager: HookManager
     ):
         self._hook_manager = hook_manager
-        self.logger = logging.getLogger(__name__)
 
         # _inst_hook_info is only present when the inst feed is active.
         self._inst_hook_info = None
-        # The syscall hook must be registered later
-        self._syscall_hook_info = None
 
         self._feed_level = FeedLevel.NONE
 
@@ -145,16 +141,6 @@ class FeedManager:
                 zml_string,
             )
 
-        # TODO: Turning on the syscall feed from a syscall hook skips
-        # the printing of the syscall it triggered on depening on the
-        # order of registration of the syscall hooks. (Of course,
-        # this could be fixed with a before hook)
-        self._syscall_hook_info = hook_manager.register_syscall_hook(
-            HookType.SYSCALL.AFTER,
-            self._syscall_feed_hook,
-            name="syscall_hook",
-        )
-
     @property
     def inst_feed_on(self) -> bool:
         return self._feed_level >= FeedLevel.INST
@@ -173,16 +159,21 @@ class FeedManager:
     def set_feed_level(self, feed_level: FeedLevel):
         self._feed_level = feed_level
         self._refresh_inst_feed()
-        self._refresh_api_feed()
-        self._refresh_syscall_feed()
+        # Syscall feed and api feed do not require refresh upon
+        # changing feed level.
 
-    def subscribe_to_inst_feed(self, callback) -> FeedHandle:
+    def subscribe_to_inst_feed(
+        self, callback: Callable[["Zelos", int, int], Any]
+    ) -> FeedHandle:
         return self._subscribe(FeedLevel.INST, callback)
 
+    # TODO: Support api feeds.
     def subscribe_to_api_feed(self, callback) -> FeedHandle:
         return self._subscribe(FeedLevel.API, callback)
 
-    def subscribe_to_syscall_feed(self, callback) -> FeedHandle:
+    def subscribe_to_syscall_feed(
+        self, callback: Callable[["Zelos", str, "Args", int], Any]
+    ) -> FeedHandle:
         return self._subscribe(FeedLevel.SYSCALL, callback)
 
     def _subscribe(self, feed_level: FeedLevel, callback):
@@ -213,14 +204,7 @@ class FeedManager:
             self._hook_manager.delete_hook(self._inst_hook_info)
             self._inst_hook_info = None
 
-    def _refresh_api_feed(self):
-        pass
-
-    def _syscall_feed_hook(self, zelos, sysname, args, retval):
+    def _handle_syscall_feed(self, zelos, sysname, args, retval):
         if self._feed_level >= FeedLevel.SYSCALL:
             for s in self._subscribers[FeedLevel.SYSCALL].values():
                 s(zelos, sysname, args, retval)
-
-    def _refresh_syscall_feed(self):
-        # Handled in _syscall_feed_hook
-        pass

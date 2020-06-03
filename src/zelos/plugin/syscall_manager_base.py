@@ -233,6 +233,10 @@ class SyscallManager(object):
         for hook in hooks:
             hook(self.z.api, sys_name, self.last_syscall_args, retval)
 
+        self.z.feeds._handle_syscall_feed(
+            self.z.api, sys_name, self.last_syscall_args, retval
+        )
+
         self.last_retval = retval
         self._handle_syscall_break(sys_name)
         return True
