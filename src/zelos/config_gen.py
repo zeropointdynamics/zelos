@@ -166,16 +166,16 @@ def generate_parser():
     )
 
     group_feeds.add_argument(
-        "--api_feed",
+        "--func_feed",
         action="append",
         nargs="?",
         default=[],
         const="",
         help=(
-            "Provided without input, sets the feed level to API. "
-            "This results in enabling the api and syscall feeds."
+            "Provided without input, sets the feed level to FUNC. "
+            "This results in enabling the func and syscall feeds."
             "Alternatively, A ZML string can be used to specify conditions"
-            "to set the feed level to API. Multiple triggers can be "
+            "to set the feed level to FUNC. Multiple triggers can be "
             "specified by using this flag multiple times."
         ),
     )

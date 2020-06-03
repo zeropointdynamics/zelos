@@ -28,7 +28,7 @@ To start with, there are different levels of feeds, each increasing in
 amount of verbosity as well as performance cost::
 
                      -> Verbosity ->
-            None -> Syscalls -> Apis -> Instructions
+            None -> Syscalls -> Functions -> Instructions
                     <- Performance <-
 
 The feed level determines what feeds are supplied with information. All
@@ -36,15 +36,15 @@ feeds that are more verbose than the feed level are not provided data,
 and will not run subscribed callbacks.
 
 Example:
-    When the feed level is FeedLevel.API, subscribers to the syscall and
-    api feeds will be run, but no calls to inst feed subscribers will be
+    When the feed level is FeedLevel.FUNC, subscribers to the syscall and
+    func feeds will be run, but no calls to inst feed subscribers will be
     made.
 
 Feeds are made more powerful by command line arguments that provide ways
 to modify the feed level based on events and conditions. This allows the
 user to specify that only instructions between certain regions should be
 collected. The conditions are specified through the
---(stop|syscall|api|inst)_feed command line flags.
+--(stop|syscall|func|inst)_feed command line flags.
 
 Example:
     To trigger instructions to be printed only after the 'recv' syscall
@@ -69,7 +69,7 @@ from zelos.zml import ZmlParser
 class FeedLevel(IntEnum):
     NONE = 0
     SYSCALL = 1
-    API = 2
+    FUNC = 2
     INST = 3
 
 
@@ -105,7 +105,7 @@ class FeedManager:
         self._handle_num = 0
         self._subscribers: Dict[FeedLevel, Dict[int, Callable]] = {
             FeedLevel.SYSCALL: {},
-            FeedLevel.API: {},
+            FeedLevel.FUNC: {},
             FeedLevel.INST: {},
         }
 
@@ -123,9 +123,9 @@ class FeedManager:
                 zml_string,
             )
 
-        for zml_string in config.api_feed:
+        for zml_string in config.func_feed:
             zml_parser.trigger_on_zml(
-                functools.partial(self.set_feed_level, FeedLevel.API),
+                functools.partial(self.set_feed_level, FeedLevel.FUNC),
                 zml_string,
             )
 
@@ -146,8 +146,8 @@ class FeedManager:
         return self._feed_level >= FeedLevel.INST
 
     @property
-    def api_feed_on(self) -> bool:
-        return self._feed_level >= FeedLevel.API
+    def func_feed_on(self) -> bool:
+        return self._feed_level >= FeedLevel.FUNC
 
     @property
     def syscall_feed_on(self) -> bool:
@@ -159,7 +159,7 @@ class FeedManager:
     def set_feed_level(self, feed_level: FeedLevel):
         self._feed_level = feed_level
         self._refresh_inst_feed()
-        # Syscall feed and api feed do not require refresh upon
+        # Syscall feed and func feed do not require refresh upon
         # changing feed level.
 
     def subscribe_to_inst_feed(
@@ -167,9 +167,9 @@ class FeedManager:
     ) -> FeedHandle:
         return self._subscribe(FeedLevel.INST, callback)
 
-    # TODO: Support api feeds.
-    def subscribe_to_api_feed(self, callback) -> FeedHandle:
-        return self._subscribe(FeedLevel.API, callback)
+    # TODO: Support func feeds.
+    def subscribe_to_func_feed(self, callback) -> FeedHandle:
+        return self._subscribe(FeedLevel.FUNC, callback)
 
     def subscribe_to_syscall_feed(
         self, callback: Callable[["Zelos", str, "Args", int], Any]
