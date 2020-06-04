@@ -27,8 +27,7 @@ DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 class ZelosTest(unittest.TestCase):
     def test_static_elf_unpatched(self):
         z = Zelos(
-            path.join(DATA_DIR, "static_elf_x64_helloworld"),
-            tracethread="none",
+            path.join(DATA_DIR, "static_elf_x64_helloworld"), shutup=True
         )
         z.start(timeout=3)
 
@@ -38,8 +37,7 @@ class ZelosTest(unittest.TestCase):
 
     def test_static_elf(self):
         z = Zelos(
-            path.join(DATA_DIR, "static_elf_x64_helloworld"),
-            tracethread="none",
+            path.join(DATA_DIR, "static_elf_x64_helloworld"), shutup=True
         )
         z.start(timeout=3)
 
@@ -49,8 +47,7 @@ class ZelosTest(unittest.TestCase):
 
     def test_dynamic_elf_unpatched(self):
         z = Zelos(
-            path.join(DATA_DIR, "dynamic_elf_x64_helloworld"),
-            tracethread="none",
+            path.join(DATA_DIR, "dynamic_elf_x64_helloworld"), shutup=True
         )
         z.start(timeout=3)
 
@@ -60,8 +57,7 @@ class ZelosTest(unittest.TestCase):
 
     def test_dynamic_elf(self):
         z = Zelos(
-            path.join(DATA_DIR, "dynamic_elf_x64_helloworld"),
-            tracethread="none",
+            path.join(DATA_DIR, "dynamic_elf_x64_helloworld"), shutup=True
         )
         z.start(timeout=3)
 

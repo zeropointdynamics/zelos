@@ -210,7 +210,6 @@ class ZmlTransformer(Transformer):
     def condition_list(self, tree):
         if len(self._args) > 0:
             self._conditions["arg_"] = self._args
-        print(self._conditions)
         return self._condition_list_type(self._conditions)
 
     def thread_event(self, children):
@@ -239,7 +238,6 @@ class ZmlTransformer(Transformer):
         self._conditions["retval"] = children[1]
 
     def arg_cond(self, children):
-        print(children)
         self._args[children[0]] = children[2]
 
     def NUMBER(self, s):

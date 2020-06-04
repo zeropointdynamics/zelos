@@ -77,6 +77,7 @@ class Zelos:
         # risk.
         e = Engine(config=config, api=self)
         self.plugins = Plugins(self, ["plugins"])
+        self.plugins.initialize()
         self.internal_engine = e  # Used to inform what type this is.
         self.internal_engine.plugins = self.plugins
 

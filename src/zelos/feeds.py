@@ -157,6 +157,8 @@ class FeedManager:
         return self._feed_level
 
     def set_feed_level(self, feed_level: FeedLevel):
+        if feed_level == self._feed_level:
+            return
         self._feed_level = feed_level
         self._refresh_inst_feed()
         # Syscall feed and func feed do not require refresh upon
