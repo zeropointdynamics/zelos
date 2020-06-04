@@ -23,6 +23,8 @@ from collections import defaultdict
 from os.path import isabs
 from typing import Callable
 
+import pkg_resources
+
 import zelos.ext.platforms
 import zelos.ext.plugins
 
@@ -51,6 +53,12 @@ plugins_loaded = set()
 def load(paths):
     """Loads the plugins that are located in the plugins directory."""
     global plugins_loaded
+
+    # Load plugins/commands exported via `entry_point`
+    [
+        entry_point.load()
+        for entry_point in pkg_resources.iter_entry_points("zelos.plugins")
+    ]
 
     # Load plugins that come with zelos
     paths += zelos.ext.plugins.__path__._path
