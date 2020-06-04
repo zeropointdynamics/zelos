@@ -69,6 +69,12 @@ class ConfigTest(unittest.TestCase):
             z.config.env_vars, {"HELLO": "world", "LOREM": "ipsum"}
         )
 
+    def test_args_with_starting_dash(self):
+        real_path = path.join(DATA_DIR, "static_elf_helloworld")
+        z = Zelos(real_path, "--first_arg")
+
+        self.assertEqual("--first_arg", z.internal_engine.cmdline_args[1])
+
 
 def main():
     unittest.main()
