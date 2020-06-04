@@ -26,12 +26,12 @@ DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 
 
 class ZelosTest(unittest.TestCase):
-    def test_static_elf_verbose(self):
+    def test_static_elf_inst_feed(self):
         z = Zelos(
             path.join(DATA_DIR, "static_elf_arm_helloworld"),
-            tracethread="none",
+            shutup=True,
+            inst_feed=True,
         )
-        z.plugins.trace.set_verbose(True)
         z.start(timeout=3)
 
         self.assertEqual(
@@ -40,8 +40,7 @@ class ZelosTest(unittest.TestCase):
 
     def test_static_elf(self):
         z = Zelos(
-            path.join(DATA_DIR, "static_elf_arm_helloworld"),
-            tracethread="none",
+            path.join(DATA_DIR, "static_elf_arm_helloworld"), shutup=True
         )
         z.start(timeout=10)
 
@@ -56,8 +55,7 @@ class ZelosTest(unittest.TestCase):
                 "Windows fatal exception: access violation"
             )
         z = Zelos(
-            path.join(DATA_DIR, "dynamic_elf_arm_helloworld"),
-            tracethread="none",
+            path.join(DATA_DIR, "dynamic_elf_arm_helloworld"), shutup=True
         )
         z.start(timeout=10)
 

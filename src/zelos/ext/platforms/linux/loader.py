@@ -87,12 +87,6 @@ class LinuxMode:
         self.z.processes.handles.close_all(self.z.current_process.pid)
 
     def _attempt_to_handle_syscall(self):
-        if self.z.plugins.trace.verbose:
-            self.z.plugins.trace.bb(
-                self.z.plugins.trace.last_instruction,
-                self.z.plugins.trace.last_instruction_size,
-                full_trace=False,
-            )
         syscall_action = self.z.zos.syscall_manager.handle_syscall(
             self.z.current_process
         )

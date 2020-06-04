@@ -22,7 +22,7 @@ import capstone.x86_const as cs_x86
 
 from termcolor import colored
 
-from zelos import CommandLineOption, HookType, IPlugin
+from zelos import CommandLineOption, IPlugin
 from zelos.exceptions import MemoryReadUnmapped
 
 
@@ -34,7 +34,22 @@ class Comment:
 
 
 CommandLineOption(
-    "trace_file", type=str, default=None, help="Writes the trace to a file."
+    "shutup", action="store_true", help="Turns off printing on the commandline"
+)
+
+CommandLineOption(
+    "trace_file",
+    type=str,
+    default=None,
+    help="Writes the trace to a file instead of the command line.",
+)
+
+CommandLineOption(
+    "fasttrace",
+    action="count",
+    default=0,
+    help="Enable instruction-level tracing only the first time a memory "
+    "address is reached.",
 )
 
 
@@ -59,33 +74,45 @@ class Trace(IPlugin):
         self.comments = []
         self.MAX_INDENTS = 40
         self.threads_to_print = set()
-        if z.config.tracethread != "":
-            self.threads_to_print.add(z.config.tracethread)
 
-        self.verbosity = z.config.verbosity
-        self.verbose = False
-        self.set_verbose(self.verbosity > 0)
         self.fasttrace = True if z.config.fasttrace > 0 else False
-        self.trace_on = ""
-        self.trace_off = ""
 
         self.last_instruction = None
         self.last_instruction_size = None
         self.should_print_last_instruction = False
 
-        if self.verbose:
-            self.set_hook_granularity(HookType.EXEC.INST)
+        self._inst_feed_handle = None
+        self._syscall_feed_handle = None
+        if not z.config.shutup or z.config.trace_file is not None:
+            self.turn_on_trace()
 
         if self.state.arch in ["x86", "x86_64"]:
-            self.comment_generator = x86CommentGenerator(
-                self.zelos, self.modules
-            )
+            self.comment_generator = x86CommentGenerator(z, self.modules)
         elif self.state.arch == "arm":
-            self.comment_generator = ArmCommentGenerator(
-                self.zelos, self.modules
-            )
+            self.comment_generator = ArmCommentGenerator(z, self.modules)
         else:
             self.comment_generator = EmptyCommentGenerator()
+
+    def turn_on_trace(self):
+        feeds = self.zelos.internal_engine.feeds
+        if self._inst_feed_handle is None:
+            self._inst_feed_handle = feeds.subscribe_to_inst_feed(
+                self.trace_insts
+            )
+        if self._syscall_feed_handle is None:
+            self._syscall_feed_handle = feeds.subscribe_to_syscall_feed(
+                self.trace_syscalls
+            )
+
+    def shutup(self):
+        feeds = self.zelos.internal_engine.feeds
+        if self._inst_feed_handle is not None:
+            feeds.unsubscribe_from_feed(self._inst_feed_handle)
+            self._inst_feed_handle = None
+
+        if self._syscall_feed_handle is not None:
+            feeds.unsubscribe_from_feed(self._syscall_feed_handle)
+            self._syscall_feed_handle = None
 
     @property
     def cs(self):
@@ -103,160 +130,58 @@ class Trace(IPlugin):
     def functions_called(self):
         return self.comment_generator.functions_called
 
-    def set_hook_granularity(self, granularity: HookType.EXEC):
-        """
-        Sets the code hook granularity to be either every instruction
-        or every block.
-        """
-        try:
-            self.zelos.delete_hook(self.code_hook_info)
-        except AttributeError:
-            pass  # first time setting code_hook_info
-
-        self.code_hook_info = self.zelos.hook_execution(
-            granularity, self.hook_code, name="code_hook"
-        )
-
-    def _check_timeout(self):
-        """
-        Check if specified timeout has elapsed and stop execution.
-        """
-        if self.zelos.internal_engine.timer.is_timed_out():
-            self.zelos.stop("timeout")
-
-    def hook_code(self, zelos, address, size):
-        """
-        Hook that is executed for each instruction or block.
-        """
-        try:
-            self._hook_code_impl(zelos, address, size)
-            self._check_timeout()
-        except Exception:
-            if self.zelos.thread is not None:
-                self.zelos.process.threads.kill_thread(self.zelos.thread.id)
-            self.logger.exception("Stopping execution due to exception")
-
-    def _hook_code_impl(self, zelos, address, size):
+    def trace_insts(self, zelos, address, size):
         # TCG Dump example usage:
         # self.emu.get_tcg(0, 0)
-        if self.zelos.thread is None:
-            self.zelos.stop("hook_code_null_thread")
-            return
-
-        self.zelos.thread.total_blocks_executed += 1
-        rev_modules = self.modules.reverse_module_functions
-        if (
-            self.zelos.thread.total_blocks_executed % 1000 == 0
-            and address not in rev_modules
+        if self.should_print_last_instruction:
+            self.bb(
+                self.last_instruction,
+                self.last_instruction_size,
+                full_trace=False,
+            )
+        self.should_print_last_instruction = True
+        if self.fasttrace and self.zelos.process.threads.block_seen_before(
+            address
         ):
-            self.zelos.swap_thread("process swap")
-            return
-
-        if self.verbose:
-            if self.should_print_last_instruction:
-                self.bb(
-                    self.last_instruction,
-                    self.last_instruction_size,
-                    full_trace=False,
-                )
-            self.should_print_last_instruction = True
-            if (
-                self.fasttrace
-                and self.zelos.process.threads.block_seen_before(address)
-            ):
-                self.should_print_last_instruction = False
+            self.should_print_last_instruction = False
 
         self.zelos.process.threads.record_block(address)
 
         self.last_instruction = address
         self.last_instruction_size = size
 
-    def traceoff(self, addr=None):
+    def trace_syscalls(self, zelos, syscall_name, args, retval):
         """
-        Disable verbose tracing. Optionally specify an address at which
-        verbose tracing is disabled.
+        Prints information regarding a syscall for the strace.
+        Note, this may not immediately print the syscall (may need to
+        wait for return value
         """
-        if addr is None:
-            self.set_verbose(False)
-        else:
-
-            def hook_traceoff(zelos, address, size):
-                self.set_verbose(False)
-
-            self.zelos.hook_execution(
-                HookType.EXEC.INST,
-                hook_traceoff,
-                name="traceoff_hook",
-                ip_low=addr,
-                ip_high=addr,
-                end_condition=lambda: True,
-            )
-
-    def traceoff_syscall(self, syscall_name):
-        """
-        Disable verbose tracing after a specific system call has
-        executed.
-        """
-
-        def hook_traceoff(zelos, sysname, args, retval):
-            if sysname == syscall_name:
-                zelos.plugins.trace.traceoff()
-
-        self.zelos.hook_syscalls(HookType.SYSCALL.AFTER, hook_traceoff)
-
-    def traceon(self, addr=None):
-        """
-        Enable verbose tracing. Optionally specify an address at which
-        verbose tracing is enabled.
-        """
-        if addr is None:
-            self.set_verbose(True)
-        else:
-
-            def hook_traceon(zelos, address, size):
-                self.set_verbose(True)
-
-            self.zelos.hook_execution(
-                HookType.EXEC.INST,
-                hook_traceon,
-                name="traceon_hook",
-                ip_low=addr,
-                ip_high=addr,
-                end_condition=lambda: True,
-            )
-
-    def traceon_syscall(self, syscall_name):
-        """
-        Enable verbose tracing after a specific system call has
-        executed.
-        """
-
-        def hook_traceon(zelos, sysname, args, retval):
-            if sysname == syscall_name:
-                self.traceon()
-
-        self.zelos.hook_syscalls(HookType.SYSCALL.AFTER, hook_traceon)
-
-    def set_verbose(self, should_set_verbose) -> None:
-        """
-        Used to set the verbosity level, and change the hooks.
-        This prevents two types of issues:
-
-        1) Running block hooks when printing individual instructions
-               This will cause the annotations that are printed to be
-               the values at the end of the block's execution
-        2) Running instruction hooks when not printing instructions
-               This will slow down the emulation (sometimes
-               considerably)
-        """
-        if self.verbose == should_set_verbose:
+        thread = zelos.thread
+        if not self.should_print_thread(thread):
             return
-        self.verbose = should_set_verbose
 
-        if should_set_verbose:
-            self.set_hook_granularity(HookType.EXEC.INST)
+        retstr = "void" if retval is None else f"{retval:x}"
+
+        if args is None:
+            self.zelos.logger.warning("Syscall did not call get_args")
+
+        if self.trace_file is None:
+            s = (
+                colored(f"[{thread.name}]", "magenta")
+                + " "
+                + colored(f"[SYSCALL]", "red")
+                + " "
+                + colored(f"{syscall_name}", "white", attrs=["bold"])
+                + f" ( {args} ) -> {retstr}"
+            )
+            print(s)
         else:
-            self.set_hook_granularity(HookType.EXEC.BLOCK)
+            ip = thread.getIP()
+            s = (
+                f"[{thread.name}] "
+                f"[0x{ip:x}] {syscall_name} ( {args} ) -> {retstr}"
+            )
+            print(s, file=self.trace_file, flush=True)
 
     def bb(self, address=None, size=20, full_trace=False):
         if not self.should_print_thread():
@@ -540,8 +465,10 @@ class ArmCommentGenerator:
         """
         dst_val = self._get_reg_or_mem_val(insn, insn.operands[0])
         src_val = self._get_reg_or_mem_val(insn, insn.operands[1], is_dst=True)
-        return f"{insn.reg_name(insn.operands[0].value.reg)} = "
-        f"load(0x{src_val:x}) = 0x{dst_val:x}"
+        return (
+            f"{insn.reg_name(insn.operands[0].value.reg)} = "
+            f"load(0x{src_val:x}) = 0x{dst_val:x}"
+        )
 
     def _str_comment(self, insn):
         """

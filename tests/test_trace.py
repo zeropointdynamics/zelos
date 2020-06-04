@@ -33,39 +33,48 @@ DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 
 
 class TraceTest(unittest.TestCase):
-    def test_traceon(self):
-
-        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
-        z.plugins.trace.traceon(0x08131B16)
+    def test_trace_inst_start_on_addr(self):
+        z = Zelos(
+            path.join(DATA_DIR, "static_elf_helloworld"),
+            inst_feed="addr=0x08131B16",
+        )
 
         with patch("sys.stdout", new=StringIO()) as stdout:
             z.start()
             self.assertNotIn("[080f5c00]", stdout.getvalue())
             self.assertIn("[08131b16]", stdout.getvalue())
 
-    def test_traceoff(self):
-        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"), verbosity=1)
-        z.plugins.trace.traceoff(0x08048B73)
+    def test_trace_inst_stop_on_addr(self):
+        z = Zelos(
+            path.join(DATA_DIR, "static_elf_helloworld"),
+            inst=True,
+            stop_feed="addr=0x08048B73",
+        )
 
         with patch("sys.stdout", new=StringIO()) as stdout:
             z.start()
             self.assertIn("[08048b70]", stdout.getvalue())
             self.assertNotIn("[08048b73]", stdout.getvalue())
 
-    def test_traceon_syscall(self):
-        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
-        z.plugins.trace.traceon_syscall("write")
+    def test_trace_inst_start_on_syscall(self):
+        z = Zelos(
+            path.join(DATA_DIR, "static_elf_helloworld"),
+            inst_feed="syscall=write",
+        )
 
         with patch("sys.stdout", new=StringIO()) as stdout:
             z.start()
             self.assertIn("[08131b16]", stdout.getvalue())
 
-    def test_traceoff_syscall(self):
-        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"), verbosity=1)
-        z.plugins.trace.traceoff_syscall("brk")
+    def test_trace_inst_stop_on_syscall(self):
+        z = Zelos(
+            path.join(DATA_DIR, "static_elf_helloworld"),
+            inst=True,
+            stop_feed="syscall=brk",
+        )
         with patch("sys.stdout", new=StringIO()) as stdout:
             z.start()
-            # self.assertIn("[0815b56f]", stdout.getvalue())
+            self.assertIn("[0815b56f]", stdout.getvalue())
             self.assertNotIn("[0815b575]", stdout.getvalue())
 
     def test_trace_file_cmdline_option(self):
@@ -86,7 +95,7 @@ class TraceTest(unittest.TestCase):
         os.remove(temp_file)
 
     def test_x86_comments(self):
-        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"), verbosity=1)
+        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"), inst=True)
         expected_comments = [
             ("ebp = 0x0"),  # xor ebp, ebp
             ("esi = 0x1"),  # pop esi
@@ -111,4 +120,43 @@ class TraceTest(unittest.TestCase):
         z.plugins.trace.comment_generator.get_comment = comment_wrapper
 
         z.plugins.runner.run_to_addr(0x08048BA3)
+        self.assertEqual(expected_comments, recieved_comments)
+
+        z.plugins.trace.shutup()
+        z.start()
+        self.assertEqual(expected_comments, recieved_comments)
+
+    def test_arm_comments(self):
+        z = Zelos(path.join(DATA_DIR, "static_elf_arm_helloworld"), inst=True)
+        expected_comments = [
+            "fp = 0x0",  # mov     fp, #0
+            "lr = 0x0",  # mov     lr, #0
+            "[ 1]",  # pop     {r1}
+            "r2 = 0xff08eea4",  # mov     r2, sp
+            "store(0xff08eea4, 0xff08ee9c)",  # str     r2, [sp, #-4]!
+            "store(0x0, 0xff08ee98)",  # str     r0, [sp, #-4]!
+            "ip = load(0x101cc) = 0x10ac4",  # ldr     ip, [pc, #0x10]
+            "store(0x10ac4, 0xff08ee94)",  # str     ip, [sp, #-4]!
+            "r0 = load(0x101d0) = 0x102dc",  # ldr     r0, [pc, #0xc]
+            "r3 = load(0x101d4) = 0x10a24",  # ldr     r3, [pc, #0xc]
+            "<__libc_start_main> (0x1030c)",  # bl      #0x1030c
+        ]
+
+        # Wrap the get_comment method to extract its output from a
+        # real run.
+        get_comment = z.plugins.trace.comment_generator.get_comment
+        recieved_comments = []
+
+        def comment_wrapper(insn):
+            comment = get_comment(insn)
+            recieved_comments.append(comment)
+            return comment
+
+        z.plugins.trace.comment_generator.get_comment = comment_wrapper
+
+        z.plugins.runner.run_to_addr(0x0001030C)
+        self.assertEqual(expected_comments, recieved_comments)
+
+        z.plugins.trace.shutup()
+        z.start()
         self.assertEqual(expected_comments, recieved_comments)

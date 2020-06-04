@@ -49,7 +49,7 @@ class OverlayTest(unittest.TestCase):
     def test_overlay_comments(self):
         z = Zelos(
             path.join(DATA_DIR, "static_elf_helloworld"),
-            verbosity=1,
+            inst=True,
             fasttrace=True,
         )
 
@@ -70,7 +70,7 @@ class OverlayTest(unittest.TestCase):
     def test_overlay_functions(self):
         z = Zelos(
             path.join(DATA_DIR, "static_elf_helloworld"),
-            verbosity=1,
+            inst=True,
             fasttrace=True,
         )
 

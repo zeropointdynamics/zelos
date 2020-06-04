@@ -83,6 +83,7 @@ class Plugins:
         load(paths)
         self._zelos = zelos
 
+    def initialize(self):
         for p in self.loaded_plugins:
             self.register_plugin(p)
         print(f"Plugins: {', '.join(self.registered_plugins.keys())}")

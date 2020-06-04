@@ -149,7 +149,7 @@ class SyscallManager(object):
         """
         if not self.z.plugins.trace.should_print_thread():
             return
-        if not self.should_print_syscalls or not self.z.config.log_syscalls:
+        if not self.should_print_syscalls:
             return
         if len(string) > max_len:
             string = str(string[:max_len]) + "..."
@@ -172,38 +172,6 @@ class SyscallManager(object):
             s = f"[{self.z.current_thread.name}] " + f"[INFO] {string}"
             print(s, file=self.trace_file, flush=True)
 
-    def print_syscall(self, thread, syscall_name, args, retval):
-        """
-        Prints information regarding a syscall for the strace.
-        Note, this may not immediately print the syscall (may need to
-        wait for return value
-        """
-        if not self.z.plugins.trace.should_print_thread(thread):
-            return
-
-        retstr = "void" if retval is None else f"{retval:x}"
-
-        if args is None:
-            self.z.logger.warning("Syscall did not call get_args")
-
-        if self.trace_file is None:
-            s = (
-                colored(f"[{thread.name}]", "magenta")
-                + " "
-                + colored(f"[SYSCALL]", "red")
-                + " "
-                + colored(f"{syscall_name}", "white", attrs=["bold"])
-                + f" ( {args} ) -> {retstr}"
-            )
-            print(s)
-        else:
-            ip = thread.getIP()
-            s = (
-                f"[{thread.name}] "
-                f"[0x{ip:x}] {syscall_name} ( {args} ) -> {retstr}"
-            )
-            print(s, file=self.trace_file, flush=True)
-
     def handle_syscall(self, process):
         """
         Calls the corresponding syscall with given name or number in the
@@ -220,13 +188,13 @@ class SyscallManager(object):
             retval = sys_fn(self, process)
             if retval is not None:
                 self.set_return_value(retval)
-            if self.z.config.log_syscalls and self.should_print_syscalls:
-                self.print_syscall(
-                    thread, sys_name, self.last_syscall_args, retval
-                )
         except Exception as e:
-            self.logger.error(f"Error happened inside syscall {sys_name}")
-            self.print_syscall(thread, sys_name, self.last_syscall_args, None)
+            self.logger.error(
+                (
+                    f"Error in thread {thread} while executing "
+                    f"syscall {sys_name} Args: {self.last_syscall_arg}"
+                )
+            )
             raise e
 
         hooks = self.z.hook_manager._get_hooks(HookType.SYSCALL.AFTER)

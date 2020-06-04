@@ -55,9 +55,10 @@ def generate_config(
         else:
             flags.append(f"--{k}={v}")
 
-    cmdline_string = flags + [binary_path]
+    cmdline_string = [binary_path]
     if cmdline_args:
         cmdline_string += [*cmdline_args]
+    cmdline_string += flags
 
     return generate_config_from_cmdline(cmdline_string)
 
@@ -117,13 +118,6 @@ def generate_parser():
         default=0,
         help="Simulate DNS response for all domains (resolve to 127.0.0.1)",
     )
-    group_logging.add_argument(
-        "--fasttrace",
-        action="count",
-        default=0,
-        help="Enable instruction-level tracing only the first time a memory "
-        "address is reached.",
-    )
     group_limits.add_argument(
         "-t",
         "--timeout",
@@ -140,15 +134,6 @@ def generate_parser():
         type=int,
         default=0,
         help="Limits memory allocation to MEMLIMIT total mb.",
-    )
-    group_logging.add_argument(
-        "--traceon",
-        type=str,
-        default="",
-        help=(
-            "[Experimental] Enable verbose tracing after specified"
-            "address or API name."
-        ),
     )
     group_feeds.add_argument(
         "--inst_feed",
@@ -210,19 +195,6 @@ def generate_parser():
         ),
     )
     group_logging.add_argument(
-        "--traceoff",
-        type=str,
-        default="",
-        help="[Experimental] Disable verbose tracing after "
-        "specified address or API name.",
-    )
-    group_logging.add_argument(
-        "--tracethread",
-        type=str,
-        default="",
-        help="[Experimental] Enable verbose tracing on a single thread.",
-    )
-    group_logging.add_argument(
         "--writetrace",
         type=str,
         default="",
@@ -251,12 +223,6 @@ def generate_parser():
         "--log_exports",
         action="store_true",
         help="Enable logging of calls to exported functions. (default: off)",
-    )
-    group_logging.add_argument(
-        "--no_log_syscalls",
-        dest="log_syscalls",
-        action="store_false",
-        help="Disable logging of syscalls.",
     )
     group_fs.add_argument(
         "--mount",
