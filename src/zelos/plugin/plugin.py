@@ -118,7 +118,8 @@ class OSPlugin:
         self.logger = self.z.logger
 
     def __init_subclass__(cls, **kwargs):
-        OSPlugins.unregistered_os_plugins[cls.__name__.lower()] = cls
+        name = getattr(cls, "NAME", cls.__name__.lower())
+        OSPlugins.unregistered_os_plugins[name] = cls
 
     def parse(self, *args, **kwargs):
         raise NotImplementedError
@@ -139,8 +140,6 @@ class OSPlugins:
     def _register_plugins(self, z):
         for name, p in self.unregistered_os_plugins.items():
             self._registered_os_plugins.append(p(z))
-            if hasattr(p, "NAME"):
-                name = p.NAME
             self.logger.debug(
                 f"Successfully registered platform plugin '{name}'"
             )
