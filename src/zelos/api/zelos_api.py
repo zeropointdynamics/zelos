@@ -19,6 +19,7 @@
 import logging
 
 from collections import defaultdict
+from os.path import abspath
 from typing import Any, Callable, Optional
 
 from zelos.api.memory_api import MemoryApi
@@ -27,7 +28,7 @@ from zelos.breakpoints import BreakState
 from zelos.config_gen import generate_config, generate_config_from_cmdline
 from zelos.engine import Engine
 from zelos.hooks import HookInfo, HookType
-from zelos.plugin import Plugins
+from zelos.plugin import ParsedBinary, Plugins
 from zelos.processes import Process
 from zelos.threads import Thread
 
@@ -196,10 +197,10 @@ class Zelos:
                 specified event occurs. The function should accept the
                 following inputs: (zelos, address, size).
                 The return value of "callback" is ignored.
-            mem_low: If specified, only executes callback if the
+            ip_low: If specified, only executes callback if the
                 event occurs at an address greater than or equal to
                 this.
-            mem_high: If specified, only executes callback if the
+            ip_high: If specified, only executes callback if the
                 event occurs at an address less than or equal to this.
             name: An identifier for this hook. Used for debugging.
             end_condition: If specified, executes after the callback. If
@@ -631,6 +632,57 @@ class Zelos:
 
         """
         return self.internal_engine.current_process.current_thread
+
+    @property
+    def main_binary(self) -> Optional[ParsedBinary]:
+        """
+        Returns the parsed main binary, if it exists, otherwise returns None.
+        Note that the "main" binary denotes the binary that is loaded by
+        Zelos during emulation, not necessarily the binary that
+        is specified as input (the "target" binary). When the specified
+        input binary ("target") is statically linked, it is also the "main"
+        binary. However, when the specified input binary ("target") is
+        dynamically linked, the "main" binary instead refers to the dynamic
+        linker/loader.
+
+        :type: :py:class:`zelos.plugin.ParsedBinary`
+
+        """
+        return self.internal_engine.main_module
+
+    @property
+    def main_binary_path(self) -> Optional[str]:
+        """
+        Returns the absolute path to the main binary, if it exists, otherwise
+        returns None.
+        Note that the "main" binary denotes the binary that is loaded by
+        Zelos during emulation, not necessarily the binary that
+        is specified as input (the "target" binary). When the specified
+        input binary ("target") is statically linked, it is also the "main"
+        binary. However, when the specified input binary ("target") is
+        dynamically linked, the "main" binary instead refers to the dynamic
+        linker/loader.
+
+        :type: str
+
+        """
+        if self.internal_engine.main_module_name:
+            return abspath(self.internal_engine.main_module_name)
+        return None
+
+    @property
+    def target_binary_path(self) -> Optional[str]:
+        """
+        Returns the absolute path to the target binary, if it exists, otherwise
+        returns None. Note that the "target" binary denotes the binary
+        specified as input to Zelos.
+
+        :type: str
+
+        """
+        if self.internal_engine.target_binary_path:
+            return abspath(self.internal_engine.target_binary_path)
+        return None
 
 
 class ZelosCmdline(Zelos):

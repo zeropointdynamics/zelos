@@ -17,8 +17,9 @@
 
 import ctypes
 
-from typing import List
+from typing import List, Optional
 
+from zelos.emulator.base import MemoryRegion
 from zelos.enums import ProtType
 
 
@@ -281,6 +282,30 @@ class MemoryApi:
             address, size, name, kind, module_name, prot, reserve
         )
 
+    def get_region(self, address: int) -> Optional[MemoryRegion]:
+        """
+        Returns the memory region that the specified address is mapped in,
+        if one exists, otherwise returns None.
+
+        Args:
+            address: Address used to specify a region of memory.
+
+        Returns:
+            A :py:class:`zelos.emulator.base.MemoryRegion` containing the
+            specified address, or None if the address is not mapped in any
+            region.
+        """
+        return self._memory.get_region(address)
+
+    def get_regions(self) -> List[MemoryRegion]:
+        """
+        Returns a list of all mapped memory regions.
+
+        Returns:
+            A list of :py:class:`zelos.emulator.base.MemoryRegion` objects.
+        """
+        return self._memory.get_regions()
+
     def read_ptr(self, addr: int) -> int:
         """
         Reads a pointer at `addr`. The number of bytes read
@@ -305,7 +330,7 @@ class MemoryApi:
         Unpacks an integer from a byte format. Defaults to the
         current architecture bytes and endianness.
         """
-        return self._memory.pack(
+        return self._memory.emu.pack(
             x, bytes=bytes, little_endian=little_endian, signed=signed
         )
 
@@ -320,7 +345,7 @@ class MemoryApi:
         Unpacks an integer from a byte format. Defaults to the
         current architecture bytes and endianness.
         """
-        return self._memory.unpack(
+        return self._memory.emu.unpack(
             x, bytes=bytes, little_endian=little_endian, signed=signed
         )
 

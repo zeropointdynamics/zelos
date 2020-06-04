@@ -15,6 +15,7 @@
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
 
+import argparse
 import os
 
 from typing import Optional
@@ -48,14 +49,17 @@ def generate_config(
     for k, v in kwargs.items():
         if v in [False, True]:
             flags.append(f"--{k}")
+        elif type(v) is list:
+            for item in v:
+                flags.append(f"--{k}={item}")
         else:
             flags.append(f"--{k}={v}")
-    flag_string = " ".join(flags)
 
-    cmdline_arg_string = " ".join(cmdline_args)
-    return generate_config_from_cmdline(
-        f"{flag_string} {binary_path} {cmdline_arg_string}"
-    )
+    cmdline_string = flags + [binary_path]
+    if cmdline_args:
+        cmdline_string += [*cmdline_args]
+
+    return generate_config_from_cmdline(cmdline_string)
 
 
 def _generate_without_binary(**kwargs):
@@ -72,7 +76,7 @@ def _generate_without_binary(**kwargs):
 def generate_parser():
     parser = configargparse.ArgumentParser()
     group_logging = parser.add_argument_group("logging")
-    group_reporting = parser.add_argument_group("reporting")
+    group_feeds = parser.add_argument_group("feeds")
     group_limits = parser.add_argument_group("limits")
     group_networking = parser.add_argument_group("networking")
     group_fs = parser.add_argument_group("filesystem")
@@ -125,8 +129,10 @@ def generate_parser():
         "--timeout",
         type=int,
         default=0,
-        help="If specified, execution will end after TIMEOUT seconds have "
-        "passed.",
+        help=(
+            "If specified, execution will end after TIMEOUT seconds"
+            "have passed."
+        ),
     )
     group_limits.add_argument(
         "-m",
@@ -139,8 +145,69 @@ def generate_parser():
         "--traceon",
         type=str,
         default="",
-        help="[Experimental] Enable verbose tracing after specified address "
-        "or API name.",
+        help=(
+            "[Experimental] Enable verbose tracing after specified"
+            "address or API name."
+        ),
+    )
+    group_feeds.add_argument(
+        "--inst_feed",
+        action="append",
+        nargs="?",
+        default=[],
+        const="",
+        help=(
+            "Provided without input, sets the feed level to INST. "
+            "This results in enabling the inst, api, and syscall feeds."
+            "Alternatively, A ZML string can be used to specify conditions"
+            "to set the feed level to INST. Multiple triggers can be "
+            "specified by using this flag multiple times."
+        ),
+    )
+
+    group_feeds.add_argument(
+        "--func_feed",
+        action="append",
+        nargs="?",
+        default=[],
+        const="",
+        help=(
+            "Provided without input, sets the feed level to FUNC. "
+            "This results in enabling the func and syscall feeds."
+            "Alternatively, A ZML string can be used to specify conditions"
+            "to set the feed level to FUNC. Multiple triggers can be "
+            "specified by using this flag multiple times."
+        ),
+    )
+
+    group_feeds.add_argument(
+        "--syscall_feed",
+        action="append",
+        nargs="?",
+        default=[],
+        const="",
+        help=(
+            "Provided without input, sets the feed level to SYSCALL. "
+            "This results in enabling only the syscall feed."
+            "Alternatively, A ZML string can be used to specify conditions"
+            "to set the feed level to SYSCALL. Multiple triggers can be "
+            "specified by using this flag multiple times. This is the "
+            "default feed level."
+        ),
+    )
+
+    group_feeds.add_argument(
+        "--stop_feed",
+        action="append",
+        nargs="?",
+        default=[],
+        const="",
+        help=(
+            "Provided without input, sets the feed level to NONE, disabling "
+            "all feeds. Alternatively, A ZML string can be used to specify "
+            "conditions to set the feed level to NONE. Multiple triggers  "
+            "can be specified by using this flag multiple times."
+        ),
     )
     group_logging.add_argument(
         "--traceoff",
@@ -180,12 +247,6 @@ def generate_parser():
         action="store_true",
         help="Disable the no-execute bit. All memory becomes executable.",
     )
-    group_reporting.add_argument(
-        "--strace",
-        type=str,
-        default=None,
-        help="Writes the system call trace to the specified output file.",
-    )
     group_logging.add_argument(
         "--log_exports",
         action="store_true",
@@ -209,13 +270,15 @@ def generate_parser():
         "mount multiple files.",
     )
     group_fs.add_argument(
+        "-ev",
         "--env_vars",
-        action="append",
-        default=[],
-        help="Emulated environment variables. ENV_VARS is a comma separated "
-        "key value pair. Can be specified multiple times to set multiple "
-        "environment variables. Format: '--env_vars FOO:bar --env_vars "
-        "ZERO:point'.",
+        metavar="KEY=VALUE",
+        default={},
+        help="Emulated environment variables. ENV_VARS is a key value pair "
+        "of the form KEY=VALUE. Can be specified multiple times to set "
+        "multiple environment variables. Format: '--env_vars FOO=bar "
+        "--env_vars ZERO=point'.",
+        action=_ParseEnvVars,
     )
 
     path = os.environ.get("ZELOS_PLUGIN_DIR", None)
@@ -234,3 +297,25 @@ def generate_config_from_cmdline(cmdline_string):
     config = parser.parse_args(cmdline_string)
 
     return config
+
+
+class _ParseEnvVars(argparse._AppendAction):
+    def __call__(self, parser, namespace, arg, option_string=None):
+        d = {}
+
+        if arg.strip() != "":
+            key_val = [x.strip() for x in arg.split("=", 1) if x.strip() != ""]
+            try:
+                key = key_val[0]
+                value = key_val[1]
+                d[key] = value
+            except IndexError:
+                raise Exception(
+                    f'Unable to parse environment variable: "{arg}". '
+                    f"Environment variables must be of the form: "
+                    f"KEY=VALUE. "
+                )
+
+        dest = getattr(namespace, self.dest, {})
+        d.update(dest)
+        setattr(namespace, self.dest, d)

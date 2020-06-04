@@ -40,9 +40,9 @@ You can print only the first time each instruction is executed, rather than *eve
 $ zelos -v --fasttrace my_binary
 ```
 
-By default, syscalls are emitted on stdout. To write syscalls to a file instead, use the `--strace` flag:
+By default, syscalls are emitted on stdout. To write syscalls to a file instead, use the `--trace_file` flag:
 ```console
-$ zelos --strace path/to/file my_binary
+$ zelos --trace_file path/to/file my_binary
 ```
 
 Specify any command line arguments after the binary name:
@@ -57,6 +57,15 @@ import zelos
 z = zelos.Zelos("my_binary")
 z.start(timeout=3)
 ```
+
+## Plugins
+
+Zelos supports first- and third-party [plugins](https://zelos.readthedocs.io/en/latest/tutorials/04_writing_plugins.html). Some notable plugins thus far:
+
+- [overlay (ida plugin)](https://zelos.readthedocs.io/en/latest/tutorials/06_snapshot_overlay.html): highlights `zelos` execution trace in IDA with instruction-level comments added.
+- [angr integration](https://github.com/zeropointdynamics/angr-zelos-target): enables symbolic execution in `zelos`.
+- [zdbserver](https://github.com/zeropointdynamics/zelos/tree/master/src/zelos/tools/zdbserver): remote control and debugging of emulated binaries.
+- [syscall limiter](https://zelos.readthedocs.io/en/latest/tutorials/05_syscall_limit_plugin.html): demonstrates event hooking and provides syscall-based execution and termination options.
 
 ## Contributing
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.

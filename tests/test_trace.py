@@ -18,6 +18,8 @@
 
 from __future__ import absolute_import
 
+import os
+import tempfile
 import unittest
 
 from io import StringIO
@@ -65,6 +67,23 @@ class TraceTest(unittest.TestCase):
             z.start()
             # self.assertIn("[0815b56f]", stdout.getvalue())
             self.assertNotIn("[0815b575]", stdout.getvalue())
+
+    def test_trace_file_cmdline_option(self):
+        fd, temp_file = tempfile.mkstemp()
+
+        z = Zelos(
+            path.join(DATA_DIR, "static_elf_helloworld"), trace_file=temp_file
+        )
+
+        z.start()
+
+        f = open(temp_file, "r")
+        self.assertEqual(len(f.readlines()), 12)
+
+        f.close()
+        z.plugins.trace.trace_file.close()
+        os.close(fd)
+        os.remove(temp_file)
 
     def test_x86_comments(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"), verbosity=1)

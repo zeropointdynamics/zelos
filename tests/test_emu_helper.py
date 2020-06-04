@@ -61,11 +61,6 @@ class EmuHelperTest(unittest.TestCase):
         file_data = b"# Copyright (C)"
         self.assertEqual(file_data, emu.mem_read(mr3.address, len(file_data)))
 
-    def test_emu_pack(self):
-        emu = self.emu_init()
-        self.assertEqual(123, emu.unpack(emu.pack(123)))
-        self.assertEqual(-1, emu.unpack(emu.pack(-1), signed=True))
-
 
 def main():
     unittest.main()

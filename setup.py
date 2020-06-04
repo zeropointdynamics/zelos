@@ -49,6 +49,7 @@ INSTALL_REQUIRES = [
     "pypacker==4.9",
     "lief>=0.9.0",
     "unicorn==1.0.2rc1",
+    "lark-parser==0.7.8",
 ]
 EXTRAS_REQUIRE = {
     "docs": [
@@ -65,6 +66,9 @@ EXTRAS_REQUIRE = {
         "pytest-cov",
         "pytest>=4.3.0",
         "pytest-xdist",
+        "filelock",
+        "yara-python",
+        "mock",
     ],
 }
 EXTRAS_REQUIRE["dev"] = (

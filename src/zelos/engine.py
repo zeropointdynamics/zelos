@@ -15,14 +15,11 @@
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
 
-import functools
 import logging
 import ntpath
 import os
 
 from collections import namedtuple
-from shutil import copyfile
-from tempfile import mkstemp
 from typing import Optional
 
 import unicorn
@@ -47,6 +44,7 @@ from zelos import util
 from zelos.breakpoints import BreakpointManager, BreakState
 from zelos.config_gen import _generate_without_binary, generate_config
 from zelos.exceptions import UnsupportedBinaryError, ZelosLoadException
+from zelos.feeds import FeedManager
 from zelos.file_system import FileSystem
 from zelos.hooks import ExceptionHooks, HookManager, HookType, InterruptHooks
 from zelos.network import Network
@@ -54,6 +52,7 @@ from zelos.plugin import OSPlugins
 from zelos.processes import Processes
 from zelos.state import State
 from zelos.triggers import Triggers
+from zelos.zml import ZmlParser
 
 
 class Engine:
@@ -87,8 +86,6 @@ class Engine:
             [] if config.cmdline_args is None else config.cmdline_args
         )
 
-        self.random_file_name = getattr(config, "random_file_name", False)
-
         self.log_level = getattr(logging, config.log.upper(), None)
         if not isinstance(self.log_level, int):
             raise ValueError("Invalid log level: %s" % config.log)
@@ -102,6 +99,7 @@ class Engine:
         # If verbose is true, print lots of info, including every
         # instruction
         self.original_file_name = ""
+        self.target_binary_path = ""
         self.main_module_name = ""
         self.main_module = None
 
@@ -109,7 +107,11 @@ class Engine:
 
         self.timer = util.Timer()
 
+        self.zml_parser = ZmlParser(self.api)
         self.hook_manager = HookManager(self, self.api)
+        self.feeds = FeedManager(
+            self.config, self.zml_parser, self.hook_manager
+        )
         self.breakpoints = BreakpointManager(self.hook_manager)
         self.interrupt_handler = InterruptHooks(self.hook_manager, self)
         self.exception_handler = ExceptionHooks(self)
@@ -158,8 +160,6 @@ class Engine:
                     f"Incorrectly formatted input to '--mount': {m}"
                 )
                 continue
-        if config.strace is not None:
-            self.zos.syscall_manager.set_strace_file(config.strace)
 
     def __del__(self):
         try:
@@ -284,27 +284,8 @@ class Engine:
             HookType.MEMORY.WRITE, hook, name="write_trace"
         )
 
-    def _first_parse(self, module_path, random_file_name=False):
+    def _first_parse(self, module_path):
         """ Function to parse an executable """
-
-        if random_file_name:
-            self.original_file_name = module_path
-            original_file_name = module_path
-            # To ensure we don't get any issues with the size of the
-            # file name, we copy the file and rename it 'target'
-            fd, temp_path = mkstemp(dir=".", suffix=".xex")
-            os.close(fd)
-            temp_filename = os.path.basename(temp_path)
-            copyfile(module_path, temp_filename)
-            module_path = temp_filename
-            self.hook_manager.register_close_hook(
-                functools.partial(os.remove, temp_filename)
-            )
-            self.logger.debug(
-                f"Setting random file name for "
-                f"{original_file_name} : {module_path}"
-            )
-
         self.logger.verbose("Parse Main Module")
 
         with open(module_path, "rb") as f:
@@ -333,12 +314,12 @@ class Engine:
         emulation
         """
 
+        self.target_binary_path = module_path
+
         original_file_name = os.path.basename(module_path)
         self.original_file_name = original_file_name
 
-        file = self._first_parse(
-            module_path, random_file_name=self.random_file_name
-        )
+        file = self._first_parse(module_path)
 
         module_path = file.Filepath
         self.main_module = file
@@ -353,7 +334,11 @@ class Engine:
 
         # We need to create this file in the file system, so that other
         # files can access it.
-        self.files.create_file(self.files.zelos_file_prefix + module_path)
+        self.files.create_file(
+            self.files.emulated_path_module.join(
+                self.files.zelos_file_prefix, module_path
+            )
+        )
 
     def _initialize_zelos(self, binary=None):
         self.state = State(self, binary, self.date)

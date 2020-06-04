@@ -22,7 +22,7 @@ import capstone.x86_const as cs_x86
 
 from termcolor import colored
 
-from zelos import HookType, IPlugin
+from zelos import CommandLineOption, HookType, IPlugin
 from zelos.exceptions import MemoryReadUnmapped
 
 
@@ -33,11 +33,20 @@ class Comment:
         self.text = text
 
 
+CommandLineOption(
+    "trace_file", type=str, default=None, help="Writes the trace to a file."
+)
+
+
 class Trace(IPlugin):
     def __init__(self, z):
         self.zelos = z
 
         self.logger = logging.getLogger(__name__)
+
+        self.trace_file = None
+        if z.config.trace_file is not None:
+            self.trace_file = open(z.config.trace_file, "w")
 
         self.current_return_address = 0
         self.current_function_name = "???"
@@ -87,27 +96,12 @@ class Trace(IPlugin):
         return self.zelos.internal_engine.modules
 
     @property
-    def main_module(self):
-        return self.zelos.internal_engine.main_module
-
-    @property
     def state(self):
         return self.zelos.internal_engine.state
 
     @property
     def functions_called(self):
         return self.comment_generator.functions_called
-
-    @property
-    def strace_file(self):
-        return self.zelos.internal_engine.zos.syscall_manager.strace_file
-
-    @property
-    def strace(self):
-        return self.zelos.config.strace
-
-    def get_region(self, addr):
-        return self.zelos.internal_engine.memory.get_region(addr)
 
     def set_hook_granularity(self, granularity: HookType.EXEC):
         """
@@ -322,13 +316,13 @@ class Trace(IPlugin):
         if addr_str is None:
             addr_str = f"{self.zelos.regs.getIP():08x}"
 
-        if self.strace:
+        if self.trace_file is not None:
             thread_str = f"[{thread}]"
             category_str = f"[{category}]"
             addr_str_str = f"[{addr_str}]"
             print(
                 f"{thread_str} {category_str} {addr_str_str} {s}",
-                file=self.strace_file,
+                file=self.trace_file,
             )
         else:
             thread_str = colored(f"[{thread}]", "magenta")
@@ -351,7 +345,9 @@ class Trace(IPlugin):
         indent_count = self.zelos.thread._callstack_indent_count
         try:
             caller_module = (
-                self.get_region(return_address).module_name.split(".")[0]
+                self.zelos.memory.get_region(return_address).module_name.split(
+                    "."
+                )[0]
                 + "_____"
             )[:8]
         except Exception:
@@ -376,12 +372,15 @@ class Trace(IPlugin):
         return_address = self.current_return_address
         indent_count = self.zelos.thread._callstack_indent_count
         caller_module = (
-            self.get_region(return_address).module_name.split(".")[0] + "_____"
+            self.zelos.memory.get_region(return_address).module_name.split(
+                "."
+            )[0]
+            + "_____"
         )[:8]
         if indent_count == -1:
             indent_count = 0
         args = "".join([i if ord(i) < 128 else "." for i in args])
-        if self.strace:
+        if self.trace_file is not None:
             s = "  " * min(indent_count, self.MAX_INDENTS) + args
         else:
             s = "  " * min(indent_count, self.MAX_INDENTS) + colored(
@@ -398,9 +397,9 @@ class Trace(IPlugin):
             sep = "*"
         address = insn.address
         ins_string = self._get_insn_string(insn)
-        if address in self.main_module.exported_functions:
-            function_name = self.main_module.exported_functions[address]
-            if self.strace:
+        if address in self.zelos.main_binary.exported_functions:
+            function_name = self.zelos.main_binary.exported_functions[address]
+            if self.trace_file is not None:
                 s = f"<{function_name}>"
             else:
                 s = colored(f"<{function_name}>", "white", attrs=["bold"])
@@ -446,7 +445,7 @@ class Trace(IPlugin):
                 padSize = 1
             for y in range(0, padSize):
                 padding += " "
-            if self.strace:
+            if self.trace_file is not None:
                 result += insn_str + " " + padding + " ; " + cmt
             else:
                 result += (
@@ -557,12 +556,8 @@ class ArmCommentGenerator:
         Returns a comment on branch to label.
         """
         src_val = self._get_reg_or_mem_val(insn, insn.operands[0])
-        if (
-            src_val
-            in self.zelos.internal_engine.main_module.exported_functions
-        ):
-            main_module = self.zelos.internal_engine.main_module
-            func_name = main_module.exported_functions[src_val]
+        if src_val in self.zelos.main_binary.exported_functions:
+            func_name = self.zelos.main_binary.exported_functions[src_val]
             return f"<{func_name:s}> (0x{src_val:x})"
         return f"<0x{src_val:x}>"
 

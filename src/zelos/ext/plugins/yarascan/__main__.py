@@ -15,32 +15,9 @@
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
 
-from .arg_base import ArgFactory
-from .loader_base import Loader
-from .parser_base import ParsedBinary, Section
-from .plugin import (
-    CommandLineOption,
-    IPlugin,
-    ISubcommand,
-    OSPlugin,
-    OSPlugins,
-    PluginCommands,
-    Plugins,
-)
-from .syscall_manager_base import SyscallManager
+if __name__ == "__main__":
+    import sys
 
+    import zelos
 
-__all__ = [
-    "IPlugin",
-    "Plugins",
-    "CommandLineOption",
-    "OSPlugin",
-    "OSPlugins",
-    "ISubcommand",
-    "PluginCommands",
-    "SyscallManager",
-    "Loader",
-    "ParsedBinary",
-    "Section",
-    "ArgFactory",
-]
+    z = zelos.ZelosCmdline(sys.argv[1:])

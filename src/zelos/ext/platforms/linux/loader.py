@@ -15,6 +15,8 @@
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
 
+import posixpath
+
 from os.path import basename
 
 from unicorn import UC_ERR_EXCEPTION
@@ -214,7 +216,10 @@ class ElfLoader(Loader):
         #   https://github.com/torvalds/linux/blob/v3.19/include/uapi/linux/auxvec.h
 
         module_path_ptr, str_len = self.memory.heap.allocstr(
-            f"/home/admin/{self.main_module_name}", alloc_name="Module Path"
+            posixpath.join(
+                self._z.config.virtual_path, self._z.config.virtual_filename
+            ),
+            alloc_name="Module Path",
         )
         cpu_string_ptr, _ = self.memory.heap.allocstr(
             "some computer", alloc_name="cpu_string"
@@ -226,7 +231,10 @@ class ElfLoader(Loader):
 
         env_strings = [f"{k}={v}\x00" for k, v in env_vars.items()]
         env_strings.extend(
-            [x + "\x00" for x in self.process.environment_variables]
+            [
+                f"{k}={v}\x00"
+                for k, v in self.process.environment_variables.items()
+            ]
         )
         arg_strings = [s + "\x00" for s in self.process.cmdline_args]
 

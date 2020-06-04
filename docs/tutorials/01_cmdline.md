@@ -16,9 +16,9 @@ To print only the *first* time an instruction is executed, rather than *every* i
 $ zelos -v --fasttrace my_binary
 ```
 
-To write output to a file, instead of stdout, use the `--strace` flag:
+To write output to a file use the `--trace_file` flag:
 ```console
-$ zelos --strace /path/to/file my_binary
+$ zelos --trace_file /path/to/file my_binary
 ```
 
 To provide command line arguments to the emulated binary, specify them after the binary name:
@@ -41,19 +41,19 @@ To specify a memory limit in mb, after which an exception is thrown an emulation
 $ zelos -m 1024 my_binary
 ```
 
-To specify a virtual filename, the name that will be used for the binary during emulation, use the `--virtual-filename` flag:
+To specify a virtual filename, the name that will be used for the binary during emulation, use the `--virtual_filename` flag:
 ```console
-$ zelos --virtual-filename virtualname my_binary
+$ zelos --virtual_filename virtualname my_binary
 ```
 
-To specify a virtual file path, the path that will be used for the binary during emulation, use the `--virtual-path` flag:
+To specify a virtual file path, the path that will be used for the binary during emulation, use the `--virtual_path` flag:
 ```console
-$ zelos --virtual-path /home/admin/ my_binary
+$ zelos --virtual_path /home/admin/ my_binary
 ```
 
-To specify environment variables to use during emulation, use the `--env-vars` flag:
+To specify environment variables to use during emulation, use the `--env_vars` (`-ev`) flag. This can be specified multiple times to set multiple environment variables:
 ```console
-$ zelos --env-vars FOO:bar my_binary
+$ zelos --env_vars FOO=bar --env_vars LOREM=ipsum my_binary
 ```
 
 To specify the date in YYYY-MM-DD format, use the `--date` flag. This is primarily used when emulating date-related system calls such as __time__ and __gettimeofday__.
@@ -61,12 +61,17 @@ To specify the date in YYYY-MM-DD format, use the `--date` flag. This is primari
 $ zelos --date 2020-03-04 my_binary
 ```
 
+To see an example of the above, you can use zelos to emulate the `date` GNU coreutil. This is included on most linux systems at `/bin/date`. The source code for `date` is available [here](https://github.com/coreutils/coreutils/blob/master/src/date.c).
+```
+$ zelos --date 2020-03-04 /bin/date
+```
+
 To mount a specified file or path into the emulated filesystem, use the `--mount` flag. The format is `--mount ARCH,DEST,SRC`. `ARCH` is one of `x86`, `x86-64`, `arm`, or `mips`. `DEST` is the emulated path to mount the specified `SRC`. `SRC` is the absolute host path to the file or path to mount.
 ```
 $ zelos --mount x86,/path/to/dest,/path/to/src my_binary
 ```
 
-To specify a directory to use as the rootfs directory during emulation of a linux system, use `--linux-rootfs` flag. The format is `--linux-rootfs ARCH,PATH`. `ARCH` is one of `x86`, `x86-64`, `arm`, or `mips`. `PATH` is the absolute host path to the directory to be used as rootfs. For example, if you were running Zelos on a linux host machine, and you wanted to use your own root filesystem as the emulated rootfs, you would do the following:
+To specify a directory to use as the rootfs directory during emulation of a linux system, use `--linux_rootfs` flag. The format is `--linux_rootfs ARCH,PATH`. `ARCH` is one of `x86`, `x86-64`, `arm`, or `mips`. `PATH` is the absolute host path to the directory to be used as rootfs. For example, if you were running Zelos on a linux host machine, and you wanted to use your own root filesystem as the emulated rootfs, you would do the following:
 ```console
-$ zelos --linux-rootfs x86,/ my_binary
+$ zelos --linux_rootfs x86,/ my_binary
 ```

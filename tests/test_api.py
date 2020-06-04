@@ -19,8 +19,9 @@
 import unittest
 
 from collections import defaultdict
+from io import StringIO
 from os import path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from zelos import HookType, Zelos
 
@@ -277,15 +278,17 @@ class ZelosTest(unittest.TestCase):
         )
 
     def test_date(self):
-        z = Zelos(None)
-        d = z.date
+        z = Zelos(path.join(DATA_DIR, "date"))
 
-        self.assertEqual(d, "2019-02-02")
+        self.assertEqual(z.date, "2019-02-02")
 
         z.date = "2019-03-03"
-        d = z.date
+        self.assertEqual(z.date, "2019-03-03")
 
-        self.assertEqual(d, "2019-03-03")
+        with patch("sys.stdout", new=StringIO()) as stdout:
+            z.start()
+            self.assertIn("Sun Mar  3", stdout.getvalue())
+            self.assertIn("UTC 2019", stdout.getvalue())
 
     def test_memory_search(self):
         z = Zelos(None)
@@ -295,6 +298,46 @@ class ZelosTest(unittest.TestCase):
             [0x1000, 0x1004, 0x1007], z.memory.search(b"\x00\x01")
         )
         self.assertEqual([0x1008], z.memory.search(b"\x01\x01"))
+
+    def test_get_region(self):
+        z = Zelos(None)
+        self.assertEqual(len(z.memory.get_regions()), 2)
+        z.memory.map(0x1000, 0x1000)
+        reg = z.memory.get_region(0x1000)
+        self.assertIsNotNone(reg)
+        self.assertEqual(len(z.memory.get_regions()), 3)
+        z.memory.map(0x2000, 0x1000)
+        reg = z.memory.get_region(0x2000)
+        self.assertIsNotNone(reg)
+        self.assertEqual(len(z.memory.get_regions()), 4)
+
+    def test_binary_paths(self):
+        z = Zelos(None)
+        self.assertIsNone(z.main_binary)
+        self.assertIsNone(z.main_binary_path)
+
+        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
+        self.assertIsNotNone(z.main_binary)
+        self.assertEqual(
+            path.basename(z.main_binary_path), "static_elf_helloworld"
+        )
+        self.assertEqual(
+            path.basename(z.target_binary_path), "static_elf_helloworld"
+        )
+
+        z = Zelos(path.join(DATA_DIR, "dynamic_elf_helloworld"))
+        self.assertIsNotNone(z.main_binary)
+        self.assertNotEqual(
+            path.basename(z.main_binary_path), "dynamic_elf_helloworld"
+        )
+        self.assertEqual(
+            path.basename(z.target_binary_path), "dynamic_elf_helloworld"
+        )
+
+    def test_memory_api_pack(self):
+        z = Zelos(None)
+        self.assertEqual(123, z.memory.unpack(z.memory.pack(123)))
+        self.assertEqual(-1, z.memory.unpack(z.memory.pack(-1), signed=True))
 
 
 def main():
