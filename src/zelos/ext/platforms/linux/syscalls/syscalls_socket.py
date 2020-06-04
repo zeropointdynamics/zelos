@@ -32,7 +32,6 @@ from zelos.ext.platforms.linux.syscalls.syscalls_const import (
     SocketOptionsSocket,
     SocketOptionsTcp,
     SocketProtocol,
-    SocketType,
 )
 from zelos.util import dumpstruct, str2struct, struct2str
 
@@ -79,12 +78,21 @@ def _create_sockaddr_in(domain, host, port):
     return struct_bytes
 
 
-def _socket_linux_to_python(domain, type, protocol):
+def _socket_linux_to_python(sm, domain, type, protocol):
     """
     Convert Linux socket domain, type and protocol constants into their
     equivalent python constants.
     """
     import socket
+
+    if sm.arch == "mips":
+        from zelos.ext.platforms.linux.syscalls.syscalls_const import (
+            MipsSocketType as SocketType,
+        )
+    else:
+        from zelos.ext.platforms.linux.syscalls.syscalls_const import (
+            CommonSocketType as SocketType,
+        )
 
     domain_map = {
         SocketFamily.AF_INET: socket.AF_INET,
@@ -173,7 +181,7 @@ def socket(sm, p, args_addr):
 
     try:
         (domain, type, protocol) = _socket_linux_to_python(
-            args.domain, args.type, args.protocol
+            sm, args.domain, args.type, args.protocol
         )
         socket_handle_num = sm.z.network.create_socket_handle(
             domain, type, protocol

@@ -26,6 +26,7 @@ from zelos import HookType
 from zelos.exceptions import ZelosException
 from zelos.plugin import ArgFactory, SyscallManager
 
+from .syscalls import syscall_utils as sys_utils
 from .syscalls.arg_strings import get_arg_string
 
 
@@ -136,6 +137,9 @@ class LinuxSyscallManager(SyscallManager):
                 self.last_syscall_args = socketcall_args
                 self._handle_syscall_break(socketcall)
         return status
+
+    def set_errno(self, val):
+        pass
 
     def _get_socketcall_args(
         self, process, func_name, args_addr, arg_list, arg_string_overrides={}
@@ -285,6 +289,11 @@ class X86_64SyscallManager(LinuxSyscallManager):
 
     def set_return_value(self, value):
         self.emu.set_reg("rax", value)
+
+    def set_errno(self, val: int):
+        fs_base = sys_utils.get_fs(self.z.current_process)
+        errno_location = fs_base - 0x80
+        self.z.memory.write_int(errno_location, val)
 
     def return_addr(self):
         return self.emu.getIP() + 2
