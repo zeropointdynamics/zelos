@@ -317,14 +317,35 @@ class SocketFamily(enum.IntEnum):
     AF_MAX = 45  # /* For now.. */
 
 
-class SocketType(enum.IntEnum):
+class CommonSocketType(enum.IntEnum):
     """
     Socket Types:
     https://github.com/torvalds/linux/blob/master/include/linux/net.h
     """
 
+    # Mips defines SOCK_STREAM and SOCK_DGRAM differently.
     SOCK_STREAM = 1
     SOCK_DGRAM = 2
+
+    SOCK_RAW = 3
+    SOCK_RDM = 4
+    SOCK_SEQPACKET = 5
+    SOCK_DCCP = 6
+    SOCK_PACKET = 10
+    SOCK_MAX = 11
+
+    SOCK_CLOEXEC = 0o2000000
+    SOCK_NONBLOCK = 0o4000
+
+
+class MipsSocketType(enum.IntEnum):
+    # Mips is special :)
+    # https://github.com/torvalds/linux/
+    # blob/master/arch/mips/include/asm/socket.h
+
+    SOCK_DGRAM = 1
+    SOCK_STREAM = 2
+
     SOCK_RAW = 3
     SOCK_RDM = 4
     SOCK_SEQPACKET = 5
