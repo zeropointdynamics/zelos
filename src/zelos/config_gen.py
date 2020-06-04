@@ -55,10 +55,7 @@ def generate_config(
         else:
             flags.append(f"--{k}={v}")
 
-    cmdline_string = [binary_path]
-    if cmdline_args:
-        cmdline_string += [*cmdline_args]
-    cmdline_string += flags
+    cmdline_string = flags + ["--", binary_path, *cmdline_args]
 
     return generate_config_from_cmdline(cmdline_string)
 
