@@ -30,7 +30,7 @@ CommandLineOption(
 )
 
 CommandLineOption(
-    "export", action="store_true", help="Export dynamic trace data."
+    "export_trace", action="store_true", help="Export dynamic trace data."
 )
 
 
@@ -45,7 +45,7 @@ class Overlay(IPlugin):
         self.logger = logging.getLogger(__name__)
 
         self.export_mem = z.config.export_mem
-        self.export_trace = z.config.export
+        self.export_trace = z.config.export_trace
 
         if (
             self.export_trace

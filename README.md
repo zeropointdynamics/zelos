@@ -30,14 +30,14 @@ To emulate a binary with default options:
 $ zelos my_binary
 ```
 
-To view the instructions that are being executed, add the `-v` flag:
+To view the instructions that are being executed, add the `--inst` flag:
 ```console
-$ zelos -v my_binary
+$ zelos --inst my_binary
 ```
 
 You can print only the first time each instruction is executed, rather than *every* execution, using `--fasttrace`:
 ```console
-$ zelos -v --fasttrace my_binary
+$ zelos --inst --fasttrace my_binary
 ```
 
 By default, syscalls are emitted on stdout. To write syscalls to a file instead, use the `--trace_file` flag:

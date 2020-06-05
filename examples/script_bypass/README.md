@@ -34,7 +34,7 @@ and emulates normal behavior:
 from zelos import Zelos
 
 def main():
-    z = Zelos("password_check.bin", verbosity=1)
+    z = Zelos("password_check.bin", inst=True)
     z.start()
 
 if __name__ == "__main__":
@@ -92,7 +92,7 @@ To bypass this, we can ensure that this jump is never taken by writing
 
 ```python
 def patch_mem():
-    z = Zelos("password_check.bin", verbosity=1)
+    z = Zelos("password_check.bin", inst=True)
     # The address cmp instr observed above
     target_address = 0x0040107C
     # run to the address of cmp and break
@@ -128,7 +128,7 @@ it is used.
 
 ```python
 def patch_reg():
-    z = Zelos("password_check.bin", verbosity=1)
+    z = Zelos("password_check.bin", inst=True)
     # The address of the first time eax is used above
     target_address = 0x00401810
     # run to the address of cmp and break
@@ -169,7 +169,7 @@ also includes two NOP instructions since we are replacing a 4 byte instruction.
 
 ```python
 def patch_code():
-    z = Zelos("password_check.bin", verbosity=1)
+    z = Zelos("password_check.bin", inst=True)
     # The address of the cmp instr
     target_address = 0x0040107C
     # run to the address of cmp and break

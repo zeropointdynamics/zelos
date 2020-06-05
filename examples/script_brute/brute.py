@@ -24,7 +24,7 @@ DATA_DIR = path.dirname(path.abspath(__file__))
 
 
 def brute():
-    z = Zelos(path.join(DATA_DIR, "password.bin"), verbosity=1)
+    z = Zelos(path.join(DATA_DIR, "password.bin"), inst=True)
     # The address of strcmp observed above
     strcmp_address = 0x00400BB6
     # run to the address of call to strcmp and break
