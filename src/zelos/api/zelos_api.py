@@ -51,12 +51,12 @@ class Zelos:
             from zelos import Zelos
 
             # initialize zelos with binary name, 2 cmdline args, and
-            # verbosity flag set to 1
+            # turn on the inst feed to print instructions.
             z = Zelos(
                 "binary_to_emulate"
                 "ARG1",
                 "ARG2",
-                verbosity=1,
+                inst=True,
             )
     """
 

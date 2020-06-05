@@ -71,9 +71,10 @@ class ConfigTest(unittest.TestCase):
 
     def test_args_with_starting_dash(self):
         real_path = path.join(DATA_DIR, "static_elf_helloworld")
-        z = Zelos(real_path, "--first_arg")
+        z = Zelos(real_path, "--first_arg", "--second_arg")
 
         self.assertEqual("--first_arg", z.internal_engine.cmdline_args[1])
+        self.assertEqual("--second_arg", z.internal_engine.cmdline_args[2])
 
 
 def main():

@@ -30,11 +30,7 @@ CommandLineOption(
 )
 
 CommandLineOption(
-    "export_insts", action="store_true", help="Export instructions."
-)
-
-CommandLineOption(
-    "export_funcs", action="store_true", help="Export functions."
+    "export", action="store_true", help="Export dynamic trace data."
 )
 
 
@@ -48,28 +44,31 @@ class Overlay(IPlugin):
 
         self.logger = logging.getLogger(__name__)
 
-        self.mem = True if z.config.export_mem else False
-        self.insts = True if z.config.export_insts else False
-        self.funcs = True if z.config.export_funcs else False
+        self.export_mem = z.config.export_mem
+        self.export_trace = z.config.export
 
-        if (self.insts or self.funcs) and z.config.verbosity == 0:
+        if (
+            self.export_trace
+            and z.config.inst_feed == []
+            and not z.config.inst
+        ):
             self.logger.error(
                 (
                     f"You will not get instruction comments or function "
                     f"information if you are not running in verbose mode. "
-                    f'Include this flag ("-vv") if you want instruction '
-                    f"comments or function information in your overlay. "
+                    f"Include the flag --inst if you want instruction "
+                    f"comments in your overlay. "
                     f"For an additional speedup, consider also including "
-                    f'the fasttrace flag ("-vv --fasttrace").'
+                    f'the fasttrace flag ("--inst --fasttrace").'
                 )
             )
-        if self.mem or self.insts or self.funcs:
+        if self.export_mem or self.export_trace:
             original_file_name = basename(z.main_binary_path)
 
             def closure():
                 with open(f"{original_file_name}.zmu", "w") as f:
                     self.export(
-                        f, mem=self.mem, insts=self.insts, funcs=self.funcs
+                        f, trace=self.export_trace, mem=self.export_mem
                     )
                 print(
                     f"Wrote overlay to: " f"{abspath(original_file_name)}.zmu"
@@ -111,20 +110,19 @@ class Overlay(IPlugin):
                 return data[: i + 1]
         return data
 
-    def export(self, outfile=None, mem=False, insts=False, funcs=False):
+    def export(self, outfile=None, trace=False, mem=False):
         """
-        Exports memory, instruction, or function info of the main binary.
+        Exports trace or memory info of the main binary.
 
         Args:
-            outfile: A file-like object to which output will be written. If
-                not specified, snapshot will create a file with the name
-                "memory_dump.zmu" to which output will be written.
-            mem: Bool that determines whether or not to export mapped memory
-                regions
-            insts: Bool that determines whether or not to export traced
-                instructions
-            funcs: Bool that determines whether or not to export traced
-                functions
+            outfile: A file-like object to which output will be written.
+                If not specified, snapshot will create a file with the
+                name "memory_dump.zmu" to which output will be written.
+            trace: Bool that determines whether or not to export traced
+                info.
+            mem: Bool that determines whether or not to export mapped
+                memory regions.
+
 
         """
         out_map = {}
@@ -203,7 +201,7 @@ class Overlay(IPlugin):
                 else:
                     print(line)
 
-        if insts:
+        if trace:
             for c in self.zelos.plugins.trace.comments:
                 cmt = {}
                 cmt["address"] = c.address
@@ -211,7 +209,6 @@ class Overlay(IPlugin):
                 cmt["text"] = c.text
                 out_map["comments"].append(cmt)
 
-        if funcs:
             for addr in self.zelos.plugins.trace.functions_called.keys():
                 function = {}
                 function["address"] = addr

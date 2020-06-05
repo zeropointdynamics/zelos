@@ -58,7 +58,7 @@ class FeedTest(unittest.TestCase):
         z = Zelos(
             path.join(DATA_DIR, "static_elf_helloworld"),
             syscall_feed="syscall=set_thread_area",
-            stop_feed="syscall=readlink",
+            no_feeds=["", "syscall=readlink"],
             inst_feed="syscall=fstat64",
             func_feed="syscall=write",
         )

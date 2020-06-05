@@ -146,6 +146,11 @@ def generate_parser():
             "specified by using this flag multiple times."
         ),
     )
+    group_feeds.add_argument(
+        "--inst",
+        action="store_true",
+        help=("Shortcut for setting the starting feed level to INST"),
+    )
 
     group_feeds.add_argument(
         "--func_feed",
@@ -160,6 +165,12 @@ def generate_parser():
             "to set the feed level to FUNC. Multiple triggers can be "
             "specified by using this flag multiple times."
         ),
+    )
+
+    group_feeds.add_argument(
+        "--func",
+        action="store_true",
+        help=("Shortcut for setting the starting feed level to FUNC"),
     )
 
     group_feeds.add_argument(
@@ -179,7 +190,16 @@ def generate_parser():
     )
 
     group_feeds.add_argument(
-        "--stop_feed",
+        "--syscall",
+        action="store_true",
+        help=(
+            "Shortcut for setting the starting feed level to SYSCALL. "
+            "This is a no-op since the default feel level is SYSCALL."
+        ),
+    )
+
+    group_feeds.add_argument(
+        "--no_feeds",
         action="append",
         nargs="?",
         default=[],
@@ -191,6 +211,7 @@ def generate_parser():
             "can be specified by using this flag multiple times."
         ),
     )
+
     group_logging.add_argument(
         "--writetrace",
         type=str,
