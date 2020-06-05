@@ -26,7 +26,7 @@ DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 
 class ZelosTest(unittest.TestCase):
     def test_static_elf_unpatched(self):
-        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"), shutup=True)
+        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"), trace_off=True)
         z.start(timeout=3)
 
         self.assertEqual(
@@ -34,7 +34,7 @@ class ZelosTest(unittest.TestCase):
         )
 
     def test_static_elf(self):
-        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"), shutup=True)
+        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"), trace_off=True)
         z.start(timeout=3)
 
         self.assertEqual(
@@ -45,7 +45,7 @@ class ZelosTest(unittest.TestCase):
         z = Zelos(
             path.join(DATA_DIR, "ld-linux.so"),
             "./dynamic_elf_helloworld",
-            shutup=True,
+            trace_off=True,
         )
         z.internal_engine.files.add_file(
             path.join(DATA_DIR, "dynamic_elf_helloworld")
@@ -58,7 +58,9 @@ class ZelosTest(unittest.TestCase):
         )
 
     def test_dynamic_elf_directly(self):
-        z = Zelos(path.join(DATA_DIR, "dynamic_elf_helloworld"), shutup=True)
+        z = Zelos(
+            path.join(DATA_DIR, "dynamic_elf_helloworld"), trace_off=True
+        )
         z.start(timeout=3)
 
         self.assertEqual(
@@ -66,7 +68,9 @@ class ZelosTest(unittest.TestCase):
         )
 
     def test_socket_elf(self):
-        z = Zelos(path.join(DATA_DIR, "static-socket-x86-musl"), shutup=True)
+        z = Zelos(
+            path.join(DATA_DIR, "static-socket-x86-musl"), trace_off=True
+        )
         z.internal_engine.network.disable_whitelist()
         z.start(timeout=5)
 

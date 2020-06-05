@@ -151,7 +151,7 @@ class TestYaraScanPlugin(unittest.TestCase):
             # Init `zelos` and request yara scanning post-emulation.
             z = Zelos(
                 path.join(DATA_DIR, "static_elf_helloworld"),
-                shutup=True,
+                trace_off=True,
                 yara_file=filename3,
                 yara_file_glob=testglob,
                 yara_rule=r"/hello\sworld!/nocase",

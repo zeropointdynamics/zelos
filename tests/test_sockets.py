@@ -28,7 +28,7 @@ DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 
 class ZelosTest(unittest.TestCase):
     def test_dga_example(self):
-        z = Zelos(path.join(DATA_DIR, "dns_socket_test"), shutup=True)
+        z = Zelos(path.join(DATA_DIR, "dns_socket_test"), trace_off=True)
         syscalls_called = []
 
         def record_syscalls(z, syscall_name, args, return_value):

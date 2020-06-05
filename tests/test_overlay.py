@@ -19,6 +19,8 @@
 from __future__ import absolute_import
 
 import json
+import os
+import tempfile
 import unittest
 
 from io import StringIO
@@ -51,36 +53,29 @@ class OverlayTest(unittest.TestCase):
             path.join(DATA_DIR, "static_elf_helloworld"),
             inst=True,
             fasttrace=True,
+            export=True,
         )
 
-        z.start()
+        directory = tempfile.TemporaryDirectory()
+        # The exported file is written to the directory that zelos is
+        # run in
+        original_dir = os.path.abspath(os.path.curdir)
+        try:
+            os.chdir(directory.name)
+            z.start()
+            z.close()
+        finally:
+            os.chdir(original_dir)
 
-        output = StringIO()
-        z.plugins.overlay.export(output, insts=True)
-        output.seek(0)
+        output = open(path.join(directory.name, "static_elf_helloworld.zmu"))
 
         data = output.read()[len("DISAS\n") :]
         memdump = json.loads(data)
 
         self.assertGreaterEqual(len(memdump["comments"]), 8277)
 
+        self.assertEqual(len(memdump["functions"]), 244)
+
         self.assertEqual(memdump["comments"][0]["address"], 134515568)
         self.assertEqual(memdump["comments"][0]["text"], "ebp = 0x0")
-
-    def test_overlay_functions(self):
-        z = Zelos(
-            path.join(DATA_DIR, "static_elf_helloworld"),
-            inst=True,
-            fasttrace=True,
-        )
-
-        z.start()
-
-        output = StringIO()
-        z.plugins.overlay.export(output, funcs=True)
-        output.seek(0)
-
-        data = output.read()[len("DISAS\n") :]
-        memdump = json.loads(data)
-
-        self.assertEqual(len(memdump["functions"]), 244)
+        output.close()
