@@ -94,20 +94,12 @@ def generate_parser():
         "(default: '/home/admin/zelos_dir/').",
     )
     group_logging.add_argument(
-        "-v",
-        "--verbosity",
-        action="count",
-        default=0,
-        help="Increase output verbosity. Enables instruction-level tracing.",
-    )
-    group_logging.add_argument(
         "--log",
         type=str,
         default="info",
         help="Decide what level of logging should be used. LOG is "
         "'info', 'verbose', 'debug', 'spam', 'notice', 'warning', 'success', "
-        "'error', or 'fatal'. Note that this does not affect "
-        "verbosity. (default: 'info')",
+        "'error', or 'fatal'. (default: 'info')",
     )
     group_networking.add_argument(
         "--dns",

@@ -53,7 +53,7 @@ class OverlayTest(unittest.TestCase):
             path.join(DATA_DIR, "static_elf_helloworld"),
             inst=True,
             fasttrace=True,
-            export=True,
+            export_trace=True,
         )
 
         directory = tempfile.TemporaryDirectory()

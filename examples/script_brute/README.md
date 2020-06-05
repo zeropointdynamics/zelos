@@ -34,7 +34,7 @@ We start with a script that loads the binary and emulates normal behavior:
 from zelos import Zelos
 
 def brute():
-    z = Zelos("password.bin", verbosity=1)
+    z = Zelos("password.bin", inst=True)
     # Start execution
     z.start()
 
@@ -68,7 +68,7 @@ from zelos import Zelos
 
 
 def brute():
-    z = Zelos("password.bin", verbosity=1)
+    z = Zelos("password.bin", inst=True)
     # The address of strcmp observed above
     strcmp_address = 0x00400BB6
     # run to the address of call to strcmp and break
@@ -135,7 +135,7 @@ from zelos import Zelos
 
 
 def brute():
-    z = Zelos("password.bin", verbosity=1)
+    z = Zelos("password.bin", inst=True)
     # The address of strcmp observed above
     strcmp_address = 0x00400BB6
     # run to the address of call to strcmp and break
