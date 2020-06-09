@@ -267,6 +267,7 @@ class Zelos:
         syscall_hook_type: HookType.SYSCALL,
         callback: Callable[["Zelos", str, "Args", int], Any],
         name: str = None,
+        syscall_name: str = None,
     ) -> HookInfo:
         """
         Registers a closure that is called when a syscall is invoked.
@@ -280,6 +281,8 @@ class Zelos:
                 following inputs:
                 (zelos, syscall_name, args, return_value)
                 The return value of "callback" is ignored.
+            syscall_name: Restricts calls of the hook to syscalls that
+                match the given name.
             name: An identifier for this hook. Used for debugging.
 
         Example:
@@ -300,7 +303,7 @@ class Zelos:
 
         """
         return self.internal_engine.hook_manager.register_syscall_hook(
-            syscall_hook_type, callback, name
+            syscall_hook_type, callback, name=name, syscall_name=syscall_name
         )
 
     def delete_hook(self, hook_info: HookInfo) -> None:
