@@ -130,6 +130,7 @@ def generate_parser():
         nargs="?",
         default=[],
         const="",
+        metavar="ZML_STRING",
         help=(
             "Provided without input, sets the feed level to INST. "
             "This results in enabling the inst, api, and syscall feeds."
@@ -150,6 +151,7 @@ def generate_parser():
         nargs="?",
         default=[],
         const="",
+        metavar="ZML_STRING",
         help=(
             "Provided without input, sets the feed level to FUNC. "
             "This results in enabling the func and syscall feeds."
@@ -171,6 +173,7 @@ def generate_parser():
         nargs="?",
         default=[],
         const="",
+        metavar="ZML_STRING",
         help=(
             "Provided without input, sets the feed level to SYSCALL. "
             "This results in enabling only the syscall feed."
@@ -196,6 +199,7 @@ def generate_parser():
         nargs="?",
         default=[],
         const="",
+        metavar="ZML_STRING",
         help=(
             "Provided without input, sets the feed level to NONE, disabling "
             "all feeds. Alternatively, A ZML string can be used to specify "
