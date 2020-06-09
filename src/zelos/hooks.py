@@ -241,8 +241,17 @@ class HookManager:
         )
 
     def register_syscall_hook(
-        self, syscall_hook_type, callback, name=None
+        self, syscall_hook_type, callback, name=None, syscall_name=None
     ) -> HookInfo:
+        if syscall_name is not None:
+
+            def syscall_callback_wrapper(zelos, sysname, args, retval):
+                if sysname == syscall_name:
+                    return callback(zelos, sysname, args, retval)
+
+            return self._add_zelos_hook(
+                syscall_hook_type, syscall_callback_wrapper, name
+            )
         return self._add_zelos_hook(syscall_hook_type, callback, name)
 
     def register_exception_hook(self, callback, name=None) -> HookInfo:
