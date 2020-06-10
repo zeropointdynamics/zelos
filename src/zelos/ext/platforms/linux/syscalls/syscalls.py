@@ -23,7 +23,7 @@ import time
 
 from os import path
 
-from zebracorn.zebracorn import UcError
+from zebracorn import UcError
 
 from zelos import handles
 from zelos.enums import ProtType

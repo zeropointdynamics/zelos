@@ -379,7 +379,7 @@ class Engine:
         p.virtual_filename = self.config.virtual_filename
         p.virtual_path = self.config.virtual_path
 
-        if hasattr(zebracorn.zebracorn, "WITH_ZEROPOINT_PATCH"):
+        if hasattr(zebracorn.unicorn, "WITH_ZEROPOINT_PATCH"):
 
             def process_switch_wrapper(*args, **kwargs):
                 # Block count interrupt. Fires every 2^N blocks executed
