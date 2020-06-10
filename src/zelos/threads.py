@@ -20,7 +20,7 @@ from collections import defaultdict
 from enum import Enum
 from typing import Any, Callable, List, Optional
 
-from unicorn import UC_PROT_READ, UC_PROT_WRITE
+from zebracorn import UC_PROT_READ, UC_PROT_WRITE
 
 import zelos.util as util
 

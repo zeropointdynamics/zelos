@@ -46,7 +46,7 @@ class HookManagerTest(unittest.TestCase):
         z.step()
         action.assert_called()
 
-        hm._delete_unicorn_hook(handle)
+        hm._delete_zebracorn_hook(handle)
         action.reset_mock()
         action.assert_not_called()
         z.step()

@@ -307,9 +307,9 @@ class IEmuHelper:
     of life reasons.
     """
 
-    def __init__(self, unicorn_engine, state):
+    def __init__(self, zebracorn_engine, state):
         self.state = state
-        self._uc = unicorn_engine
+        self._uc = zebracorn_engine
         self._logger = logging.getLogger(__name__)
         self._is_running = False
         self._managed_ctype_buffers = dict()
@@ -740,8 +740,8 @@ def create_emulator(arch, mode, state) -> IEmuHelper:
     """
     Factory method for constructing the appropriate IEmuHelper
     """
-    from unicorn import Uc, UC_ARCH_ARM, UC_ARCH_MIPS, UC_ARCH_X86
-    from unicorn.unicorn import UcError
+    from zebracorn import Uc, UC_ARCH_ARM, UC_ARCH_MIPS, UC_ARCH_X86
+    from zebracorn.zebracorn import UcError
 
     try:
         uc = Uc(arch, mode)
@@ -768,6 +768,6 @@ def create_emulator(arch, mode, state) -> IEmuHelper:
             )
     except UcError:
         raise ZelosLoadException(
-            f"Custom unicorn does not support the arch/mode/bits"
+            f"Custom zebracorn does not support the arch/mode/bits"
             + f" {arch}/{mode}/{state.bits}"
         )

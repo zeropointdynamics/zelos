@@ -19,7 +19,7 @@ from __future__ import absolute_import
 # License along with this program.  If not, see
 import unittest
 
-from unicorn import UC_ARCH_X86, UC_MODE_32
+from zebracorn import UC_ARCH_X86, UC_MODE_32
 
 from zelos import Zelos
 from zelos.emulator import create_emulator

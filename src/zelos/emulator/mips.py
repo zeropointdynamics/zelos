@@ -14,7 +14,7 @@
 # License along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
-import unicorn.mips_const as uc
+import zebracorn.mips_const as uc
 
 from .base import IEmuHelper
 

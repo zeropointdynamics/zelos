@@ -18,7 +18,7 @@ import logging
 
 from typing import Callable, Dict, List
 
-import unicorn as uc
+import zebracorn as uc
 
 from zelos.emulator import create_emulator
 from zelos.emulator.base import IEmuHelper

@@ -1,6 +1,6 @@
 from enum import Enum, IntEnum, auto
 
-from unicorn import (
+from zebracorn import (
     UC_PROT_ALL,
     UC_PROT_EXEC,
     UC_PROT_NONE,

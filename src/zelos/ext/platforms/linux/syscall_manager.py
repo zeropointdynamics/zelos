@@ -248,7 +248,7 @@ class X86_64SyscallManager(LinuxSyscallManager):
             """
             We need to execute a syscall at this point, however,
             certain syscalls may not be runnable within a hook (they
-            cause unicorn to execute code which is not allowed in a
+            cause zebracorn to execute code which is not allowed in a
             hook)
             """
             handle_syscall_closure = functools.partial(

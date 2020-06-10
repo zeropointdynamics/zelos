@@ -21,7 +21,7 @@ import logging
 from collections import defaultdict
 from typing import Any, Callable, Optional
 
-import unicorn as uc
+import zebracorn as uc
 
 from zelos.enums import HookType
 from zelos.exceptions import InvalidHookTypeException, ZelosRuntimeException
@@ -56,7 +56,7 @@ class HookInfo:
         return hook_string
 
 
-def _zelos_hook_to_unicorn(hook_type):
+def _zelos_hook_to_zebracorn(hook_type):
     return {
         HookType.MEMORY.READ: uc.UC_HOOK_MEM_READ,
         HookType.MEMORY.WRITE: uc.UC_HOOK_MEM_WRITE,
@@ -97,8 +97,8 @@ class HookManager:
         self._cross_process_hooks = {}
 
         # Used to keep track of hook deletions that need to occur once
-        # unicorn is done running (since they can't safely occur while
-        # unicorn is running).
+        # zebracorn is done running (since they can't safely occur while
+        # zebracorn is running).
         self._to_delete_closures = []
 
     def register_mem_hook(
@@ -144,7 +144,7 @@ class HookManager:
         def memhook_wrapper(uc, access, address, size, value, user_data):
             return callback(self.api, access, address, size, value)
 
-        return self._add_unicorn_hook(
+        return self._add_zebracorn_hook(
             hook_type,
             memhook_wrapper,
             name,
@@ -195,7 +195,7 @@ class HookManager:
         def exechook_wrapper(uc, address, size, user_data):
             return callback(self.api, address, size)
 
-        return self._add_unicorn_hook(
+        return self._add_zebracorn_hook(
             hook_type,
             exechook_wrapper,
             name,
@@ -232,7 +232,7 @@ class HookManager:
         def insttype_hook_wrapper(uc, user_data):
             return callback(self.api)
 
-        return self._add_unicorn_hook(
+        return self._add_zebracorn_hook(
             inst_type,
             insttype_hook_wrapper,
             name=name,
@@ -285,8 +285,8 @@ class HookManager:
             self._stop_to_delete_hook(closure)
             return
 
-        if self._is_unicorn_hook(hook_info.type):
-            self._delete_unicorn_hook(hook_info.handle)
+        if self._is_zebracorn_hook(hook_info.type):
+            self._delete_zebracorn_hook(hook_info.handle)
         else:
             try:
                 del self._hooks[hook_info.type][hook_info.handle]
@@ -306,28 +306,28 @@ class HookManager:
         """
         if self.z.emu.is_running:
             self.logger.critical(
-                "Attempting to clear hooks while unicorn is running. "
+                "Attempting to clear hooks while zebracorn is running. "
                 "You might have a bad time."
             )
         for closure in self._to_delete_closures:
             closure()
         self._to_delete_closures.clear()
 
-    def _delete_unicorn_hook(self, handle):
+    def _delete_zebracorn_hook(self, handle):
         """
-        Deleting unicorn hooks can cause issues if done while unicorn
+        Deleting zebracorn hooks can cause issues if done while zebracorn
         is running. To get around this, we should register the deletions
-        and then stop unicorn to trigger them.
+        and then stop zebracorn to trigger them.
         """
         if self.z.emu.is_running:
-            closure = functools.partial(self._delete_unicorn_hook, handle)
+            closure = functools.partial(self._delete_zebracorn_hook, handle)
             self._stop_to_delete_hook(closure)
             return
         del self._cross_process_hooks[handle]
         for p in self.z.processes.process_list:
-            p.hooks._delete_unicorn_hook(handle)
+            p.hooks._delete_zebracorn_hook(handle)
 
-    def _is_unicorn_hook(self, hook_type):
+    def _is_zebracorn_hook(self, hook_type):
         if isinstance(
             hook_type, (HookType.MEMORY, HookType.EXEC)
         ) or hook_type in [HookType._OTHER.INTERRUPT]:
@@ -337,7 +337,7 @@ class HookManager:
         ) or hook_type in [HookType._OTHER.CLOSE]:
             return False
         raise Exception(
-            f"Unsure whether {hook_type} is a type of unicorn hook."
+            f"Unsure whether {hook_type} is a type of zebracorn hook."
         )
         return False
 
@@ -352,7 +352,7 @@ class HookManager:
         Incorporates the self deletion triggered by the end_condition
         into the callback.
         """
-        # TODO(v): Make this function generic so non-unicorn hooks can
+        # TODO(v): Make this function generic so non-zebracorn hooks can
         # also have an end condition argument.
         done = False
 
@@ -365,17 +365,17 @@ class HookManager:
                 callback(*args)
                 if end_condition():
                     done = True
-                    self._delete_unicorn_hook(handle)
+                    self._delete_zebracorn_hook(handle)
             except Exception:
                 self.logger.exception(
                     f"Hook {name} failed to execute. Deleting now"
                 )
                 done = True
-                self._delete_unicorn_hook(handle)
+                self._delete_zebracorn_hook(handle)
 
         return wrapper
 
-    def _add_unicorn_hook(
+    def _add_zebracorn_hook(
         self,
         hook_type,
         callback,
@@ -386,7 +386,7 @@ class HookManager:
     ) -> HookInfo:
         """
         A cross process hook must accept a process as the first
-        argument, followed by the arguments expected by a unicorn hook
+        argument, followed by the arguments expected by a zebracorn hook
         of the given hook_type.
         """
         handle = self._hook_index
@@ -465,7 +465,7 @@ class Hooks:
         end_addr=None,
     ) -> None:
         """
-        Adds a hook to unicorn. Depending on the hook type, the callback
+        Adds a hook to zebracorn. Depending on the hook type, the callback
         is triggered at different moments, such as on ever instruction
         or every basic block. In addition, if you specify an address
         region, the hook will only run on those addresses. Restricting
@@ -473,24 +473,24 @@ class Hooks:
         speedups.
         """
         if isinstance(zelos_hook_type, HookType._INST):
-            unicorn_hook_type = uc.UC_HOOK_INSN
-            arg1 = _zelos_hook_to_unicorn(zelos_hook_type)
+            zebracorn_hook_type = uc.UC_HOOK_INSN
+            arg1 = _zelos_hook_to_zebracorn(zelos_hook_type)
         else:
-            unicorn_hook_type = _zelos_hook_to_unicorn(zelos_hook_type)
+            zebracorn_hook_type = _zelos_hook_to_zebracorn(zelos_hook_type)
             arg1 = 0
 
         try:
             if start_addr is not None:
-                unicorn_handle = self.emu.hook_add(
-                    unicorn_hook_type,
+                zebracorn_handle = self.emu.hook_add(
+                    zebracorn_hook_type,
                     callback,
                     begin=start_addr,
                     end=end_addr,
                     arg1=arg1,
                 )
             else:
-                unicorn_handle = self.emu.hook_add(
-                    unicorn_hook_type, callback, arg1=arg1
+                zebracorn_handle = self.emu.hook_add(
+                    zebracorn_hook_type, callback, arg1=arg1
                 )
 
         except uc.UcError:
@@ -499,23 +499,23 @@ class Hooks:
                 f"type {zelos_hook_type}, arg1 {arg1}"
             )
 
-        self._hook_dict[handle] = unicorn_handle
+        self._hook_dict[handle] = zebracorn_handle
 
-    def _delete_unicorn_hook(self, zelos_handle):
+    def _delete_zebracorn_hook(self, zelos_handle):
         if self.emu.is_running:
             self.logger.critical(
-                "Attempting to delete hooks while unicorn is running. "
+                "Attempting to delete hooks while zebracorn is running. "
                 "You might have a bad time."
             )
-        unicorn_handle = self._hook_dict[zelos_handle]
-        self.emu.hook_del(unicorn_handle)
+        zebracorn_handle = self._hook_dict[zelos_handle]
+        self.emu.hook_del(zebracorn_handle)
 
     def del_hook(self, name):
         if name not in self._hook_dict:
             self.logger.notice("No hook with name %s" % name)
             return
         handle = self._hook_dict.pop(name)
-        self._delete_unicorn_hook(handle)
+        self._delete_zebracorn_hook(handle)
 
     def print_active_hooks(self):
         print("Permanent Hooks:")
@@ -560,7 +560,7 @@ class InterruptHooks:
         def interrupt_hook_wrapper(uc, intno, userdata):
             self._hook_interrupt(self._z.api, intno)
 
-        hook_info = self.hook_manager._add_unicorn_hook(
+        hook_info = self.hook_manager._add_zebracorn_hook(
             HookType._OTHER.INTERRUPT,
             interrupt_hook_wrapper,
             name="interrupt_hook",
