@@ -457,7 +457,7 @@ def recvfrom(sm, p, args_addr):
         if len(data) > 0:
             p.memory.write(args.buf, data)
         return len(data)
-    except BlockingIOError e:
+    except BlockingIOError as e:
         sm.set_errno(e.errno)
         return -e.errno
     except Exception as e:
