@@ -19,10 +19,12 @@
 
 from __future__ import absolute_import
 
+import io
 import tempfile
 import unittest
 
 from os import path
+from unittest.mock import patch
 
 from zelos import Zelos
 from zelos.handles import FileHandle
@@ -97,6 +99,16 @@ class HandleTest(unittest.TestCase):
         self.assertEqual(handle.size(), 0)
         handle.truncate(0x100)
         self.assertEqual(handle.size(), 0x100)
+
+    def test_stdin_redirect(self):
+        new_stdin = io.TextIOWrapper(
+            io.BufferedReader(io.BytesIO(b"test data"))
+        )
+        with patch("sys.stdin", new=new_stdin):
+            z = Zelos(path.join(DATA_DIR, "read_stdin"), trace_off=True)
+            with patch("sys.stdout", new=io.StringIO()) as stdout:
+                z.start()
+                self.assertIn("string is: test data", stdout.getvalue())
 
 
 def main():

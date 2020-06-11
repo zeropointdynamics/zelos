@@ -19,6 +19,7 @@ from __future__ import print_function
 import io
 import logging
 import os
+import sys
 
 from collections import defaultdict
 from typing import List, Optional, Tuple
@@ -316,7 +317,17 @@ class Handles:
 
         def init_handles(p):
             # Add some default system handles
-            self.add_handle(StdIn(), handle_num=0, pid=p.pid)
+            if not sys.stdin.isatty() and isinstance(
+                sys.stdin, io.TextIOWrapper
+            ):
+                self.new_file(
+                    "stdin_redirect",
+                    handle_num=0,
+                    file=sys.stdin.buffer,
+                    pid=p.pid,
+                )
+            else:
+                self.add_handle(StdIn(), handle_num=0, pid=p.pid)
             self.add_handle(StdOut(), handle_num=1, pid=p.pid)
             self.add_handle(StdErr(), handle_num=2, pid=p.pid)
 
@@ -358,8 +369,11 @@ class Handles:
     # ALPC Port,Semaphore,WindowStation,etc.} handle
 
     def _current_thread_name(self) -> str:
-        curr_thread = self.processes.current_process.current_thread
-        return "none" if curr_thread is None else curr_thread.name
+        try:
+            curr_thread = self.processes.current_process.current_thread
+            return curr_thread.name
+        except AttributeError:
+            return "none"
 
     def new(self, T, name, access=0, handle_num=None):
         """
@@ -372,13 +386,19 @@ class Handles:
         return handle_num
 
     def new_file(
-        self, name, access=0, handle_num=None, is_dir=False, file=None
+        self,
+        name,
+        access=0,
+        handle_num=None,
+        is_dir=False,
+        file=None,
+        pid=None,
     ):
         parent_thread = self._current_thread_name()
         handle = FileHandle(
             name, self.file_system, parent_thread, access, is_dir, file=file
         )
-        handle_num = self.add_handle(handle, handle_num=handle_num)
+        handle_num = self.add_handle(handle, handle_num=handle_num, pid=pid)
         return handle_num
 
     def new_socket(self, name, socket, access=0, handle_num=None):
