@@ -464,9 +464,11 @@ class IEmuHelper:
     def hook_add(
         self, htype, callback, user_data=None, begin=1, end=0, arg1=0
     ):
+        assert not self.is_running
         return self._uc.hook_add(htype, callback, user_data, begin, end, arg1)
 
     def hook_del(self, h):
+        assert not self.is_running
         return self._uc.hook_del(h)
 
     def mem_map(
