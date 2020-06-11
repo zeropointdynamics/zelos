@@ -429,9 +429,10 @@ class HookManager:
 class Hooks:
     """ Keeps track of the hooks that are in action."""
 
-    def __init__(self, emu, threads):
+    def __init__(self, emu, threads, scheduler):
         self.emu = emu
         self.threads = threads
+        self.scheduler = scheduler
         self.logger = logging.getLogger(__name__)
 
         # Used for hooks that will be active until a user deactivates.
@@ -472,6 +473,18 @@ class Hooks:
         the addresses that a hook can trigger can result in considerable
         speedups.
         """
+        if self.emu.is_running:
+            add_hook_callback = functools.partial(
+                self.add_hook,
+                zelos_hook_type,
+                callback,
+                handle,
+                name=name,
+                start_addr=start_addr,
+                end_addr=end_addr,
+            )
+            self.scheduler.stop_and_exec("add_hook", add_hook_callback)
+            return
         if isinstance(zelos_hook_type, HookType._INST):
             unicorn_hook_type = uc.UC_HOOK_INSN
             arg1 = _zelos_hook_to_unicorn(zelos_hook_type)
