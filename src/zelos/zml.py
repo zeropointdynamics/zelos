@@ -1,8 +1,8 @@
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Optional
 
 from lark import Lark, Transformer
 
-from zelos.hooks import HookType
+from zelos.hooks import HookInfo, HookType
 
 
 """
@@ -70,9 +70,10 @@ class SyscallConditionList(ConditionList):
             if self.is_satisfied(zelos, sysname, args, retval):
                 action()
 
-        zelos.hook_syscalls(
+        hook_info = zelos.hook_syscalls(
             HookType.SYSCALL.AFTER, trigger_when, "on_syscall_conditionlist"
         )
+        return hook_info
 
 
 class ApiConditionList(ConditionList):
@@ -102,13 +103,14 @@ class AddressConditionList(ConditionList):
 
         address = self._conditions["addr"]
 
-        zelos.hook_execution(
+        hook_info = zelos.hook_execution(
             HookType.EXEC.INST,
             trigger_when,
             ip_low=address,
             ip_high=address,
             name="on_thread_conditionlist",
         )
+        return hook_info
 
 
 class ThreadConditionList(ConditionList):
@@ -124,9 +126,10 @@ class ThreadConditionList(ConditionList):
             if self.is_satisfied(zelos):
                 action()
 
-        zelos.internal_engine.hook_manager.register_thread_hook(
+        hook_info = zelos.internal_engine.hook_manager.register_thread_hook(
             HookType.THREAD.SWAP, trigger_when, "on_thread_conditionlist"
         )
+        return hook_info
 
 
 class EmptyConditionList:
@@ -138,6 +141,7 @@ class EmptyConditionList:
     def act_when_satisfied(self, zelos, action: Callable[[], Any]):
         # Nothing stopping this from immediately happening.
         action()
+        return None
 
 
 class ZmlParser:
@@ -188,7 +192,7 @@ class ZmlParser:
             return
         zml_object.act_when_satisfied(self.zelos, action)
 
-    def parse_zml_string(self, zml_string: str):
+    def parse_zml_string(self, zml_string: str) -> Optional[HookInfo]:
         if zml_string == "":
             return EmptyConditionList()
 
