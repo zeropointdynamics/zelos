@@ -79,13 +79,7 @@ class ProcessesTest(unittest.TestCase):
 
         new_pid = p1.emu.get_reg("eax")
         p2 = z.internal_engine.processes.get_process(new_pid)
-        # We add 2 to the IP of P1 because, since Zelos is not actually
-        # running, the callback of stop_and_exec that is defined inside
-        # handle_syscall is never invoked and the parent process IP is
-        # never incremented.
-        # This is just for this test, as during normal execution this
-        # would not be the case.
-        self.assertEqual(p1.emu.getIP() + 2, p2.emu.getIP())
+        self.assertEqual(p1.emu.getIP(), p2.emu.getIP())
         self.assertEqual(p2.emu.get_reg("eax"), 0)
 
 

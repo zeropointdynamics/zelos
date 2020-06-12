@@ -218,26 +218,6 @@ class X86SyscallManager(LinuxSyscallManager):
     def return_addr(self):
         return self.emu.getIP() + 2
 
-    def handle_syscall(self, *args, **kwargs):
-        """
-        Calls the corresponding syscall with given name or number.
-        """
-        t = self.z.current_process.current_thread
-        addr = t.getIP()
-
-        super(X86SyscallManager, self).handle_syscall(*args, **kwargs)
-
-        if self.syscall_break_name is None:
-
-            def set_ip():
-                t.setIP(addr + 2)
-
-            self.z.scheduler.stop_and_exec("handle_syscall", set_ip)
-        else:
-            self.pending_ip_change = addr + 2
-
-        return True
-
 
 class X86_64SyscallManager(LinuxSyscallManager):
     def __init__(self, engine):
@@ -410,22 +390,6 @@ class MIPSSyscallManager(LinuxSyscallManager):
     _REG_ARGS = ["a0", "a1", "a2", "a3"]
     _REG_RETURN = "v0"
     _REG_RETURN_2 = "v1"
-
-    def handle_syscall(self, *args, **kwargs):
-        super(MIPSSyscallManager, self).handle_syscall(*args, **kwargs)
-
-        return_address = self.emu.getIP() + 4
-
-        if self.syscall_break_name is None:
-
-            def set_ip():
-                self.emu.setIP(return_address)
-
-            self.z.scheduler.stop_and_exec("handle_syscall", set_ip)
-        else:
-            self.pending_ip_change = return_address
-
-        return True
 
     def get_syscall_number(self):
         return self.emu.get_reg("v0")
