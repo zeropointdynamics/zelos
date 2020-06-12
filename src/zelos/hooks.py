@@ -258,6 +258,15 @@ class HookManager:
         self.z.exception_handler.register_exception_handler(callback)
         return HookInfo(HookType._OTHER.EXCEPTION, callback, None, name)
 
+    def register_zml_hook(
+        self, zml_string: str, closure: Callable[[], Any], name=None
+    ) -> HookInfo:
+        """
+        Registers a hook that is triggered when a zml string is
+        satisfied.
+        """
+        return self.z.zml_parser.trigger_on_zml(closure, zml_string)
+
     def register_close_hook(
         self, closure: Callable[[], Any], name=None
     ) -> HookInfo:
