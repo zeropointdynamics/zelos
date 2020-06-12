@@ -63,7 +63,7 @@ class Overlay(IPlugin):
                 )
             )
         if self.export_mem or self.export_trace:
-            original_file_name = basename(z.main_binary_path)
+            original_file_name = basename(z.target_binary_path)
 
             def closure():
                 with open(f"{original_file_name}.zmu", "w") as f:
