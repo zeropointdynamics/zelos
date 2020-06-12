@@ -15,6 +15,7 @@
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
 
+import ida_kernwin
 import idaapi
 import idc
 
@@ -30,7 +31,7 @@ class ApplyZelosOverlay(idaapi.action_handler_t):  # pragma: no cover
     def activate(self, ctx):
         import json
 
-        filepath = idc.AskFile(
+        filepath = ida_kernwin.ask_file(
             False, "*.zmu;*.overlay;*", "Load Zelos Overlay..."
         )
         if filepath is None:
@@ -56,10 +57,10 @@ class ApplyZelosOverlay(idaapi.action_handler_t):  # pragma: no cover
             idaapi.set_cmt(ea, comment_text, False)
 
             # Set function name if not already changed
-            idc.GetFunctionAttr(ea, idc.FUNCATTR_START)
-            name = idc.GetFunctionName(ea)
+            idc.get_func_attr(ea, idc.FUNCATTR_START)
+            name = idc.get_func_name(ea)
             if len(name) > 0 and name.startswith("zmu_") is False:
-                idc.MakeName(ea, "zmu_" + name)
+                idc.set_name(ea, "zmu_" + name)
 
         return 1
 
