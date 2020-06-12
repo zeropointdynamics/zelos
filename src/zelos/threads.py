@@ -534,7 +534,6 @@ class Threads:
     def _inactivate_with_state(self, thread_state):
         self.current_thread.state = thread_state
         self._swap(None)
-        self.emu.setIP(0x30)
         self.scheduler.stop_and_exec("inactivate thread", lambda: True)
 
     def _check_paused_threads(self):

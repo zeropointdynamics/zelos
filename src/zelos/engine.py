@@ -571,8 +571,12 @@ class Engine:
             stop_addr = p.threads.scheduler._pop_stop_addr(t.id)
             self.hook_manager._clear_deleted_hooks()
 
-        # Only set the stop addr if you stopped benignly
-        if stop_addr is not None:
+        # Only set the stop addr if you stopped benignly, and unicorn
+        # reset the ip to the beginning of the block.
+        # We ensure that we don't correct for when ip moves after the
+        # stop address because stopping at syscalls for linux x86 will
+        # result in EIP moving one instruction.
+        if stop_addr is not None and stop_addr > t.getIP():
             t.setIP(stop_addr)
 
     def _should_continue(self):

@@ -339,6 +339,10 @@ class IEmuHelper:
         for i in range(len(self._pack_bitmask)):
             self._pack_bitmask[i] = 2 ** (i * 8) - 1
 
+        # This is used while emu is running, since changing up while
+        # running can prevent Unicorn from stopping.
+        self._temp_ip = None
+
     @property
     def regmap(self):
         raise NotImplementedError()
@@ -385,11 +389,25 @@ class IEmuHelper:
 
     def get_reg(self, reg_name: str) -> int:
         try:
-            return self._uc.reg_read(self.regmap[reg_name])
+            reg_id = self.regmap[reg_name]
         except KeyError:
             raise InvalidRegException(reg_name)
+        if reg_name == self.ip_reg and self._temp_ip is not None:
+            self._logger.debug(f"Temp IP returned {self._temp_ip:x}")
+            return self._temp_ip
+        return self._uc.reg_read(reg_id)
 
     def set_reg(self, reg_name: str, val: int) -> None:
+        if reg_name == self.ip_reg and self._is_running:
+            # It would be nice if we could check that the current IP
+            # is unchanged from now until when we apply this set_reg.
+            # However, because stopping at syscalls on some
+            # architectures (x86 linux) will still increment IP, this
+            # check is not easily doable.
+            self._temp_ip = val
+            self.emu_stop()
+            self._logger.debug(f"Delaying IP set {val:x}")
+            return
         try:
             self._uc.reg_write(self.regmap[reg_name], val)
         except KeyError:
@@ -457,6 +475,15 @@ class IEmuHelper:
             return self._uc.emu_start(begin, until, timeout, count)
         finally:
             self._is_running = False
+
+            if self._temp_ip is not None:
+                self._logger.debug(
+                    f"Setting ip to new value {self._temp_ip:x}"
+                )
+
+                self.setIP(self._temp_ip)
+                self._temp_ip = None
+                self._original_ip = None
 
     def emu_stop(self):
         return self._uc.emu_stop()

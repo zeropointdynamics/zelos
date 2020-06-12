@@ -78,6 +78,20 @@ class LinuxSyscallManager(SyscallManager):
             20: "sendmmsg",
         }
 
+        # Unsafe sycalls requrire unicorn to stop before we run them.
+        # This is because unicorn will not stop when they are run.
+        # We know that mapping, unmapping, and protecting memory can
+        # cause these issues.
+        # We would like to avoid stopping since that slows down
+        # performance.
+        self._unsafe_syscalls = {
+            # "brk",
+            "mmap",
+            "mmap2",
+            "munmap",
+            "mprotect",
+        }
+
         # These are processes that are exited, and so a parent process
         # can wait on them.
         # parent_pid -> child_pid
@@ -124,6 +138,11 @@ class LinuxSyscallManager(SyscallManager):
         """
         sys_num = self.get_syscall_number()
         sys_name = self.find_syscall_name_by_number(sys_num)
+        if sys_name in self._unsafe_syscalls and self.z.emu.is_running:
+            callback = functools.partial(self.handle_syscall, process)
+            self.z.scheduler.stop_and_exec("unsafe syscall", callback)
+            return
+
         if sys_name == "socketcall":
             socketcall_args = self.get_last_syscall_args()
             args = self.get_args(
@@ -212,31 +231,14 @@ class X86SyscallManager(LinuxSyscallManager):
     def get_syscall_number(self):
         return self.emu.get_reg("eax")
 
-    def set_return_value(self, value):
+    def set_return_value(self, value) -> None:
         self.emu.set_reg("eax", value)
+
+    def get_return_value(self) -> int:
+        return self.emu.get_reg("eax")
 
     def return_addr(self):
         return self.emu.getIP() + 2
-
-    def handle_syscall(self, *args, **kwargs):
-        """
-        Calls the corresponding syscall with given name or number.
-        """
-        t = self.z.current_process.current_thread
-        addr = t.getIP()
-
-        super(X86SyscallManager, self).handle_syscall(*args, **kwargs)
-
-        if self.syscall_break_name is None:
-
-            def set_ip():
-                t.setIP(addr + 2)
-
-            self.z.scheduler.stop_and_exec("handle_syscall", set_ip)
-        else:
-            self.pending_ip_change = addr + 2
-
-        return True
 
 
 class X86_64SyscallManager(LinuxSyscallManager):
@@ -275,20 +277,11 @@ class X86_64SyscallManager(LinuxSyscallManager):
     def get_syscall_number(self):
         return self.emu.get_reg("rax")
 
-    def handle_syscall(self, *args, **kwargs):
-        t = self.z.current_thread
-        addr = t.getIP()
-        super().handle_syscall(*args, **kwargs)
-
-        if addr == t.getIP():
-
-            def set_ip():
-                t.setIP(addr + 2)
-
-            self.z.scheduler.stop_and_exec("handle_syscall", set_ip)
-
-    def set_return_value(self, value):
+    def set_return_value(self, value) -> None:
         self.emu.set_reg("rax", value)
+
+    def get_return_value(self) -> int:
+        return self.emu.get_reg("rax")
 
     def set_errno(self, val: int):
         fs_base = sys_utils.get_fs(self.z.current_process)
@@ -343,8 +336,11 @@ class ARMSyscallManager(LinuxSyscallManager):
         val = self.emu.get_reg("r7")
         return val
 
-    def set_return_value(self, value):
+    def set_return_value(self, value) -> None:
         self.emu.set_reg("r0", value)
+
+    def get_return_value(self) -> int:
+        return self.emu.get_reg("r0")
 
     def return_addr(self):
         # (V) we had this as ip+4 initially, but found that to be wrong.
@@ -411,27 +407,14 @@ class MIPSSyscallManager(LinuxSyscallManager):
     _REG_RETURN = "v0"
     _REG_RETURN_2 = "v1"
 
-    def handle_syscall(self, *args, **kwargs):
-        super(MIPSSyscallManager, self).handle_syscall(*args, **kwargs)
-
-        return_address = self.emu.getIP() + 4
-
-        if self.syscall_break_name is None:
-
-            def set_ip():
-                self.emu.setIP(return_address)
-
-            self.z.scheduler.stop_and_exec("handle_syscall", set_ip)
-        else:
-            self.pending_ip_change = return_address
-
-        return True
-
     def get_syscall_number(self):
         return self.emu.get_reg("v0")
 
     def set_return_value(self, value):
         self.emu.set_reg("v0", value)
+
+    def get_return_value(self):
+        return self.emu.get_reg("v0")
 
     def return_addr(self):
         return self.emu.getIP()
