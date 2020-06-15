@@ -258,6 +258,15 @@ class HookManager:
         self.z.exception_handler.register_exception_handler(callback)
         return HookInfo(HookType._OTHER.EXCEPTION, callback, None, name)
 
+    def register_zml_hook(
+        self, zml_string: str, closure: Callable[[], Any], name=None
+    ) -> HookInfo:
+        """
+        Registers a hook that is triggered when a zml string is
+        satisfied.
+        """
+        return self.z.zml_parser.trigger_on_zml(closure, zml_string)
+
     def register_close_hook(
         self, closure: Callable[[], Any], name=None
     ) -> HookInfo:
@@ -429,9 +438,10 @@ class HookManager:
 class Hooks:
     """ Keeps track of the hooks that are in action."""
 
-    def __init__(self, emu, threads):
+    def __init__(self, emu, threads, scheduler):
         self.emu = emu
         self.threads = threads
+        self.scheduler = scheduler
         self.logger = logging.getLogger(__name__)
 
         # Used for hooks that will be active until a user deactivates.
@@ -472,6 +482,18 @@ class Hooks:
         the addresses that a hook can trigger can result in considerable
         speedups.
         """
+        if self.emu.is_running:
+            add_hook_callback = functools.partial(
+                self.add_hook,
+                zelos_hook_type,
+                callback,
+                handle,
+                name=name,
+                start_addr=start_addr,
+                end_addr=end_addr,
+            )
+            self.scheduler.stop_and_exec("add_hook", add_hook_callback)
+            return
         if isinstance(zelos_hook_type, HookType._INST):
             zebracorn_hook_type = uc.UC_HOOK_INSN
             arg1 = _zelos_hook_to_zebracorn(zelos_hook_type)

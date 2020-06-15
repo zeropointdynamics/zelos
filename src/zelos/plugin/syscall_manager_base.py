@@ -192,7 +192,7 @@ class SyscallManager(object):
             self.logger.error(
                 (
                     f"Error in thread {thread} while executing "
-                    f"syscall {sys_name} Args: {self.last_syscall_arg}"
+                    f"syscall {sys_name} Args: {self.last_syscall_args}"
                 )
             )
             raise e

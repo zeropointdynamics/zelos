@@ -88,6 +88,18 @@ class HookManagerTest(unittest.TestCase):
         z.plugins.runner.run_to_addr(0x2B3C8)
         action.assert_not_called()
 
+    def test_hook_at_zml(self):
+        z = Zelos(path.join(DATA_DIR, "static_elf_arm_helloworld"))
+        action = Mock()
+        z.hook_zml("addr=0x2B3C4,n=1", action)
+        z.plugins.runner.stop_at(0x2B3C8)
+        z.start()
+        action.assert_called_once()
+
+        action.reset_mock()
+        z.plugins.runner.run_to_addr(0x2B3C8)
+        action.assert_not_called()
+
     def test_temp_hook_at_with_end_condition(self):
         z = Zelos(
             path.join(DATA_DIR, "static_elf_arm_helloworld"), log="debug"
