@@ -91,8 +91,10 @@ class Process:
         self.hooks = Hooks(self.emu, self.threads.scheduler)
 
     def __str__(self) -> str:
-        return f"Name: '{self.name}', pid: {self.pid:x}, "
-        f"Active threads: {self.threads.num_active_threads()}"
+        return (
+            f"Name: '{self.name}', pid: {self.pid:x}, "
+            f"Active threads: {self.threads.num_active_threads()}"
+        )
 
     @property
     def is_active(self) -> bool:
