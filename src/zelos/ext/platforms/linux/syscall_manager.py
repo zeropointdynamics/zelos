@@ -216,7 +216,7 @@ class X86SyscallManager(LinuxSyscallManager):
         self.emu.set_reg("eax", value)
 
     def return_addr(self):
-        return self.emu.getIP() + 2
+        return self.emu.getIP()
 
 
 class X86_64SyscallManager(LinuxSyscallManager):
