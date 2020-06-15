@@ -409,12 +409,12 @@ class Threads:
         current_thread_tid = None
         if self.current_thread is not None:
             current_thread_tid = self.current_thread.id
-            self.swap_with_thread(tid=t.id)
+            self._swap_with_thread(t.id)
 
         ret_val = closure()
 
         if current_thread_tid is not None:
-            self.swap_with_thread(tid=current_thread_tid)
+            self._swap_with_thread(current_thread_tid)
         return ret_val
 
     # TODO(V): Remove this function, put in timeleap
@@ -715,6 +715,16 @@ class Threads:
             self.logger.spam("Can't swap with thread, no other threads")
 
         self._swap(t)
+
+    def _swap_with_thread(self, tid=None) -> None:
+        if tid is None:
+            self._check_paused_threads()
+            t = self._next()
+        else:
+            t = self.get_thread(tid)
+        if self.current_thread is not None:
+            self.current_thread.save_context()
+        self._load(t)
 
     def _swap(self, thread):
         """
