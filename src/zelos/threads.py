@@ -717,6 +717,12 @@ class Threads:
         self._swap(t)
 
     def _swap_thread(self, tid=None) -> None:
+        """
+        Internal function that swaps the current thread with the thread
+        of the specified tid or the next available thread, without invoking
+        thread swap hooks. This function is intended to be used by functions
+        that need to temporarily swap threads internally.
+        """
         if tid is None:
             self._check_paused_threads()
             t = self._next()

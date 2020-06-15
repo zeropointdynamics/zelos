@@ -492,7 +492,7 @@ class Processes:
         self.logger.verbose(f"Loading process 0x{p.pid:x}")
         self.current_process = p
         if self.current_process.current_thread is None:
-            p.threads._swap_thread()
+            p.threads.swap_with_next_thread()
 
     def serialize_process(self, p):
         raise NotImplementedError()
