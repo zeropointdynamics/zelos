@@ -31,7 +31,7 @@ from zelos.memory import Memory
 from zelos.modules import Modules
 from zelos.scheduler import Scheduler
 from zelos.state import State
-from zelos.threads import InvalidTidException, Thread, ThreadException, Threads
+from zelos.threads import Thread, Threads
 
 
 # This has no dependencies. Purposefully not subclassing with IManager.
@@ -470,21 +470,6 @@ class Processes:
             self.current_process.threads.swap_with_next_thread()
         else:
             self.load_next_process()
-
-    def swap_with_thread(self, name=None, tid=None) -> None:
-        """
-        Attempts to swap to the thread with the specified tid or name
-        in the current process.
-        """
-        if self.current_process.is_active:
-            try:
-                self.current_process.threads.swap_with_thread(
-                    name=name, tid=tid
-                )
-            except InvalidTidException:
-                self.logger.warn(f"No thread with tid: {tid}")
-            except ThreadException as e:
-                self.logger.warn(f"{e}")
 
     def load_process(self, pid) -> None:
         """

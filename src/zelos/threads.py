@@ -725,9 +725,8 @@ class Threads:
         if old_thread is not None:
             old_thread.save_context()
         self._load(thread)
-        if old_thread is not None:
-            for hook in self._hook_manager._get_hooks(HookType.THREAD.SWAP):
-                hook(old_thread)
+        for hook in self._hook_manager._get_hooks(HookType.THREAD.SWAP):
+            hook(old_thread)
 
     def _load(self, thread):
         """ Loads the specified thread into the emulator """
