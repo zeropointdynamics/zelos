@@ -86,9 +86,9 @@ class Process:
         self.memory = Memory(self.emu, processes.state, disableNX=disableNX)
 
         self.threads = Threads(
-            self.emu, self.memory, self.processes.stack_size
+            self.emu, self.memory, self.processes.stack_size, hook_manager
         )
-        self.hooks = Hooks(self.emu, self.threads, self.threads.scheduler)
+        self.hooks = Hooks(self.emu, self.threads.scheduler)
 
     def __str__(self) -> str:
         return f"Name: '{self.name}', pid: {self.pid:x}, "
@@ -467,10 +467,7 @@ class Processes:
         If that is not possible, attempts to swap processes.
         """
         if self.current_process.is_active:
-            old_thread = self.current_thread
             self.current_process.threads.swap_with_next_thread()
-            for hook in self._hook_manager._get_hooks(HookType.THREAD.SWAP):
-                hook(old_thread)
         else:
             self.load_next_process()
 
@@ -480,7 +477,6 @@ class Processes:
         in the current process.
         """
         if self.current_process.is_active:
-            old_thread = self.current_thread
             try:
                 self.current_process.threads.swap_with_thread(
                     name=name, tid=tid
@@ -489,11 +485,6 @@ class Processes:
                 self.logger.warn(f"No thread with tid: {tid}")
             except ThreadException as e:
                 self.logger.warn(f"{e}")
-            else:
-                for hook in self._hook_manager._get_hooks(
-                    HookType.THREAD.SWAP
-                ):
-                    hook(old_thread)
 
     def load_process(self, pid) -> None:
         """
