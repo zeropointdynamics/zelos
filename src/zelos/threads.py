@@ -409,12 +409,12 @@ class Threads:
         current_thread_tid = None
         if self.current_thread is not None:
             current_thread_tid = self.current_thread.id
-            self._swap_with_thread(t.id)
+            self._swap_thread(t.id)
 
         ret_val = closure()
 
         if current_thread_tid is not None:
-            self._swap_with_thread(current_thread_tid)
+            self._swap_thread(current_thread_tid)
         return ret_val
 
     # TODO(V): Remove this function, put in timeleap
@@ -716,7 +716,7 @@ class Threads:
 
         self._swap(t)
 
-    def _swap_with_thread(self, tid=None) -> None:
+    def _swap_thread(self, tid=None) -> None:
         if tid is None:
             self._check_paused_threads()
             t = self._next()

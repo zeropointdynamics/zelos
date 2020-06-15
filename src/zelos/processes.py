@@ -151,11 +151,11 @@ class Process:
         )
 
         current_thread = self.current_thread
-        self.threads._swap_with_thread(t.id)
+        self.threads._swap_thread(t.id)
         for hook in self._hook_manager._get_hooks(HookType.THREAD.CREATE):
             hook(t, stack_setup)
         if current_thread is not None:
-            self.threads._swap_with_thread(current_thread.id)
+            self.threads._swap_thread(current_thread.id)
         return t
 
     def get_thread(self, tid: int) -> Thread:
@@ -492,7 +492,7 @@ class Processes:
         self.logger.verbose(f"Loading process 0x{p.pid:x}")
         self.current_process = p
         if self.current_process.current_thread is None:
-            p.threads._swap_with_thread()
+            p.threads._swap_thread()
 
     def serialize_process(self, p):
         raise NotImplementedError()
