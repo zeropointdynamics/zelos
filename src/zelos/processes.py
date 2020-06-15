@@ -474,19 +474,21 @@ class Processes:
         else:
             self.load_next_process()
 
-    def swap_with_thread(self, tid) -> None:
+    def swap_with_thread(self, name=None, tid=None) -> None:
         """
-        Attempts to swap to the thread with the specified tid in the current
-        process.
+        Attempts to swap to the thread with the specified tid or name
+        in the current process.
         """
         if self.current_process.is_active:
             old_thread = self.current_thread
             try:
-                self.current_process.threads.swap_with_thread(tid=tid)
+                self.current_process.threads.swap_with_thread(
+                    name=name, tid=tid
+                )
             except InvalidTidException:
                 self.logger.warn(f"No thread with tid: {tid}")
-            except ThreadException:
-                self.logger.warn(f"Unspecified tid.")
+            except ThreadException as e:
+                self.logger.warn(f"{e}")
             else:
                 for hook in self._hook_manager._get_hooks(
                     HookType.THREAD.SWAP
