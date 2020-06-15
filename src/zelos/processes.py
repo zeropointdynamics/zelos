@@ -86,13 +86,15 @@ class Process:
         self.memory = Memory(self.emu, processes.state, disableNX=disableNX)
 
         self.threads = Threads(
-            self.emu, self.memory, self.processes.stack_size
+            self.emu, self.memory, self.processes.stack_size, hook_manager
         )
-        self.hooks = Hooks(self.emu, self.threads, self.threads.scheduler)
+        self.hooks = Hooks(self.emu, self.threads.scheduler)
 
     def __str__(self) -> str:
-        return f"Name: '{self.name}', pid: {self.pid:x}, "
-        f"Active threads: {self.threads.num_active_threads()}"
+        return (
+            f"Name: '{self.name}', pid: {self.pid:x}, "
+            f"Active threads: {self.threads.num_active_threads()}"
+        )
 
     @property
     def is_active(self) -> bool:
@@ -467,10 +469,7 @@ class Processes:
         If that is not possible, attempts to swap processes.
         """
         if self.current_process.is_active:
-            old_thread = self.current_thread
             self.current_process.threads.swap_with_next_thread()
-            for hook in self._hook_manager._get_hooks(HookType.THREAD.SWAP):
-                hook(old_thread)
         else:
             self.load_next_process()
 

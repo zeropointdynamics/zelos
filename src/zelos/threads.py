@@ -25,6 +25,7 @@ from unicorn import UC_PROT_READ, UC_PROT_WRITE
 import zelos.util as util
 
 from zelos.exceptions import ZelosException
+from zelos.hooks import HookType
 from zelos.scheduler import Scheduler
 from zelos.util import struct
 
@@ -300,7 +301,7 @@ class Threads:
     This class should be manipulated through the process layer.
     """
 
-    def __init__(self, emu, memory, stack_size):
+    def __init__(self, emu, memory, stack_size, hook_manager):
         self.stack_min = 0x00000000
         self.stack_max = 0xC0000000  # MAX MIPS 32-bit handles w/ qemu
 
@@ -308,6 +309,7 @@ class Threads:
         self.scheduler = Scheduler(self, emu)
         self.memory = memory
         self.stack_size = stack_size
+        self._hook_manager = hook_manager
         self.logger = logging.getLogger(__name__)
         self._reset()
 
@@ -719,9 +721,12 @@ class Threads:
         Swaps the currently executing thread with the specified thread
         in the emulator
         """
-        if self.current_thread is not None:
-            self.current_thread.save_context()
+        old_thread = self.current_thread
+        if old_thread is not None:
+            old_thread.save_context()
         self._load(thread)
+        for hook in self._hook_manager._get_hooks(HookType.THREAD.SWAP):
+            hook(old_thread)
 
     def _load(self, thread):
         """ Loads the specified thread into the emulator """

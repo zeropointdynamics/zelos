@@ -438,9 +438,8 @@ class HookManager:
 class Hooks:
     """ Keeps track of the hooks that are in action."""
 
-    def __init__(self, emu, threads, scheduler):
+    def __init__(self, emu, scheduler):
         self.emu = emu
-        self.threads = threads
         self.scheduler = scheduler
         self.logger = logging.getLogger(__name__)
 

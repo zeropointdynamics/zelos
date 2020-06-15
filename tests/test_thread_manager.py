@@ -20,7 +20,7 @@ import unittest
 from os import path
 
 from zelos import Zelos
-from zelos.threads import ThreadState
+from zelos.threads import InvalidTidException, ThreadException, ThreadState
 
 
 DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
@@ -54,6 +54,19 @@ class ThreadManagerTest(unittest.TestCase):
         tman.swap_with_thread(tid=thread_1.id)
         self.assertIsNotNone(tman.current_thread)
         self.assertEqual(1, tman.num_active_threads())
+        self.assertEqual(tman.current_thread.id, 0x1234)
+
+        thread_2 = tman.new_thread(0x1000, 0x2345, name="thread_2", priority=1)
+        self.assertEqual(2, tman.num_active_threads())
+
+        tman.swap_with_thread(name=thread_2.name)
+        self.assertEqual(2, tman.num_active_threads())
+        self.assertEqual(tman.current_thread.id, 0x2345)
+
+        self.assertRaises(ThreadException, tman.swap_with_thread)
+        self.assertRaises(ThreadException, tman.swap_with_thread, "name", 0)
+        self.assertRaises(ThreadException, tman.swap_with_thread, "name")
+        self.assertRaises(InvalidTidException, tman.swap_with_thread, None, 0)
 
     def test_swapWithNextThread_TwoThreads(self):
         z = Zelos(None)
