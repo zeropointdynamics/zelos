@@ -151,11 +151,11 @@ class Process:
         )
 
         current_thread = self.current_thread
-        self.threads.swap_with_thread(tid=t.id)
+        self.threads._swap_thread(t.id)
         for hook in self._hook_manager._get_hooks(HookType.THREAD.CREATE):
             hook(t, stack_setup)
         if current_thread is not None:
-            self.threads.swap_with_thread(tid=current_thread.id)
+            self.threads._swap_thread(current_thread.id)
         return t
 
     def get_thread(self, tid: int) -> Thread:

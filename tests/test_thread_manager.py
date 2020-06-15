@@ -68,6 +68,28 @@ class ThreadManagerTest(unittest.TestCase):
         self.assertRaises(ThreadException, tman.swap_with_thread, "name")
         self.assertRaises(InvalidTidException, tman.swap_with_thread, None, 0)
 
+    def test_internal_swap(self):
+        z = Zelos(None)
+
+        tman = z.internal_engine.thread_manager
+        self.assertIsNone(tman.current_thread)
+
+        thread_1 = tman.new_thread(0x1000, 0x1234, name="thread_1", priority=1)
+        self.assertIsNone(tman.current_thread)
+        self.assertEqual(1, tman.num_active_threads())
+
+        tman._swap_thread(thread_1.id)
+        self.assertIsNotNone(tman.current_thread)
+        self.assertEqual(1, tman.num_active_threads())
+        self.assertEqual(tman.current_thread.id, 0x1234)
+
+        tman.new_thread(0x1000, 0x2345, name="thread_2", priority=2)
+        self.assertEqual(2, tman.num_active_threads())
+
+        tman._swap_thread()
+        self.assertEqual(2, tman.num_active_threads())
+        self.assertEqual(tman.current_thread.id, 0x2345)
+
     def test_swapWithNextThread_TwoThreads(self):
         z = Zelos(None)
 
