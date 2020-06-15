@@ -48,7 +48,7 @@ class TraceTest(unittest.TestCase):
         z = Zelos(
             path.join(DATA_DIR, "static_elf_helloworld"),
             inst=True,
-            stop_feed="addr=0x08048B73",
+            no_feeds="addr=0x08048B73",
         )
 
         with patch("sys.stdout", new=StringIO()) as stdout:
@@ -70,7 +70,7 @@ class TraceTest(unittest.TestCase):
         z = Zelos(
             path.join(DATA_DIR, "static_elf_helloworld"),
             inst=True,
-            stop_feed="syscall=brk",
+            no_feeds="syscall=brk",
         )
         with patch("sys.stdout", new=StringIO()) as stdout:
             z.start()
@@ -122,7 +122,7 @@ class TraceTest(unittest.TestCase):
         z.plugins.runner.run_to_addr(0x08048BA3)
         self.assertEqual(expected_comments, recieved_comments)
 
-        z.plugins.trace.shutup()
+        z.plugins.trace.trace_off()
         z.start()
         self.assertEqual(expected_comments, recieved_comments)
 
@@ -157,6 +157,6 @@ class TraceTest(unittest.TestCase):
         z.plugins.runner.run_to_addr(0x0001030C)
         self.assertEqual(expected_comments, recieved_comments)
 
-        z.plugins.trace.shutup()
+        z.plugins.trace.trace_off()
         z.start()
         self.assertEqual(expected_comments, recieved_comments)

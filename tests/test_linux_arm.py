@@ -29,7 +29,7 @@ class ZelosTest(unittest.TestCase):
     def test_static_elf_inst_feed(self):
         z = Zelos(
             path.join(DATA_DIR, "static_elf_arm_helloworld"),
-            shutup=True,
+            trace_off=True,
             inst_feed=True,
         )
         z.start(timeout=3)
@@ -40,7 +40,7 @@ class ZelosTest(unittest.TestCase):
 
     def test_static_elf(self):
         z = Zelos(
-            path.join(DATA_DIR, "static_elf_arm_helloworld"), shutup=True
+            path.join(DATA_DIR, "static_elf_arm_helloworld"), trace_off=True
         )
         z.start(timeout=10)
 
@@ -55,7 +55,7 @@ class ZelosTest(unittest.TestCase):
                 "Windows fatal exception: access violation"
             )
         z = Zelos(
-            path.join(DATA_DIR, "dynamic_elf_arm_helloworld"), shutup=True
+            path.join(DATA_DIR, "dynamic_elf_arm_helloworld"), trace_off=True
         )
         z.start(timeout=10)
 

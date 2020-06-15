@@ -88,7 +88,7 @@ class Process:
         self.threads = Threads(
             self.emu, self.memory, self.processes.stack_size
         )
-        self.hooks = Hooks(self.emu, self.threads)
+        self.hooks = Hooks(self.emu, self.threads, self.threads.scheduler)
 
     def __str__(self) -> str:
         return f"Name: '{self.name}', pid: {self.pid:x}, "

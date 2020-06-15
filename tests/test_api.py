@@ -148,6 +148,15 @@ class ZelosTest(unittest.TestCase):
 
         z.hook_syscalls(HookType.SYSCALL.AFTER, syscall_hook)
 
+        specific_syscall_cnt = defaultdict(int)
+
+        def specific_syscall_hook(zelos, syscall_name, args, return_value):
+            specific_syscall_cnt[syscall_name] += 1
+
+        z.hook_syscalls(
+            HookType.SYSCALL.AFTER, specific_syscall_hook, syscall_name="brk"
+        )
+
         z.start()
 
         self.assertEqual(syscall_cnt["write"], 1)
@@ -158,6 +167,9 @@ class ZelosTest(unittest.TestCase):
         self.assertEqual(syscall_cnt["access"], 1)
         self.assertEqual(syscall_cnt["fstat64"], 1)
         self.assertEqual(syscall_cnt["exit_group"], 1)
+
+        self.assertEqual(specific_syscall_cnt["write"], 0)
+        self.assertEqual(specific_syscall_cnt["brk"], 4)
 
     def test_step(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))

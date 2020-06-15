@@ -94,20 +94,12 @@ def generate_parser():
         "(default: '/home/admin/zelos_dir/').",
     )
     group_logging.add_argument(
-        "-v",
-        "--verbosity",
-        action="count",
-        default=0,
-        help="Increase output verbosity. Enables instruction-level tracing.",
-    )
-    group_logging.add_argument(
         "--log",
         type=str,
         default="info",
         help="Decide what level of logging should be used. LOG is "
         "'info', 'verbose', 'debug', 'spam', 'notice', 'warning', 'success', "
-        "'error', or 'fatal'. Note that this does not affect "
-        "verbosity. (default: 'info')",
+        "'error', or 'fatal'. (default: 'info')",
     )
     group_networking.add_argument(
         "--dns",
@@ -138,6 +130,7 @@ def generate_parser():
         nargs="?",
         default=[],
         const="",
+        metavar="ZML_STRING",
         help=(
             "Provided without input, sets the feed level to INST. "
             "This results in enabling the inst, api, and syscall feeds."
@@ -146,6 +139,11 @@ def generate_parser():
             "specified by using this flag multiple times."
         ),
     )
+    group_feeds.add_argument(
+        "--inst",
+        action="store_true",
+        help=("Shortcut for setting the starting feed level to INST"),
+    )
 
     group_feeds.add_argument(
         "--func_feed",
@@ -153,6 +151,7 @@ def generate_parser():
         nargs="?",
         default=[],
         const="",
+        metavar="ZML_STRING",
         help=(
             "Provided without input, sets the feed level to FUNC. "
             "This results in enabling the func and syscall feeds."
@@ -163,11 +162,18 @@ def generate_parser():
     )
 
     group_feeds.add_argument(
+        "--func",
+        action="store_true",
+        help=("Shortcut for setting the starting feed level to FUNC"),
+    )
+
+    group_feeds.add_argument(
         "--syscall_feed",
         action="append",
         nargs="?",
         default=[],
         const="",
+        metavar="ZML_STRING",
         help=(
             "Provided without input, sets the feed level to SYSCALL. "
             "This results in enabling only the syscall feed."
@@ -179,11 +185,21 @@ def generate_parser():
     )
 
     group_feeds.add_argument(
-        "--stop_feed",
+        "--syscall",
+        action="store_true",
+        help=(
+            "Shortcut for setting the starting feed level to SYSCALL. "
+            "This is a no-op since the default feel level is SYSCALL."
+        ),
+    )
+
+    group_feeds.add_argument(
+        "--no_feeds",
         action="append",
         nargs="?",
         default=[],
         const="",
+        metavar="ZML_STRING",
         help=(
             "Provided without input, sets the feed level to NONE, disabling "
             "all feeds. Alternatively, A ZML string can be used to specify "
@@ -191,6 +207,7 @@ def generate_parser():
             "can be specified by using this flag multiple times."
         ),
     )
+
     group_logging.add_argument(
         "--writetrace",
         type=str,

@@ -51,12 +51,12 @@ class Zelos:
             from zelos import Zelos
 
             # initialize zelos with binary name, 2 cmdline args, and
-            # verbosity flag set to 1
+            # turn on the inst feed to print instructions.
             z = Zelos(
                 "binary_to_emulate"
                 "ARG1",
                 "ARG2",
-                verbosity=1,
+                inst=True,
             )
     """
 
@@ -234,14 +234,14 @@ class Zelos:
             end_condition=end_condition,
         )
 
-    def hook_close(self, closure: Callable[[], Any]) -> HookInfo:
+    def hook_close(self, callback: Callable[[], Any]) -> HookInfo:
         """
-        Registers a closure that is called when
+        Registers a callback that is called when
         :py:meth:`zelos.Engine.close()` is called.
 
         Args:
-            closure: Called when zelos is closed. Does not take any
-                arguments. The return value of `closure` is ignored
+            callback: Called when zelos is closed. Does not take any
+                arguments. The return value of `callback` is ignored
 
         Example:
             .. code-block:: python
@@ -260,16 +260,17 @@ class Zelos:
                 # Hooks are run at this point
                 z.close()
         """
-        return self.internal_engine.hook_manager.register_close_hook(closure)
+        return self.internal_engine.hook_manager.register_close_hook(callback)
 
     def hook_syscalls(
         self,
         syscall_hook_type: HookType.SYSCALL,
         callback: Callable[["Zelos", str, "Args", int], Any],
         name: str = None,
+        syscall_name: str = None,
     ) -> HookInfo:
         """
-        Registers a closure that is called when a syscall is invoked.
+        Registers a callback that is called when a syscall is invoked.
 
         Args:
             syscall_hook_type: Decides when the hook should be triggered
@@ -280,6 +281,8 @@ class Zelos:
                 following inputs:
                 (zelos, syscall_name, args, return_value)
                 The return value of "callback" is ignored.
+            syscall_name: Restricts calls of the hook to syscalls that
+                match the given name.
             name: An identifier for this hook. Used for debugging.
 
         Example:
@@ -300,7 +303,24 @@ class Zelos:
 
         """
         return self.internal_engine.hook_manager.register_syscall_hook(
-            syscall_hook_type, callback, name
+            syscall_hook_type, callback, name=name, syscall_name=syscall_name
+        )
+
+    def hook_zml(
+        self, zml_string: str, callback: Callable[[], Any]
+    ) -> HookInfo:
+        """
+        Register a callback that triggers when a given ZML string is
+        satisfied. For more information on ZML, view
+        :py:class:`zelos.zml.ZmlParser`.
+
+        Args:
+            zml_string: Specifies condition to call callback.
+            callback: The code that should be executed when the specified
+                event occurs.
+        """
+        return self.internal_engine.hook_manager.register_zml_hook(
+            zml_string, callback
         )
 
     def delete_hook(self, hook_info: HookInfo) -> None:

@@ -100,7 +100,7 @@ class FeedManager:
         # _inst_hook_info is only present when the inst feed is active.
         self._inst_hook_info = None
 
-        self._feed_level = FeedLevel.NONE
+        self._feed_level = None
 
         self._handle_num = 0
         self._subscribers: Dict[FeedLevel, Dict[int, Callable]] = {
@@ -109,15 +109,10 @@ class FeedManager:
             FeedLevel.INST: {},
         }
 
-        # Default to feed level SYSCALL, unless plans for the syscall
-        # level feed were already specified.
-        if len(config.syscall_feed) == 0:
-            self.set_feed_level(FeedLevel.SYSCALL)
-
         # For initial setup, we want to respect the highest level set if
         # multiple are set to trigger immediately. We run them from
         # lowest to highest to achieve this goal
-        for zml_string in config.stop_feed:
+        for zml_string in config.no_feeds:
             zml_parser.trigger_on_zml(
                 functools.partial(self.set_feed_level, FeedLevel.NONE),
                 zml_string,
@@ -140,6 +135,16 @@ class FeedManager:
                 functools.partial(self.set_feed_level, FeedLevel.INST),
                 zml_string,
             )
+
+        # Default to feed level SYSCALL, unless another feed level was
+        # specified
+        if self._feed_level is None:
+            if config.inst:
+                self.set_feed_level(FeedLevel.INST)
+            elif config.func:
+                self.set_feed_level(FeedLevel.FUNC)
+            else:
+                self.set_feed_level(FeedLevel.SYSCALL)
 
     @property
     def inst_feed_on(self) -> bool:

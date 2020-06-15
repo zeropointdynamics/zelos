@@ -34,7 +34,9 @@ class Comment:
 
 
 CommandLineOption(
-    "shutup", action="store_true", help="Turns off printing on the commandline"
+    "trace_off",
+    action="store_true",
+    help="Turns off printing on the command line",
 )
 
 CommandLineOption(
@@ -83,8 +85,8 @@ class Trace(IPlugin):
 
         self._inst_feed_handle = None
         self._syscall_feed_handle = None
-        if not z.config.shutup or z.config.trace_file is not None:
-            self.turn_on_trace()
+        if not z.config.trace_off or z.config.trace_file is not None:
+            self.trace_on()
 
         if self.state.arch in ["x86", "x86_64"]:
             self.comment_generator = x86CommentGenerator(z, self.modules)
@@ -93,7 +95,7 @@ class Trace(IPlugin):
         else:
             self.comment_generator = EmptyCommentGenerator()
 
-    def turn_on_trace(self):
+    def trace_on(self):
         feeds = self.zelos.internal_engine.feeds
         if self._inst_feed_handle is None:
             self._inst_feed_handle = feeds.subscribe_to_inst_feed(
@@ -104,7 +106,7 @@ class Trace(IPlugin):
                 self.trace_syscalls
             )
 
-    def shutup(self):
+    def trace_off(self):
         feeds = self.zelos.internal_engine.feeds
         if self._inst_feed_handle is not None:
             feeds.unsubscribe_from_feed(self._inst_feed_handle)
