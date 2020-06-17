@@ -257,16 +257,37 @@ def sys_msync(sm, p):
 
 
 def sys_mmap(sm, p):
-    args = sm.get_args(
-        [
-            ("void*", "addr"),
-            ("size_t", "length"),
-            ("int", "prot"),
-            ("int", "flags"),
-            ("int", "fd"),
-            ("off_t", "offset"),
-        ]
-    )
+    if sm.arch == "x86":
+
+        def print_mmap_struct(struct_args):
+            args = p.memory.readstruct(
+                struct_args.__user, structs.MMAP_ARG_STRUCT32()
+            )
+            return (
+                f"addr=0x{args.addr:x}, length=0x{args.length:x}, "
+                f"prot=0x{args.prot:x}, flags=0x{args.flags:x}, "
+                f"fd=0x{args.fd:x}, offset=0x{args.offset:x}"
+            )
+
+        user_arg = sm.get_args(
+            [("mmap_arg_struct32*", "__user")],
+            arg_string_overrides={"__user": print_mmap_struct},
+        )
+        args = p.memory.readstruct(
+            user_arg.__user, structs.MMAP_ARG_STRUCT32()
+        )
+    else:
+        args = sm.get_args(
+            [
+                ("void*", "addr"),
+                ("size_t", "length"),
+                ("int", "prot"),
+                ("int", "flags"),
+                ("int", "fd"),
+                ("off_t", "offset"),
+            ]
+        )
+
     try:
         return mmapx(sm, p, "mmap", args, args.offset)
     except Exception as e:

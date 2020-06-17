@@ -163,3 +163,14 @@ class STATFS(ctypes.Structure):
         ("f_flags", ctypes.c_uint32),
         ("f_spare", ctypes.c_uint32),
     ]
+
+
+class MMAP_ARG_STRUCT32(ctypes.Structure):
+    _fields_ = [
+        ("addr", ctypes.c_uint32),
+        ("length", ctypes.c_uint32),
+        ("prot", ctypes.c_uint32),
+        ("flags", ctypes.c_uint32),
+        ("fd", ctypes.c_uint32),
+        ("offset", ctypes.c_uint32),
+    ]
