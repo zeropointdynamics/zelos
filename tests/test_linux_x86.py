@@ -78,6 +78,13 @@ class ZelosTest(unittest.TestCase):
             1, len(z.internal_engine.thread_manager.completed_threads)
         )
 
+    def test_mmap1(self):
+        z = Zelos(path.join(DATA_DIR, "call_mmap1_i386"), trace_off=True)
+        z.start(timeout=5)
+        self.assertEqual(
+            1, len(z.internal_engine.thread_manager.completed_threads)
+        )
+
 
 def main():
     unittest.main()
