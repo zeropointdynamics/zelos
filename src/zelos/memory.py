@@ -32,6 +32,7 @@ import zelos.util as util
 from zelos.emulator.base import MemoryRegion
 from zelos.enums import ProtType
 from zelos.exceptions import OutOfMemoryException
+from zelos.hooks import HookType
 
 
 class Memory:
@@ -46,8 +47,11 @@ class Memory:
     MAX_UINT64 = 0xFFFFFFFFFFFFFFFF
     MAX_UINT32 = 0xFFFFFFFF
 
-    def __init__(self, emu, state, disableNX: bool = False) -> None:
+    def __init__(
+        self, emu, hook_manager, state, disableNX: bool = False
+    ) -> None:
         self.emu = emu
+        self._hook_manager = hook_manager
         self.state = state
         self.logger = logging.getLogger(__name__)
         self.disableNX = disableNX
@@ -118,7 +122,11 @@ class Memory:
         Returns:
             Bytes corresponding to data held in memory.
         """
-        return self.emu.mem_read(addr, size)
+        val = self.emu.mem_read(addr, size)
+        hooks = self._hook_manager._get_hooks(HookType.MEMORY.ZELOS_READ)
+        for hook in hooks:
+            hook(0, addr, size, val)
+        return val
 
     def write(self, addr: int, data: bytes) -> int:
         """
@@ -132,6 +140,9 @@ class Memory:
             Number of bytes written.
         """
         self.emu.mem_write(addr, data)
+        hooks = self._hook_manager._get_hooks(HookType.MEMORY.ZELOS_WRITE)
+        for hook in hooks:
+            hook(0, addr, len(data), data)
         return len(data)
 
     def read_int(self, addr: int, sz: int = None, signed: bool = False) -> int:
