@@ -123,7 +123,7 @@ class Memory:
             Bytes corresponding to data held in memory.
         """
         val = self.emu.mem_read(addr, size)
-        hooks = self._hook_manager._get_hooks(HookType.MEMORY.ZELOS_READ)
+        hooks = self._hook_manager._get_hooks(HookType.MEMORY.INTERNAL_READ)
         for hook in hooks:
             hook(0, addr, size, val)
         return val
@@ -140,7 +140,7 @@ class Memory:
             Number of bytes written.
         """
         self.emu.mem_write(addr, data)
-        hooks = self._hook_manager._get_hooks(HookType.MEMORY.ZELOS_WRITE)
+        hooks = self._hook_manager._get_hooks(HookType.MEMORY.INTERNAL_WRITE)
         for hook in hooks:
             hook(0, addr, len(data), data)
         return len(data)

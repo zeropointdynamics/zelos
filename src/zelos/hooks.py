@@ -105,7 +105,7 @@ class HookManager:
         # are done by Zelos. However, memory initialization is not
         # interesting in that sense. We only turn on kernel_hooks after
         # initialization has been completed.
-        self._zelos_mem_hooks_enabled = False
+        self._internal_mem_hooks_enabled = False
 
     def register_mem_hook(
         self,
@@ -148,8 +148,8 @@ class HookManager:
         """
 
         if hook_type in [
-            HookType.MEMORY.ZELOS_READ,
-            HookType.MEMORY.ZELOS_WRITE,
+            HookType.MEMORY.INTERNAL_READ,
+            HookType.MEMORY.INTERNAL_WRITE,
         ]:
             return self._register_zelos_mem_hook(
                 hook_type, callback, mem_low, mem_high, name, end_condition
@@ -375,8 +375,8 @@ class HookManager:
     def _is_unicorn_hook(self, hook_type):
         if isinstance(hook_type, HookType.MEMORY):
             if hook_type in [
-                HookType.MEMORY.ZELOS_READ,
-                HookType.MEMORY.ZELOS_WRITE,
+                HookType.MEMORY.INTERNAL_READ,
+                HookType.MEMORY.INTERNAL_WRITE,
             ]:
                 return False
             return True
@@ -479,16 +479,16 @@ class HookManager:
     def _get_hooks(self, hook_type):
         if (
             hook_type
-            in [HookType.MEMORY.ZELOS_READ, HookType.MEMORY.ZELOS_WRITE]
-            and not self._zelos_mem_hooks_enabled
+            in [HookType.MEMORY.INTERNAL_READ, HookType.MEMORY.INTERNAL_WRITE]
+            and not self._internal_mem_hooks_enabled
         ):
             return []
         # Hooks might delete themselves, can't iterate over the values
         # if they are editing the underlying dictionary.
         return list(self._hooks[hook_type].values())
 
-    def _enable_zelos_memory_hooks(self):
-        self._zelos_mem_hooks_enabled = True
+    def _enable_internal_memory_hooks(self):
+        self._internal_mem_hooks_enabled = True
 
 
 class Hooks:
