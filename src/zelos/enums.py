@@ -25,6 +25,11 @@ class HookType:
         Used by :py:meth:`zelos.Zelos.hook_memory` to specify the
         memory event to hook on. View the registration function for more
         details.
+
+        ZELOS_READ|ZELOS_WRITE hook reads and writes that are done by
+        Zelos (such as those done within syscall implementations). Other
+        read and writes only hook memory accesses done by instructions
+        executed in the underlying emulator.
         """
 
         READ = auto()
@@ -40,6 +45,9 @@ class HookType:
         WRITE_INVALID = auto()
         INVALID = auto()
         VALID = auto()
+
+        ZELOS_READ = auto()
+        ZELOS_WRITE = auto()
 
     class EXEC(Enum):
         """

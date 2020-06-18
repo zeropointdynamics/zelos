@@ -23,7 +23,7 @@ from io import StringIO
 from os import path
 from unittest.mock import Mock, patch
 
-from zelos import HookType, Zelos
+from zelos import HookType, IPlugin, Zelos
 
 
 DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
@@ -73,6 +73,67 @@ class ZelosTest(unittest.TestCase):
 
         self.assertGreater(len(read_addresses), 0)
         self.assertGreater(len(write_addresses), 0)
+
+    def test_zelos_memory_hook(self):
+        recorded_reads = {}
+
+        def zelos_read_hook(z, access, address, size, value):
+            recorded_reads[address] = value
+
+        recorded_writes = {}
+
+        def zelos_write_hook(z, access, address, size, value):
+            recorded_writes[address] = value
+
+        class TestPlugin(IPlugin):
+            def __init__(self, z):
+                super().__init__(z)
+                z.hook_memory(
+                    HookType.MEMORY.ZELOS_READ,
+                    zelos_read_hook,
+                    name="test_zelos_read",
+                    end_condition=lambda: True,
+                )
+                z.hook_memory(
+                    HookType.MEMORY.ZELOS_WRITE,
+                    zelos_write_hook,
+                    mem_low=0x08109A00,
+                    mem_high=0x08109B00,
+                    name="test_zelos_write",
+                )
+
+        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
+        self.assertEqual(recorded_reads, {})
+        self.assertEqual(recorded_writes, {})
+
+        z.memory.read(0x08109A7E, 4)
+
+        self.assertEqual(recorded_reads, {0x08109A7E: b"\xc3\x90\x8b\x06"})
+        self.assertEqual(recorded_writes, {})
+
+        z.memory.read(0x08109A7D, 4)
+
+        self.assertEqual(recorded_reads, {0x08109A7E: b"\xc3\x90\x8b\x06"})
+        self.assertEqual(recorded_writes, {})
+
+        z.memory.write(0x08109A00, b"\x00\x01\x02\x03")
+        self.assertEqual(recorded_reads, {0x08109A7E: b"\xc3\x90\x8b\x06"})
+        self.assertEqual(recorded_writes, {0x08109A00: b"\x00\x01\x02\x03"})
+
+        z.memory.write(0x08109B01, b"\x00\x01\x02\x04")
+        self.assertEqual(recorded_reads, {0x08109A7E: b"\xc3\x90\x8b\x06"})
+        self.assertEqual(recorded_writes, {0x08109A00: b"\x00\x01\x02\x03"})
+
+        z.memory.write(0x081099FC, b"\x00\x01\x02\x04")
+        self.assertEqual(recorded_reads, {0x08109A7E: b"\xc3\x90\x8b\x06"})
+        self.assertEqual(recorded_writes, {0x08109A00: b"\x00\x01\x02\x03"})
+
+        z.memory.write(0x081099FD, b"\x00\x01\x02\x04")
+        self.assertEqual(recorded_reads, {0x08109A7E: b"\xc3\x90\x8b\x06"})
+        self.assertEqual(
+            recorded_writes,
+            {0x08109A00: b"\x00\x01\x02\x03", 0x081099FD: b"\x00\x01\x02\x04"},
+        )
 
     def test_unmapped_memory_hook(self):
         z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))

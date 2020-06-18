@@ -101,6 +101,12 @@ class HookManager:
         # unicorn is running).
         self._to_delete_closures = []
 
+        # Kernel hooks are used to track memory reads and writes that
+        # are done by Zelos. However, memory initialization is not
+        # interesting in that sense. We only turn on kernel_hooks after
+        # initialization has been completed.
+        self._zelos_mem_hooks_enabled = False
+
     def register_mem_hook(
         self,
         hook_type: HookType.MEMORY,
@@ -141,6 +147,14 @@ class HookManager:
 
         """
 
+        if hook_type in [
+            HookType.MEMORY.ZELOS_READ,
+            HookType.MEMORY.ZELOS_WRITE,
+        ]:
+            return self._register_zelos_mem_hook(
+                hook_type, callback, mem_low, mem_high, name, end_condition
+            )
+
         def memhook_wrapper(uc, access, address, size, value, user_data):
             return callback(self.api, access, address, size, value)
 
@@ -152,6 +166,28 @@ class HookManager:
             mem_high,
             end_condition=end_condition,
         )
+
+    def _register_zelos_mem_hook(
+        self, hook_type, callback, mem_low, mem_high, name, end_condition
+    ) -> HookInfo:
+        """
+        Used to hook memory reads and writes that are done by Zelos.
+        """
+
+        def zelos_memhook_wrapper(access, address, size, value):
+            nonlocal hook_info
+            if mem_low is not None and address + size <= mem_low:
+                return
+            if mem_high is not None and address > mem_high:
+                return
+            callback(self.api, access, address, size, value)
+            if end_condition is not None and end_condition():
+                self.delete_hook(hook_info)
+
+        hook_info = self._add_zelos_hook(
+            hook_type, zelos_memhook_wrapper, name
+        )
+        return hook_info
 
     def register_exec_hook(
         self,
@@ -337,11 +373,20 @@ class HookManager:
             p.hooks._delete_unicorn_hook(handle)
 
     def _is_unicorn_hook(self, hook_type):
-        if isinstance(
-            hook_type, (HookType.MEMORY, HookType.EXEC)
-        ) or hook_type in [HookType._OTHER.INTERRUPT]:
+        if isinstance(hook_type, HookType.MEMORY):
+            if hook_type in [
+                HookType.MEMORY.ZELOS_READ,
+                HookType.MEMORY.ZELOS_WRITE,
+            ]:
+                return False
             return True
-        elif isinstance(
+
+        if isinstance(hook_type, HookType.EXEC) or hook_type in [
+            HookType._OTHER.INTERRUPT
+        ]:
+            return True
+
+        if isinstance(
             hook_type, (HookType.PROCESS, HookType.THREAD, HookType.SYSCALL)
         ) or hook_type in [HookType._OTHER.CLOSE]:
             return False
@@ -432,7 +477,18 @@ class HookManager:
         return self._cross_process_hooks[handle]
 
     def _get_hooks(self, hook_type):
-        return self._hooks[hook_type].values()
+        if (
+            hook_type
+            in [HookType.MEMORY.ZELOS_READ, HookType.MEMORY.ZELOS_WRITE]
+            and not self._zelos_mem_hooks_enabled
+        ):
+            return []
+        # Hooks might delete themselves, can't iterate over the values
+        # if they are editing the underlying dictionary.
+        return list(self._hooks[hook_type].values())
+
+    def _enable_zelos_memory_hooks(self):
+        self._zelos_mem_hooks_enabled = True
 
 
 class Hooks:

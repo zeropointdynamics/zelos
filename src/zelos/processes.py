@@ -83,7 +83,9 @@ class Process:
 
         self.modules = Modules()
 
-        self.memory = Memory(self.emu, processes.state, disableNX=disableNX)
+        self.memory = Memory(
+            self.emu, hook_manager, processes.state, disableNX=disableNX
+        )
 
         self.threads = Threads(
             self.emu, self.memory, self.processes.stack_size, hook_manager

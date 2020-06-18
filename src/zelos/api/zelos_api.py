@@ -81,6 +81,9 @@ class Zelos:
         self.internal_engine = e  # Used to inform what type this is.
         self.internal_engine.plugins = self.plugins
 
+        # After setup allow MEMORY.ZELOS_* hooks to run.
+        e.hook_manager._enable_zelos_memory_hooks()
+
     # **** Memory API ****
     @property
     def memory(self):
@@ -657,14 +660,15 @@ class Zelos:
     @property
     def main_binary(self) -> Optional[ParsedBinary]:
         """
-        Returns the parsed main binary, if it exists, otherwise returns None.
+        Returns the parsed main binary, if it exists, otherwise returns
+        None.
         Note that the "main" binary denotes the binary that is loaded by
         Zelos during emulation, not necessarily the binary that
         is specified as input (the "target" binary). When the specified
-        input binary ("target") is statically linked, it is also the "main"
-        binary. However, when the specified input binary ("target") is
-        dynamically linked, the "main" binary instead refers to the dynamic
-        linker/loader.
+        input binary ("target") is statically linked, it is also the
+        "main" binary. However, when the specified input binary
+        ("target") is dynamically linked, the "main" binary instead
+        refers to the dynamic linker/loader.
 
         :type: :py:class:`zelos.plugin.ParsedBinary`
 
@@ -694,9 +698,9 @@ class Zelos:
     @property
     def target_binary_path(self) -> Optional[str]:
         """
-        Returns the absolute path to the target binary, if it exists, otherwise
-        returns None. Note that the "target" binary denotes the binary
-        specified as input to Zelos.
+        Returns the absolute path to the target binary, if it exists,
+        otherwise returns None. Note that the "target" binary denotes
+        the binary specified as input to Zelos.
 
         :type: str
 
