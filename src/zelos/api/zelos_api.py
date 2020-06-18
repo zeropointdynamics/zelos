@@ -81,8 +81,8 @@ class Zelos:
         self.internal_engine = e  # Used to inform what type this is.
         self.internal_engine.plugins = self.plugins
 
-        # After setup allow MEMORY.ZELOS_* hooks to run.
-        e.hook_manager._enable_zelos_memory_hooks()
+        # After setup allow MEMORY.INTERNAL_* hooks to run.
+        e.hook_manager._enable_internal_memory_hooks()
 
     # **** Memory API ****
     @property

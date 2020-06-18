@@ -89,13 +89,13 @@ class ZelosTest(unittest.TestCase):
             def __init__(self, z):
                 super().__init__(z)
                 z.hook_memory(
-                    HookType.MEMORY.ZELOS_READ,
+                    HookType.MEMORY.INTERNAL_READ,
                     zelos_read_hook,
                     name="test_zelos_read",
                     end_condition=lambda: True,
                 )
                 z.hook_memory(
-                    HookType.MEMORY.ZELOS_WRITE,
+                    HookType.MEMORY.INTERNAL_WRITE,
                     zelos_write_hook,
                     mem_low=0x08109A00,
                     mem_high=0x08109B00,

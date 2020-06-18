@@ -26,7 +26,7 @@ class HookType:
         memory event to hook on. View the registration function for more
         details.
 
-        ZELOS_READ|ZELOS_WRITE hook reads and writes that are done by
+        INTERNAL_READ|INTERNAL_WRITE hook reads and writes that are done by
         Zelos (such as those done within syscall implementations). Other
         read and writes only hook memory accesses done by instructions
         executed in the underlying emulator.
@@ -46,8 +46,8 @@ class HookType:
         INVALID = auto()
         VALID = auto()
 
-        ZELOS_READ = auto()
-        ZELOS_WRITE = auto()
+        INTERNAL_READ = auto()
+        INTERNAL_WRITE = auto()
 
     class EXEC(Enum):
         """
