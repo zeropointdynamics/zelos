@@ -17,7 +17,9 @@
 import os
 import unittest
 
+from io import StringIO
 from os import path
+from unittest.mock import patch
 
 from zelos import Zelos
 
@@ -42,6 +44,20 @@ class ZelosTest(unittest.TestCase):
         z = Zelos(path.join(DATA_DIR, "static_elf_mipseb_mti_helloworld"))
         z.start(timeout=10)
 
+        self.assertEqual(
+            1, len(z.internal_engine.thread_manager.completed_threads)
+        )
+
+    def test_linux_errno(self):
+        if os.name == "nt":
+            raise unittest.SkipTest(
+                "Skipping `test_linux_errno`: Windows lief fails to parse"
+            )
+        z = Zelos(path.join(DATA_DIR, "errno_mips_example"), trace_off=True)
+
+        with patch("sys.stdout", new=StringIO()) as stdout:
+            z.start(timeout=10)
+            self.assertIn("Errno: 2", stdout.getvalue())
         self.assertEqual(
             1, len(z.internal_engine.thread_manager.completed_threads)
         )
