@@ -171,7 +171,7 @@ def xopen(sm, p, args):
         handle_num = sm.z.handles.new_file(pathname_s)
         retval = handle_num
     else:
-        retval = -1
+        return SysError.ENOENT
     return retval
 
 
@@ -440,7 +440,6 @@ def sys_set_thread_area(sm, p):
 def mips_set_thread_area(sm, p):
     args = sm.get_args([("unsigned long", "addr")])
     p.emu.set_reg("cp0_userlocal", args.addr)
-    p.emu.set_reg("a3", 0)
     return 0
 
 

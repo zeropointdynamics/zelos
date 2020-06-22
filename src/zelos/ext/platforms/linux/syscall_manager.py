@@ -414,6 +414,16 @@ class MIPSSyscallManager(LinuxSyscallManager):
     def handle_syscall(self, *args, **kwargs):
         super(MIPSSyscallManager, self).handle_syscall(*args, **kwargs)
 
+        # Mimicking qemu user behavior (specifically -1133)
+        # github.com/qemu/qemu/blob/master/linux-user/mips/cpu_loop.c
+        unsigned_neg1 = 2 ** (self.z.state.bytes * 8) - 1
+        retval = self.get_return_value()
+        if unsigned_neg1 >= retval >= (-1133 & unsigned_neg1):
+            self.emu.set_reg("a3", 1)
+            self.set_return_value(-retval)
+        else:
+            self.emu.set_reg("a3", 0)
+
         return_address = self.emu.getIP() + 4
 
         if self.syscall_break_name is None:
@@ -432,6 +442,9 @@ class MIPSSyscallManager(LinuxSyscallManager):
 
     def set_return_value(self, value):
         self.emu.set_reg("v0", value)
+
+    def get_return_value(self):
+        return self.emu.get_reg("v0")
 
     def return_addr(self):
         return self.emu.getIP()
