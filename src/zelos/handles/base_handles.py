@@ -317,9 +317,23 @@ class Handles:
 
         def init_handles(p):
             # Add some default system handles
-            if not sys.stdin.isatty() and isinstance(
-                sys.stdin, io.TextIOWrapper
-            ):
+            try:
+                # Don't passthrough if
+                #  * stdin is terminal
+                #  * not TextIoWrapper (tests replace stdin)
+                passthrough_stdin = not sys.stdin.isatty() and isinstance(
+                    sys.stdin, io.TextIOWrapper
+                )
+            except ValueError:  # stdin was closed
+                self.logger.notice(
+                    "stdin was closed, not redirecting to emulated stdin"
+                )
+                passthrough_stdin = False
+
+            # Passthrough allows the emulated process to read stdin
+            # passed to Zelos
+            if passthrough_stdin:
+                self.logger.info("Passing stdin to emulated program")
                 self.new_file(
                     "stdin_redirect",
                     handle_num=0,
