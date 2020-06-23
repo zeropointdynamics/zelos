@@ -110,6 +110,16 @@ class HandleTest(unittest.TestCase):
                 z.start()
                 self.assertIn("string is: test data", stdout.getvalue())
 
+    def test_issue_96_closing_stdin(self):
+        # Zelos shouldn't crash if stdin is closed before zelos is
+        # initialized.
+        new_stdin = io.TextIOWrapper(
+            io.BufferedReader(io.BytesIO(b"test data"))
+        )
+        with patch("sys.stdin", new=new_stdin):
+            new_stdin.close()
+            Zelos(None)
+
 
 def main():
     unittest.main()
