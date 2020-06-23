@@ -84,10 +84,12 @@ class FileHandle(Handle):
         access=0,
         is_dir=False,
         file=None,
+        close_on_cleanup=True,
     ):
         super().__init__(name, parent_thread, access)
         self._file_system = file_system
         self._file = None
+        self._close_on_cleanup = close_on_cleanup
         self.is_dir = is_dir
         if is_dir:
             return
@@ -164,7 +166,7 @@ class FileHandle(Handle):
         return self._file.read(size)
 
     def cleanup(self) -> None:
-        if self._file is not None:
+        if self._file is not None and self._close_on_cleanup:
             self._file.close()
 
 
@@ -339,6 +341,7 @@ class Handles:
                     handle_num=0,
                     file=sys.stdin.buffer,
                     pid=p.pid,
+                    close_on_cleanup=False,
                 )
             else:
                 self.add_handle(StdIn(), handle_num=0, pid=p.pid)
@@ -407,10 +410,17 @@ class Handles:
         is_dir=False,
         file=None,
         pid=None,
+        close_on_cleanup=True,
     ):
         parent_thread = self._current_thread_name()
         handle = FileHandle(
-            name, self.file_system, parent_thread, access, is_dir, file=file
+            name,
+            self.file_system,
+            parent_thread,
+            access,
+            is_dir,
+            file=file,
+            close_on_cleanup=close_on_cleanup,
         )
         handle_num = self.add_handle(handle, handle_num=handle_num, pid=pid)
         return handle_num
