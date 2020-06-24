@@ -70,6 +70,9 @@ class SyscallManager(object):
         # provide argument information for syscall breakpoints.
         self.last_syscall_args = None
         self.last_retval = 0
+        # Set if in the middle of executing the implementation of a
+        # syscall
+        self._current_syscall = None
 
         # If this is set, engine will set the IP value after breaking
         # execution. This is needed to avoid an issue in Unicorn wherein
@@ -181,14 +184,14 @@ class SyscallManager(object):
         sys_name = self.find_syscall_name_by_number(sys_num)
         sys_fn = self.find_syscall(sys_name)
 
+        # The current thread might get modified by the syscall.
+        thread = self.z.current_thread
+        self.last_syscall_args = None
+        self._current_syscall = sys_name
         try:
-            # The current thread might get modified by the syscall.
-            thread = self.z.current_thread
-            self.last_syscall_args = None
             retval = sys_fn(self, process)
-            if retval is not None:
-                self.set_return_value(retval)
         except Exception as e:
+            self._current_syscall = None
             self.logger.error(
                 (
                     f"Error in thread {thread} while executing "
@@ -196,6 +199,9 @@ class SyscallManager(object):
                 )
             )
             raise e
+        self._current_syscall = None
+        if retval is not None:
+            self.set_return_value(retval)
 
         hooks = self.z.hook_manager._get_hooks(HookType.SYSCALL.AFTER)
         for hook in hooks:
