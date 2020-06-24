@@ -269,6 +269,15 @@ class BaseSocket:
         self.history["sendto"].append([data, host_and_port])
         return len(data)
 
+    def shutdown(self, how: int):
+        """
+        Shut down part of the socket connection.
+
+        Args:
+            how: the part of the connection to shutdown
+        """
+        pass
+
 
 class DnsSocketSimulator:
     """
