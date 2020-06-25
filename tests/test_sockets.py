@@ -16,11 +16,13 @@
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
 
+import socket
 import unittest
 
 from os import path
 
 from zelos import HookType, Zelos
+from zelos.network.base_socket import BaseSocket
 
 
 DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
@@ -47,6 +49,34 @@ class ZelosTest(unittest.TestCase):
         self.assertEqual(
             1, len(z.internal_engine.thread_manager.completed_threads)
         )
+
+    def test_base_socket(self):
+        s = BaseSocket(
+            None, socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP
+        )
+
+        s.setsockopt(0, 1, False)
+        self.assertFalse(s.getsockopt(0, 1))
+        s.set_nonblock(True)
+        self.assertTrue(s.is_nonblock())
+        s.connect(("127.0.0.1", 1))
+        self.assertEqual(len(s.history["connect"]), 1)
+        self.assertEqual(s.host, "127.0.0.1")
+        self.assertEqual(s.port, 1)
+        self.assertEqual(s.close(), None)
+        s.bind(("127.0.0.2", 2))
+        self.assertEqual(len(s.history["bind"]), 1)
+        self.assertEqual(s.host, "127.0.0.2")
+        self.assertEqual(s.port, 2)
+        self.assertEqual(s.listen(), 0)
+        self.assertEqual(s.accept(), 0)
+        self.assertEqual(s.peek(), b"0")
+        self.assertEqual(s.send(bytes(1)), 1)
+        self.assertEqual(s.recv(1, 0), b"0")
+        self.assertEqual(s.recvfrom(1), (b"0", socket.AF_INET, "127.0.0.2", 2))
+        self.assertEqual(s.sendto(bytes(1), (None, None)), 1)
+        self.assertEqual(len(s.history["sendto"]), 1)
+        self.assertEqual(s.shutdown(0), None)
 
 
 def main():
