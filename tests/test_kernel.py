@@ -19,19 +19,19 @@ import unittest
 from unittest.mock import Mock
 
 from zelos import Zelos
-from zelos.ext.platforms.linux.syscall_manager import X86SyscallManager
+from zelos.ext.platforms.linux.kernel import X86Kernel
 
 
-class SyscallManagerTest(unittest.TestCase):
+class KernelTest(unittest.TestCase):
     def test_syscall_override(self):
         z = Zelos(None)
-        sm = X86SyscallManager(z.internal_engine)
-        sm.register_overrides({"getuid": [1, 2]})
-        sys_func = sm._name2syscall_func["getuid"]
+        k = X86Kernel(z.internal_engine)
+        k.register_overrides({"getuid": [1, 2]})
+        sys_func = k._name2syscall_func["getuid"]
         p = Mock()
-        self.assertEqual(1, sys_func(sm, p))
-        self.assertEqual(2, sys_func(sm, p))
-        sys_func(sm, p)
+        self.assertEqual(1, sys_func(k, p))
+        self.assertEqual(2, sys_func(k, p))
+        sys_func(k, p)
 
 
 def main():

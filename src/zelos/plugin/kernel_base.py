@@ -59,7 +59,7 @@ def str2struct(struct_obj, data):
     ctypes.memmove(ctypes.addressof(struct_obj), data, fit)
 
 
-class SyscallManager(object):
+class IKernel(object):
     def __init__(self, engine):
         self.logger = logging.getLogger(__name__)
         self.z = engine
@@ -230,8 +230,8 @@ class SyscallManager(object):
         for sys_name, overrides in override_dict.items():
             sys_func = self._name2syscall_func[sys_name]
 
-            def sys_func_wrapper(sm, p):
-                retval = sys_func(sm, p)
+            def sys_func_wrapper(k, p):
+                retval = sys_func(k, p)
                 if len(overrides) > 0:
                     self.logger.info("Invoking sysfunc return override")
                     return overrides.pop(0)
@@ -283,7 +283,7 @@ class SyscallManager(object):
     def return_addr(self):
         raise NotImplementedError()
 
-    def nullsub(self, sm, p):
+    def nullsub(self, k, p):
         return
 
     def fixme(self, msg):

@@ -486,7 +486,7 @@ class Zelos:
                 z.start()
 
         """
-        self.internal_engine.zos.syscall_manager.set_breakpoint(syscall_name)
+        self.internal_engine.kernel.set_breakpoint(syscall_name)
 
     def remove_syscall_breakpoint(self, syscall_name: str):
         """
@@ -509,9 +509,7 @@ class Zelos:
                 z.start()
 
         """
-        self.internal_engine.zos.syscall_manager.remove_breakpoint(
-            syscall_name
-        )
+        self.internal_engine.kernel.remove_breakpoint(syscall_name)
 
     def set_watchpoint(
         self, address: int, read: bool, write: bool, temporary: bool = False

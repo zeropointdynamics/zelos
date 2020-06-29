@@ -27,10 +27,10 @@ from zelos import CommandLineOption
 from zelos.hooks import HookType
 from zelos.plugin import OSPlugin
 
+from .kernel import construct_kernel
 from .loader import ElfLoader, LinuxMode
 from .parse import LiefELF
 from .signals import Signals
-from .syscall_manager import construct_syscall_manager
 
 
 CommandLineOption(
@@ -112,7 +112,7 @@ class Linux(OSPlugin):
         )
 
     def _first_parse_setup(self, arch):
-        self.z.zos.syscall_manager = construct_syscall_manager(arch, self.z)
+        self.z.kernel = construct_kernel(arch, self.z)
 
         # On first parse, register process & thread creation hooks
         LinuxMode(arch, self.z)

@@ -72,10 +72,8 @@ class ProcessesTest(unittest.TestCase):
         p1 = z.process
 
         # Make handle_syscall call fork
-        z.internal_engine.zos.syscall_manager.find_syscall_name_by_number = (
-            lambda x: "fork"
-        )
-        z.internal_engine.zos.syscall_manager.handle_syscall(p1)
+        z.internal_engine.kernel.find_syscall_name_by_number = lambda x: "fork"
+        z.internal_engine.kernel.handle_syscall(p1)
 
         new_pid = p1.emu.get_reg("eax")
         p2 = z.internal_engine.processes.get_process(new_pid)

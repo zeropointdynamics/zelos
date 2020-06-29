@@ -67,16 +67,16 @@ def get_pchar_array(z, addr, size=-1):
     return result
 
 
-def sys_brk(sm, p):
+def sys_brk(k, p):
     # Returns the location of the system break.
-    args = sm.get_args([("void*", "addr")])
+    args = k.get_args([("void*", "addr")])
     if args.addr == 0:
         return p.memory.heap.current_offset
 
     # asking for more memory
     memory_to_alloc = args.addr - p.memory.heap.current_offset
     if memory_to_alloc > 0:
-        sm.logger.debug(
+        k.logger.debug(
             f"sys_brk heap manager allocs "
             f"{memory_to_alloc:x}, {memory_to_alloc}"
         )
@@ -88,31 +88,31 @@ def sys_brk(sm, p):
     return p.memory.heap.current_offset
 
 
-def sys_syscall(sm, p):
-    _ = sm.get_args([("long", "number")])
+def sys_syscall(k, p):
+    _ = k.get_args([("long", "number")])
     return 0
 
 
-def sys_close(sm, p):
-    args = sm.get_args([("int", "fd")])
-    if sm.z.handles.get(args.fd) is None:
+def sys_close(k, p):
+    args = k.get_args([("int", "fd")])
+    if k.z.handles.get(args.fd) is None:
         return SysError.EBADF
-    sm.z.handles.close(args.fd)
+    k.z.handles.close(args.fd)
     return 0
 
 
-def sys_cacheflush(sm, p):
-    sm.get_args([])
+def sys_cacheflush(k, p):
+    k.get_args([])
     return 0
 
 
-def sys_unlink(sm, p):
-    sm.get_args([("const char*", "pathname")])
+def sys_unlink(k, p):
+    k.get_args([("const char*", "pathname")])
     return 0
 
 
-def sys_uname(sm, p):
-    args = sm.get_args([("struct utsname*", "buf")])
+def sys_uname(k, p):
+    args = k.get_args([("struct utsname*", "buf")])
     uname_data = (
         "Linux",  # sysname
         "zelos-tower",  # nodename
@@ -127,28 +127,28 @@ def sys_uname(sm, p):
     return 0
 
 
-def sys_creat(sm, p):
-    args = sm.get_args([("const char*", "pathname"), ("mode_t", "mode")])
+def sys_creat(k, p):
+    args = k.get_args([("const char*", "pathname"), ("mode_t", "mode")])
     O_CREAT = 0x40
     O_WRONLY = 0x1
     O_TRUNC = 0x200
     args.flags = O_CREAT | O_WRONLY | O_TRUNC
-    return xopen(sm, p, args)
+    return xopen(k, p, args)
 
 
-def sys_open(sm, p):
-    args = sm.get_args([("const char*", "pathname"), ("int", "flags")])
-    return xopen(sm, p, args)
+def sys_open(k, p):
+    args = k.get_args([("const char*", "pathname"), ("int", "flags")])
+    return xopen(k, p, args)
 
 
-def sys_openat(sm, p):
-    args = sm.get_args(
+def sys_openat(k, p):
+    args = k.get_args(
         [("int", "dirfd"), ("const char*", "pathname"), ("int", "flags")]
     )
-    return xopen(sm, p, args)
+    return xopen(k, p, args)
 
 
-def xopen(sm, p, args):
+def xopen(k, p, args):
     # TODO: impl. the different modes
     # O_ACCMODE = 0x3
     # O_RDONLY = 0x0
@@ -162,25 +162,25 @@ def xopen(sm, p, args):
     # O_NONBLOCK = 0x800
 
     pathname_s = p.memory.read_string(args.pathname)
-    path = sm.z.files.find_library(pathname_s)
-    sm.z.triggers.tr_file_open(pathname_s)
+    path = k.z.files.find_library(pathname_s)
+    k.z.triggers.tr_file_open(pathname_s)
     if path is not None:
-        handle_num = sm.z.handles.new_file(pathname_s)
+        handle_num = k.z.handles.new_file(pathname_s)
         retval = handle_num
     elif args.flags & 0x200 != 0 or args.flags & 0x40 != 0:
-        handle_num = sm.z.handles.new_file(pathname_s)
+        handle_num = k.z.handles.new_file(pathname_s)
         retval = handle_num
     else:
         return SysError.ENOENT
     return retval
 
 
-def sys_readv(sm, p):
-    args = sm.get_args(
+def sys_readv(k, p):
+    args = k.get_args(
         [("int", "fd"), ("const struct iovec*", "iov"), ("int", "iovcnt")]
     )
 
-    handle = sm.z.handles.get(args.fd)
+    handle = k.z.handles.get(args.fd)
     if handle is None:
         return 0
 
@@ -191,7 +191,7 @@ def sys_readv(sm, p):
         if iov_len == 0:
             continue
         if isinstance(handle, handles.SocketHandle):
-            bread = socketcall._recv(sm, p, args.fd, iovec, iov_len)
+            bread = socketcall._recv(k, p, args.fd, iovec, iov_len)
         elif isinstance(handle, handles.FileHandle):
             data = handle.read(iov_len)
             p.memory.write(iovec, data)
@@ -203,7 +203,7 @@ def sys_readv(sm, p):
     return bytes_read
 
 
-def sys_writev(sm, p):
+def sys_writev(k, p):
     def print_iov(args):
         s = ""
         for i in range(0, args.iovcnt):
@@ -220,14 +220,14 @@ def sys_writev(sm, p):
             return f"*iov=0x{args.iov:x}"
         return f'*iov=0x{args.iov:x} ("{s}")'
 
-    args = sm.get_args(
+    args = k.get_args(
         [("int", "fd"), ("const struct iovec*", "iov"), ("int", "iovcnt")],
         arg_string_overrides={"iov": print_iov},
     )
 
     bytes_written = 0
     # TODO this should just be a struct with the correct sizes in there.
-    word_size = 8 if sm.arch == "x86_64" else 4
+    word_size = 8 if k.arch == "x86_64" else 4
     for i in range(args.iovcnt):
         iovec = p.memory.read_ptr(args.iov + 2 * word_size * i)
         if iovec == 0:
@@ -237,27 +237,27 @@ def sys_writev(sm, p):
         )
         iov_base_content = p.memory.read(iovec, iov_len)
 
-        handle = sm.z.handles.get(args.fd)
+        handle = k.z.handles.get(args.fd)
         if handle is not None and hasattr(handle, "write"):
             handle.write(iov_base_content)
         else:
-            sm.print(f"[writev:{args.fd}]: '{iov_base_content}'")
+            k.print(f"[writev:{args.fd}]: '{iov_base_content}'")
         bytes_written += iov_len
     return bytes_written
 
 
-def sys_madvise(sm, p):
-    sm.get_args([("void*", "addr"), ("size_t", "length"), ("int", "advice")])
+def sys_madvise(k, p):
+    k.get_args([("void*", "addr"), ("size_t", "length"), ("int", "advice")])
     return 0
 
 
-def sys_msync(sm, p):
-    sm.get_args([("void*", "addr"), ("size_t", "length"), ("int", "flags")])
+def sys_msync(k, p):
+    k.get_args([("void*", "addr"), ("size_t", "length"), ("int", "flags")])
     return 0
 
 
-def sys_mmap(sm, p):
-    if sm.arch == "x86":
+def sys_mmap(k, p):
+    if k.arch == "x86":
 
         def print_mmap_struct(struct_args):
             args = p.memory.readstruct(
@@ -269,7 +269,7 @@ def sys_mmap(sm, p):
                 f"fd=0x{args.fd:x}, offset=0x{args.offset:x}"
             )
 
-        user_arg = sm.get_args(
+        user_arg = k.get_args(
             [("mmap_arg_struct32*", "__user")],
             arg_string_overrides={"__user": print_mmap_struct},
         )
@@ -277,7 +277,7 @@ def sys_mmap(sm, p):
             user_arg.__user, structs.MMAP_ARG_STRUCT32()
         )
     else:
-        args = sm.get_args(
+        args = k.get_args(
             [
                 ("void*", "addr"),
                 ("size_t", "length"),
@@ -289,14 +289,14 @@ def sys_mmap(sm, p):
         )
 
     try:
-        return mmapx(sm, p, "mmap", args, args.offset)
+        return mmapx(k, p, "mmap", args, args.offset)
     except Exception as e:
-        sm.print("mmap exception: " + str(e))
+        k.print("mmap exception: " + str(e))
         return -1
 
 
-def sys_mmap2(sm, p):
-    args = sm.get_args(
+def sys_mmap2(k, p):
+    args = k.get_args(
         [
             ("void*", "addr"),
             ("size_t", "length"),
@@ -307,13 +307,13 @@ def sys_mmap2(sm, p):
         ]
     )
     try:
-        return mmapx(sm, p, "mmap2", args, args.pgoffset * 0x1000)
+        return mmapx(k, p, "mmap2", args, args.pgoffset * 0x1000)
     except Exception as e:
-        sm.print("mmap2 exception: " + str(e))
+        k.print("mmap2 exception: " + str(e))
         return -1
 
 
-def mmapx(sm, p, syscall_name, args, offset):
+def mmapx(k, p, syscall_name, args, offset):
     MAP_SHARED = 0x1
     MAP_FIXED = 0x10
     MAP_ANONYMOUS = 0x20
@@ -321,7 +321,7 @@ def mmapx(sm, p, syscall_name, args, offset):
     if args.flags & MAP_ANONYMOUS != 0:
         handle = None
     else:
-        handle = sm.z.handles.get(args.fd)
+        handle = k.z.handles.get(args.fd)
     if handle is not None:
         memory_region_name = f"{syscall_name} -> {handle.Name}"
 
@@ -333,7 +333,7 @@ def mmapx(sm, p, syscall_name, args, offset):
 
     data = b""
     if handle is not None:
-        f = sm.z.files.open_library(handle.Name)
+        f = k.z.files.open_library(handle.Name)
         if f is not None:
             f.seek(offset)
             data = f.read(args.length)
@@ -352,7 +352,7 @@ def mmapx(sm, p, syscall_name, args, offset):
             prot=prot,
         )
     except Exception:
-        sm.logger.debug(f"Address {addr:x} is already mapped")
+        k.logger.debug(f"Address {addr:x} is already mapped")
         if args.flags & MAP_FIXED > 0:
             # This must be mapped to this region, we should be able to
             # just write over the existing data.
@@ -361,7 +361,7 @@ def mmapx(sm, p, syscall_name, args, offset):
             p.memory.protect(addr, length, prot)
             pass
         else:
-            sm.logger.notice(f"Attempting to map {addr} elsewhere")
+            k.logger.notice(f"Attempting to map {addr} elsewhere")
             addr = p.memory.map_anywhere(
                 length,
                 name=memory_region_name,
@@ -374,13 +374,13 @@ def mmapx(sm, p, syscall_name, args, offset):
     return addr
 
 
-def sys_munmap(sm, p):
-    sm.get_args([("void*", "addr"), ("size_t", "length")])
+def sys_munmap(k, p):
+    k.get_args([("void*", "addr"), ("size_t", "length")])
     return 0
 
 
-def sys_mprotect(sm, p):
-    args = sm.get_args([("void*", "addr"), ("size_t", "len"), ("int", "prot")])
+def sys_mprotect(k, p):
+    args = k.get_args([("void*", "addr"), ("size_t", "len"), ("int", "prot")])
     p.memory.protect(args.addr, args.len, ProtType(args.prot))
     return 0
 
@@ -411,20 +411,20 @@ class USERDESC(ctypes.Structure):
 #     return 0;
 
 
-def sys_set_tls(sm, p):
-    args = sm.get_args([("CPUARMState*", "env")])
-    sm.emu.set_reg("c13_c0_3", args.env)
-    sm.set_return_value(0)
+def sys_set_tls(k, p):
+    args = k.get_args([("CPUARMState*", "env")])
+    k.emu.set_reg("c13_c0_3", args.env)
+    k.set_return_value(0)
 
 
-def sys_set_thread_area(sm, p):
-    if sm.arch == "mips":
-        return mips_set_thread_area(sm, p)
+def sys_set_thread_area(k, p):
+    if k.arch == "mips":
+        return mips_set_thread_area(k, p)
 
     from zelos.emulator.x86_gdt import GDT_32
 
-    args = sm.get_args([("struct user_desc*", "u_info")])
-    userdesc = ptr2struct(sm.z, args.u_info, USERDESC)
+    args = k.get_args([("struct user_desc*", "u_info")])
+    userdesc = ptr2struct(k.z, args.u_info, USERDESC)
     p.memory.write_int(args.u_info, 0xC)
 
     flags = GDT_32.gdt_entry_flags(
@@ -432,27 +432,27 @@ def sys_set_thread_area(sm, p):
     )  # 0x4f3
     p.gdt.set_entry(0xC, userdesc.base_address, 0xFFF, flags)
 
-    tdata = sm.z.main_module.Tls
+    tdata = k.z.main_module.Tls
     p.memory.write(userdesc.base_address - len(tdata), bytes(tdata))
     return 0
 
 
-def mips_set_thread_area(sm, p):
-    args = sm.get_args([("unsigned long", "addr")])
+def mips_set_thread_area(k, p):
+    args = k.get_args([("unsigned long", "addr")])
     p.emu.set_reg("cp0_userlocal", args.addr)
     return 0
 
 
-def sys_read(sm, p):
-    args = sm.get_args([("int", "fd"), ("void*", "buf"), ("size_t", "count")])
-    handle = sm.z.handles.get(args.fd)
+def sys_read(k, p):
+    args = k.get_args([("int", "fd"), ("void*", "buf"), ("size_t", "count")])
+    handle = k.z.handles.get(args.fd)
     if handle is None:
         return SysError.EBADF
     if not p.memory.is_writable(args.buf):
         return SysError.EFAULT
     data = ""
     if isinstance(handle, handles.SocketHandle):
-        return socketcall._recv(sm, p, args.fd, args.buf, args.count)
+        return socketcall._recv(k, p, args.fd, args.buf, args.count)
     if isinstance(handle, handles.PipeOutHandle):
         if handle.pipe.is_empty():
             if handle.pipe.write_end_closed:
@@ -463,7 +463,7 @@ def sys_read(sm, p):
                     handle.pipe.write_end_closed
                 )
 
-            sm.pause_syscall(p, condition=unpause_when)
+            k.pause_syscall(p, condition=unpause_when)
             return
         data = handle.read(args.count)
         p.memory.write(args.buf, data)
@@ -478,7 +478,7 @@ def sys_read(sm, p):
     except PermissionError:
         return SysError.EACCES
     except io.UnsupportedOperation:
-        sm.logger.error(f"Unable to read file {handle.Name}")
+        k.logger.error(f"Unable to read file {handle.Name}")
         return SysError.EACCES
 
     if len(data) == 0:
@@ -491,8 +491,8 @@ def sys_read(sm, p):
     return len(data)
 
 
-def sys_pread64(sm, p):
-    args = sm.get_args(
+def sys_pread64(k, p):
+    args = k.get_args(
         [
             ("int", "fd"),
             ("void*", "buf"),
@@ -500,7 +500,7 @@ def sys_pread64(sm, p):
             ("off_t", "offset"),
         ]
     )
-    handle = sm.z.handles.get(args.fd)
+    handle = k.z.handles.get(args.fd)
 
     if handle is None:
         return 0
@@ -516,74 +516,74 @@ def sys_pread64(sm, p):
     return len(data)
 
 
-def sys_geteuid32(sm, p):
-    sm.get_args([])
+def sys_geteuid32(k, p):
+    k.get_args([])
     return 1000
 
 
-def sys_geteuid(sm, p):
-    sm.get_args([])
+def sys_geteuid(k, p):
+    k.get_args([])
     return 0
 
 
-def sys_getuid32(sm, p):
-    sm.get_args([])
+def sys_getuid32(k, p):
+    k.get_args([])
     return 1000
 
 
-def sys_getegid32(sm, p):
-    sm.get_args([])
+def sys_getegid32(k, p):
+    k.get_args([])
     return 0xD11B
 
 
-def sys_getgid32(sm, p):
-    sm.get_args([])
+def sys_getgid32(k, p):
+    k.get_args([])
     return 0xD11B
 
 
-def sys_getuid(sm, p):
-    sm.get_args([])
+def sys_getuid(k, p):
+    k.get_args([])
     return 0
 
 
-def sys_getegid(sm, p):
-    sm.get_args([])
+def sys_getegid(k, p):
+    k.get_args([])
     return 0xD11B
 
 
-def sys_getgid(sm, p):
-    sm.get_args([])
+def sys_getgid(k, p):
+    k.get_args([])
     return 0xD11B
 
 
-def sys_setpgid(sm, p):
-    sm.get_args([("pid_t", "pid"), ("pid_t", "pgid")])
+def sys_setpgid(k, p):
+    k.get_args([("pid_t", "pid"), ("pid_t", "pgid")])
     return 0
 
 
-def sys_setgid32(sm, p):
-    sm.get_args([("gid_t", "gid")])
+def sys_setgid32(k, p):
+    k.get_args([("gid_t", "gid")])
     return 0
 
 
-def sys_setuid32(sm, p):
-    sm.get_args([("uid_t", "uid")])
+def sys_setuid32(k, p):
+    k.get_args([("uid_t", "uid")])
     return 0
 
 
-def sys_setsid(sm, p):
-    sm.get_args([])
+def sys_setsid(k, p):
+    k.get_args([])
     return 0xD00B
 
 
-def sys_getgroups(sm, p):
-    sm.get_args([("int", "size"), ("gid_t[]", "list")])
+def sys_getgroups(k, p):
+    k.get_args([("int", "size"), ("gid_t[]", "list")])
     return 0
 
 
 # There may be a bug in gcc_coreutils_32_o0_tail with this function
-def sys__llseek(sm, p):
-    args = sm.get_args(
+def sys__llseek(k, p):
+    args = k.get_args(
         [
             ("unsigned int", "fd"),
             ("unsigned long", "offset_high"),
@@ -595,35 +595,35 @@ def sys__llseek(sm, p):
     offset = sys_utils.twos_comp(
         (args.offset_high << 32) | args.offset_low, 64
     )
-    file_position = xlseek(sm, args.fd, offset, args.whence)
+    file_position = xlseek(k, args.fd, offset, args.whence)
     file_position &= 0xFFFFFFFF
-    handle = sm.z.handles.get(args.fd)
-    sm.z.logger.debug(f"File {handle.Name} ({args.fd:x}) to {file_position}")
+    handle = k.z.handles.get(args.fd)
+    k.z.logger.debug(f"File {handle.Name} ({args.fd:x}) to {file_position}")
     p.memory.write_int(args.result, file_position)
     return 0
 
 
-def sys_lseek(sm, p):
-    args = sm.get_args(
+def sys_lseek(k, p):
+    args = k.get_args(
         [("unsigned int", "fd"), ("off_t", "offset"), ("int", "whence")]
     )
     offset = p.emu.to_signed(args.offset)
-    file_position = xlseek(sm, args.fd, offset, args.whence)
+    file_position = xlseek(k, args.fd, offset, args.whence)
     return file_position
 
 
-def xlseek(sm, fd, offset, whence) -> int:
+def xlseek(k, fd, offset, whence) -> int:
     """
     Returns the offset from the beginning of the file.
     """
-    handle = sm.z.handles.get(fd)
+    handle = k.z.handles.get(fd)
     if handle is None:
         return
     return handle.seek(offset, whence)
 
 
-def sys_readlink(sm, p):
-    args = sm.get_args(
+def sys_readlink(k, p):
+    args = k.get_args(
         [("const char*", "pathname"), ("char*", "buf"), ("size_t", "bufsiz")]
     )
     # TODO: This is bypassing the filesystem protections, this should not be
@@ -644,8 +644,8 @@ def sys_readlink(sm, p):
         return -1
 
 
-def sys_readlinkat(sm, p):
-    args = sm.get_args(
+def sys_readlinkat(k, p):
+    args = k.get_args(
         [
             ("int", "dirfd"),
             ("const char*", "pathname"),
@@ -669,15 +669,15 @@ def sys_readlinkat(sm, p):
         return -1
 
 
-def sys_getcwd(sm, p):
-    args = sm.get_args([("char*", "buf"), ("size_t", "size")])
-    size = p.memory.write_string(args.buf, sm.z.files.zelos_file_prefix)
+def sys_getcwd(k, p):
+    args = k.get_args([("char*", "buf"), ("size_t", "size")])
+    size = p.memory.write_string(args.buf, k.z.files.zelos_file_prefix)
 
     return size
 
 
-def sys_faccessat(sm, p):
-    args = sm.get_args(
+def sys_faccessat(k, p):
+    args = k.get_args(
         [
             ("int", "dirfd"),
             ("const char*", "pathname"),
@@ -686,19 +686,19 @@ def sys_faccessat(sm, p):
         ]
     )
     pathname_s = p.memory.read_string(args.pathname)
-    sm.z.triggers.tr_file_check(pathname_s)
+    k.z.triggers.tr_file_check(pathname_s)
     retval = -1
-    if sm.z.files.find_library(pathname_s) is not None:
+    if k.z.files.find_library(pathname_s) is not None:
         retval = 0
     return retval
 
 
-def sys_access(sm, p):
-    args = sm.get_args([("const char*", "pathname"), ("int", "mode")])
+def sys_access(k, p):
+    args = k.get_args([("const char*", "pathname"), ("int", "mode")])
     pathname_s = p.memory.read_string(args.pathname)
-    sm.z.triggers.tr_file_check(pathname_s)
+    k.z.triggers.tr_file_check(pathname_s)
     retval = -1
-    if sm.z.files.find_library(pathname_s) is not None:
+    if k.z.files.find_library(pathname_s) is not None:
         retval = 0
 
     return retval
@@ -737,49 +737,49 @@ class FCNTL(enum.IntEnum):
     O_NDELAY = 0o00004000
 
 
-def sys_fcntl64(sm, p):
-    return sys_fcntl(sm, p)
+def sys_fcntl64(k, p):
+    return sys_fcntl(k, p)
 
 
-def sys_fcntl(sm, p):
-    args = sm.get_args([("int", "fd"), ("int_FCNTL", "cmd"), ("int", "arg")])
+def sys_fcntl(k, p):
+    args = k.get_args([("int", "fd"), ("int_FCNTL", "cmd"), ("int", "arg")])
     cmd_name = FCNTL_COMMANDS.get(args.cmd, "unknown")
 
     if cmd_name == "F_GETFL":
         # return fd flags
         pass
     elif cmd_name == "F_SETFL":
-        handle = sm.z.handles.get(args.fd)
+        handle = k.z.handles.get(args.fd)
         if isinstance(handle, handles.SocketHandle):
             handle.socket.set_nonblock(args.arg & FCNTL.O_NONBLOCK != 0)
 
     return 0
 
 
-def sys_lstat(sm, p):
-    return sys_stat(sm, p)
+def sys_lstat(k, p):
+    return sys_stat(k, p)
 
 
-def sys_lstat64(sm, p):
-    return sys_stat64(sm, p)
+def sys_lstat64(k, p):
+    return sys_stat64(k, p)
 
 
-def sys_stat(sm, p):
-    stat_struct = structs.get_stat_struct(sm.arch)
-    return _statx(sm, p, stat_struct)
+def sys_stat(k, p):
+    stat_struct = structs.get_stat_struct(k.arch)
+    return _statx(k, p, stat_struct)
 
 
-def sys_stat64(sm, p):
-    return _statx(sm, p, structs.STAT64())
+def sys_stat64(k, p):
+    return _statx(k, p, structs.STAT64())
 
 
-def _statx(sm, p, struct):
-    args = sm.get_args(
+def _statx(k, p, struct):
+    args = k.get_args(
         [("const char*", "pathname"), ("struct stat*", "statbuf")]
     )
     pathname_s = p.memory.read_string(args.pathname)
 
-    library_path = sm.z.files.find_library(pathname_s)
+    library_path = k.z.files.find_library(pathname_s)
     if library_path is None or not path.exists(library_path):
         return -1
 
@@ -790,28 +790,28 @@ def _statx(sm, p, struct):
     return retval
 
 
-def sys_fstat(sm, p):
-    stat_struct = structs.get_stat_struct(sm.arch)
-    return _fstatx(sm, p, stat_struct)
+def sys_fstat(k, p):
+    stat_struct = structs.get_stat_struct(k.arch)
+    return _fstatx(k, p, stat_struct)
 
 
-def sys_fstat64(sm, p):
-    return _fstatx(sm, p, structs.STAT64())
+def sys_fstat64(k, p):
+    return _fstatx(k, p, structs.STAT64())
 
 
-def _fstatx(sm, p, struct):
+def _fstatx(k, p, struct):
     # TODO: Change _fstatx so the real os.stat isn't called, can lead to
     # unintuitive behavior.
-    args = sm.get_args([("int", "fd"), ("struct stat*", "statbuf")])
+    args = k.get_args([("int", "fd"), ("struct stat*", "statbuf")])
     if args.fd in [0, 1, 2]:
         statinfo = os.fstat(args.fd)
     else:
-        handle = sm.z.handles.get(args.fd)
+        handle = k.z.handles.get(args.fd)
         if handle is None:
-            sm.logger.notice("Invalid handle")
+            k.logger.notice("Invalid handle")
             return -1
 
-        library_path = sm.z.files.find_library(handle.Name)
+        library_path = k.z.files.find_library(handle.Name)
         if library_path is None or not path.exists(library_path):
             return -1
 
@@ -861,8 +861,8 @@ run_once = None
 #     ]
 
 
-def sys_getdents(sm, p):
-    args = sm.get_args(
+def sys_getdents(k, p):
+    args = k.get_args(
         [
             ("unsigned int", "fd"),
             ("struct linux_dirent *", "dirp"),
@@ -870,14 +870,14 @@ def sys_getdents(sm, p):
         ]
     )
 
-    handle = sm.z.handles.get(args.fd)
+    handle = k.z.handles.get(args.fd)
     if handle is None:
         return -1
 
     folder_contents = handle.data.get("dents", None)
     if folder_contents is None:
         # Get the dents and run this function
-        folder_contents = sm.z.files.list_dir(handle.Name)
+        folder_contents = k.z.files.list_dir(handle.Name)
     if len(folder_contents) == 0:
         handle.data["dents"] = folder_contents
         return 0
@@ -888,7 +888,7 @@ def sys_getdents(sm, p):
     while len(folder_contents) > 0:
         full_name = os.path.join(handle.Name, folder_contents[-1])
         bytes_written = _write_dirent_x86_64(
-            sm,
+            k,
             p,
             full_name,
             folder_contents[-1],
@@ -909,13 +909,13 @@ def sys_getdents(sm, p):
 
 
 def _write_dirent_x86_64(
-    sm, p, full_name, basename, struct_start, prev_struct_start, max_addr
+    k, p, full_name, basename, struct_start, prev_struct_start, max_addr
 ):
     struct_len = align(len(basename) + 2 + 0x12, 4)
     if struct_start + struct_len > max_addr:
         return 0
 
-    library_path = sm.z.files.find_library(full_name)
+    library_path = k.z.files.find_library(full_name)
     if library_path is None or not path.exists(library_path):
         return -1
 
@@ -935,12 +935,12 @@ def _write_dirent_x86_64(
     return struct_len
 
 
-def sys_getdents64(sm, p):
+def sys_getdents64(k, p):
     global run_once
     if run_once is not None:
         return 0
 
-    args = sm.get_args(
+    args = k.get_args(
         [
             ("unsigned int", "fd"),
             ("struct linux_dirent64 *", "dirp"),
@@ -973,27 +973,27 @@ def sys_getdents64(sm, p):
     return struct_size
 
 
-def sys_ftruncate(sm, p):
-    sm.get_args([("int", "fd"), ("off_t", "length")])
+def sys_ftruncate(k, p):
+    k.get_args([("int", "fd"), ("off_t", "length")])
     # TODO
-    # handle = sm.z.handles.get(args.fd)
+    # handle = k.z.handles.get(args.fd)
 
     return 0
 
 
-def sys_write(sm, p):
+def sys_write(k, p):
     def print_buf(args):
         s = repr(bytes(p.memory.read(args.buf, size=args.count)))[2:-1]
         return f'buf=0x{args.buf:x} ("{s}")'
 
-    args = sm.get_args(
+    args = k.get_args(
         [("int", "fd"), ("const void*", "buf"), ("size_t", "count")],
         arg_string_overrides={"buf": print_buf},
     )
 
     s = p.memory.read(args.buf, args.count)
 
-    handle = sm.z.handles.get(args.fd)
+    handle = k.z.handles.get(args.fd)
     # Just fake the write if we don't have the handle
     if handle is None:
         return len(s)
@@ -1003,23 +1003,23 @@ def sys_write(sm, p):
     if hasattr(handle, "write"):
         handle.write(s)
     else:
-        sm.z.triggers.tr_file_write(
+        k.z.triggers.tr_file_write(
             f"{type(handle).__name__}, {handle.Name}", s
         )
         if isinstance(handle, handles.SocketHandle):
             payload = p.memory.read(args.buf, args.count)
-            sent_bytes = socketcall._send(sm, p, args.fd, payload)
+            sent_bytes = socketcall._send(k, p, args.fd, payload)
             return sent_bytes
-        sm.print(s)
+        k.print(s)
     return len(s)
 
 
-def sys_pwrite64(sm, p):
+def sys_pwrite64(k, p):
     def print_buf(args):
         s = repr(bytes(p.memory.read(args.buf, size=args.count)))[2:-1]
         return f'buf=0x{args.buf:x} ("{s}")'
 
-    args = sm.get_args(
+    args = k.get_args(
         [
             ("int", "fd"),
             ("const void*", "buf"),
@@ -1030,7 +1030,7 @@ def sys_pwrite64(sm, p):
     )
     s = p.memory.read(args.buf, args.count)
 
-    handle = sm.z.handles.get(args.fd)
+    handle = k.z.handles.get(args.fd)
     # Just fake the write if we don't have the handle
     if handle is None:
         return len(s)
@@ -1045,44 +1045,44 @@ def sys_pwrite64(sm, p):
     return size_of_write
 
 
-def sys_dup2(sm, p):
-    args = sm.get_args([("int", "oldfd"), ("int", "newfd")])
-    handle = sm.z.handles.get(args.oldfd)
+def sys_dup2(k, p):
+    args = k.get_args([("int", "oldfd"), ("int", "newfd")])
+    handle = k.z.handles.get(args.oldfd)
     if handle is not None:
-        sm.z.handles.add_handle(handle, args.newfd)
+        k.z.handles.add_handle(handle, args.newfd)
     return args.newfd
 
 
-def sys_dup3(sm, p):
-    args = sm.get_args([("int", "oldfd"), ("int", "newfd"), ("int", "flags")])
-    handle = sm.z.handles.get(args.oldfd)
+def sys_dup3(k, p):
+    args = k.get_args([("int", "oldfd"), ("int", "newfd"), ("int", "flags")])
+    handle = k.z.handles.get(args.oldfd)
     if handle is not None:
-        sm.z.handles.add_handle(handle, args.newfd)
+        k.z.handles.add_handle(handle, args.newfd)
     return args.newfd
 
 
-def sys_pipe2(sm, p):
-    args = sm.get_args([("int[2]", "pipefd"), ("int", "flags")])
-    return _pipe(sm, p, args.pipefd, args.flags)
+def sys_pipe2(k, p):
+    args = k.get_args([("int[2]", "pipefd"), ("int", "flags")])
+    return _pipe(k, p, args.pipefd, args.flags)
 
 
-def sys_pipe(sm, p):
-    args = sm.get_args([("int[2]", "pipefd")])
-    return _pipe(sm, p, args.pipefd, None)
+def sys_pipe(k, p):
+    args = k.get_args([("int[2]", "pipefd")])
+    return _pipe(k, p, args.pipefd, None)
 
 
-def _pipe(sm, p, pipefd, flags):
-    (out_handle_num, in_handle_num) = sm.z.handles.new_pipe("")
+def _pipe(k, p, pipefd, flags):
+    (out_handle_num, in_handle_num) = k.z.handles.new_pipe("")
     p.memory.write_int(pipefd, out_handle_num)
     p.memory.write_int(pipefd + 4, in_handle_num)  # valid in x64
-    sm.logger.info(
+    k.logger.info(
         f"Pipe handles are out:{out_handle_num:x} in:{in_handle_num:x}"
     )
     return 0
 
 
-def sys_ipc(sm, p):
-    sm.get_args(
+def sys_ipc(k, p):
+    k.get_args(
         [
             ("unsigned int", "call"),
             ("int", "first"),
@@ -1095,8 +1095,8 @@ def sys_ipc(sm, p):
     return -1
 
 
-def sys_socketcall(sm, p):
-    args = sm.get_args([("int", "call"), ("unsigned long *", "callargs")])
+def sys_socketcall(k, p):
+    args = k.get_args([("int", "call"), ("unsigned long *", "callargs")])
     socket_dict = {
         1: socketcall.socket,
         2: socketcall.bind,
@@ -1119,93 +1119,93 @@ def sys_socketcall(sm, p):
         19: socketcall.recvmmsg,
         20: socketcall.sendmmsg,
     }
-    retval = socket_dict[args.call](sm, p, args.callargs)
+    retval = socket_dict[args.call](k, p, args.callargs)
     return retval
 
 
-def sys_socket(sm, p):
-    return socketcall.socket(sm, p, -1)
+def sys_socket(k, p):
+    return socketcall.socket(k, p, -1)
 
 
-def sys_bind(sm, p):
-    return socketcall.bind(sm, p, -1)
+def sys_bind(k, p):
+    return socketcall.bind(k, p, -1)
 
 
-def sys_connect(sm, p):
-    return socketcall.connect(sm, p, -1)
+def sys_connect(k, p):
+    return socketcall.connect(k, p, -1)
 
 
-def sys_listen(sm, p):
-    return socketcall.listen(sm, p, -1)
+def sys_listen(k, p):
+    return socketcall.listen(k, p, -1)
 
 
-def sys_accept(sm, p):
-    return socketcall.accept(sm, p, -1)
+def sys_accept(k, p):
+    return socketcall.accept(k, p, -1)
 
 
-def sys_getsockname(sm, p):
-    return socketcall.getsockname(sm, p, -1)
+def sys_getsockname(k, p):
+    return socketcall.getsockname(k, p, -1)
 
 
-def sys_getpeername(sm, p):
-    return socketcall.getpeername(sm, p, -1)
+def sys_getpeername(k, p):
+    return socketcall.getpeername(k, p, -1)
 
 
-def sys_socketpair(sm, p):
-    return socketcall.socketpair(sm, p, -1)
+def sys_socketpair(k, p):
+    return socketcall.socketpair(k, p, -1)
 
 
-def sys_send(sm, p):
-    return socketcall.send(sm, p, -1)
+def sys_send(k, p):
+    return socketcall.send(k, p, -1)
 
 
-def sys_recv(sm, p):
-    return socketcall.recv(sm, p, -1)
+def sys_recv(k, p):
+    return socketcall.recv(k, p, -1)
 
 
-def sys_sendto(sm, p):
-    return socketcall.sendto(sm, p, -1)
+def sys_sendto(k, p):
+    return socketcall.sendto(k, p, -1)
 
 
-def sys_recvfrom(sm, p):
-    return socketcall.recvfrom(sm, p, -1)
+def sys_recvfrom(k, p):
+    return socketcall.recvfrom(k, p, -1)
 
 
-def sys_shutdown(sm, p):
-    return socketcall.shutdown(sm, p, -1)
+def sys_shutdown(k, p):
+    return socketcall.shutdown(k, p, -1)
 
 
-def sys_setsockopt(sm, p):
-    return socketcall.setsockopt(sm, p, -1)
+def sys_setsockopt(k, p):
+    return socketcall.setsockopt(k, p, -1)
 
 
-def sys_getsockopt(sm, p):
-    return socketcall.getsockopt(sm, p, -1)
+def sys_getsockopt(k, p):
+    return socketcall.getsockopt(k, p, -1)
 
 
-def sys_sendmsg(sm, p):
-    return socketcall.sendmsg(sm, p, -1)
+def sys_sendmsg(k, p):
+    return socketcall.sendmsg(k, p, -1)
 
 
-def sys_recvmsg(sm, p):
-    return socketcall.recvmsg(sm, p, -1)
+def sys_recvmsg(k, p):
+    return socketcall.recvmsg(k, p, -1)
 
 
-def sys_accept4(sm, p):
-    return socketcall.accept4(sm, p, -1)
+def sys_accept4(k, p):
+    return socketcall.accept4(k, p, -1)
 
 
-def sys_recvmmsg(sm, p):
-    return socketcall.recvmmsg(sm, p, -1)
+def sys_recvmmsg(k, p):
+    return socketcall.recvmmsg(k, p, -1)
 
 
-def sys_sendmmsg(sm, p):
-    return socketcall.sendmmsg(sm, p, -1)
+def sys_sendmmsg(k, p):
+    return socketcall.sendmmsg(k, p, -1)
 
 
-def sys_clone(sm, p):
-    if sm.arch == "x86_64":
-        args = sm.get_args(
+def sys_clone(k, p):
+    if k.arch == "x86_64":
+        args = k.get_args(
             [
                 ("unsigned long", "flags"),
                 ("void*", "child_stack"),
@@ -1215,7 +1215,7 @@ def sys_clone(sm, p):
             ]
         )
     else:
-        args = sm.get_args(
+        args = k.get_args(
             [
                 ("unsigned long", "flags"),
                 ("void*", "child_stack"),
@@ -1225,35 +1225,35 @@ def sys_clone(sm, p):
             ]
         )
 
-    child_process = _new_process(sm, p)
-    parent_handles = sm.z.handles._all_handles(p.pid)
+    child_process = _new_process(k, p)
+    parent_handles = k.z.handles._all_handles(p.pid)
     for num, h in parent_handles:
-        sm.z.handles.add_handle(h, handle_num=num, pid=child_process.pid)
+        k.z.handles.add_handle(h, handle_num=num, pid=child_process.pid)
     try:
         child_process.memory.write_uint32(args.ctid, child_process.pid)
     except Exception:
         pass
 
     # if args.newtls != 0:
-    #     userdesc = ptr2struct(sm.z, args.newtls, USERDESC)
+    #     userdesc = ptr2struct(k.z, args.newtls, USERDESC)
     #     # dumpstruct(userdesc)
 
-    #     # sm.z._add_tdata_before(userdesc.base_address)
-    #     # sm.logger.error(f'ADDRESS: {userdesc.base_address}')
+    #     # k.z._add_tdata_before(userdesc.base_address)
+    #     # k.logger.error(f'ADDRESS: {userdesc.base_address}')
     #     # child_process.current_thread.local_data_address =
     #     #     userdesc.base_address
     return child_process.pid
 
 
-def sys_fork(sm, p):
-    sm.get_args([])
+def sys_fork(k, p):
+    k.get_args([])
 
-    child_process = _new_process(sm, p)
+    child_process = _new_process(k, p)
     return child_process.pid
 
 
-def _new_process(sm, p):
-    processes = sm.z.processes
+def _new_process(k, p):
+    processes = k.z.processes
     child_pid = processes.new_process()
     child = processes.get_process(child_pid)
 
@@ -1263,15 +1263,15 @@ def _new_process(sm, p):
     # Create this same thread inside the process
     current_thread = p.current_thread
     child.new_thread(
-        sm.return_addr(),
+        k.return_addr(),
         priority=current_thread.priority,
         module_path=current_thread.module_path,
     )
     child.threads.swap_with_next_thread()
     p.current_thread.save_context()
     child.emu.context_restore(p.current_thread.context)
-    child.emu.setIP(sm.return_addr())
-    processes._as_current_process(child, lambda: sm.set_return_value(0))
+    child.emu.setIP(k.return_addr())
+    processes._as_current_process(child, lambda: k.set_return_value(0))
     child.current_thread.save_context()
 
     return child
@@ -1282,30 +1282,30 @@ def _new_process(sm, p):
 #   child finishes)
 
 
-def sys_vfork(sm, p):
-    sm.get_args([])
+def sys_vfork(k, p):
+    k.get_args([])
     current_thread_priority = p.current_thread.priority
-    t = sm.z.processes.new_thread_for_current_process(
-        sm.return_addr(),
+    t = k.z.processes.new_thread_for_current_process(
+        k.return_addr(),
         module_path=p.current_thread.module_path,
         priority=current_thread_priority + 1,
     )
 
     def thread_swap():
         p.threads.swap_with_thread(tid=t.id)
-        sm.set_return_value(0)
+        k.set_return_value(0)
 
     p.scheduler.stop_and_exec("thread swap", thread_swap)
     return t.id
 
 
-def sys_pause(sm, p):
-    sm.get_args([])
+def sys_pause(k, p):
+    k.get_args([])
     return SysError.EINTR
 
 
-def sys_wait4(sm, p):
-    args = sm.get_args(
+def sys_wait4(k, p):
+    args = k.get_args(
         [
             ("pid_t", "pid"),
             ("int*", "wstatus"),
@@ -1313,7 +1313,7 @@ def sys_wait4(sm, p):
             ("struct rusage*", "rusage"),
         ]
     )
-    state_changes = sm.child_state_changes[p.pid]
+    state_changes = k.child_state_changes[p.pid]
     if len(state_changes) > 0:
         if args.pid in [0, 0xFFFFFFFF]:
             return state_changes.pop(0)
@@ -1324,7 +1324,7 @@ def sys_wait4(sm, p):
     if args.pid in [0, 0xFFFFFFFF]:
         children = p.get_child_processes()
         if len(children) == 0:
-            sm.logger.notice(
+            k.logger.notice(
                 f"Can't wait on id {args.pid}, "
                 f"couldn't find corresponding thread"
             )
@@ -1340,13 +1340,13 @@ def sys_wait4(sm, p):
                     return True
             return False
 
-        sm.pause_syscall(p, condition=unpause_when)
+        k.pause_syscall(p, condition=unpause_when)
         # TODO: Should be returning the newly paused thread's pid
         return 0
 
-    target_thread = sm.z.processes.get_thread(args.pid)
+    target_thread = k.z.processes.get_thread(args.pid)
     if target_thread is None:
-        sm.logger.notice(
+        k.logger.notice(
             f"Can't wait on id {args.pid}, "
             f"couldn't find corresponding thread"
         )
@@ -1356,7 +1356,7 @@ def sys_wait4(sm, p):
     if target_thread.id == p.current_thread.id:
         target_thread.priority -= 1
         p.scheduler.stop_and_exec(
-            "process swap", sm.z.processes.swap_with_next_thread
+            "process swap", k.z.processes.swap_with_next_thread
         )
     else:
 
@@ -1367,30 +1367,30 @@ def sys_wait4(sm, p):
     return args.pid
 
 
-def sys_sched_getscheduler(sm, p):
-    sm.get_args([("pid_t", "pid")])
+def sys_sched_getscheduler(k, p):
+    k.get_args([("pid_t", "pid")])
     return 1
 
 
-def sys_sched_getaffinity(sm, p):
-    sm.get_args(
+def sys_sched_getaffinity(k, p):
+    k.get_args(
         [("pid_t", "pid"), ("size_t", "cpusetsize"), ("cpu_set_t *", "mask")]
     )
     return -1
 
 
-def sys_execve(sm, p):
+def sys_execve(k, p):
     def print_argv(args):
-        vals = get_pchar_array(sm.z, args.argv)
+        vals = get_pchar_array(k.z, args.argv)
         s = " ".join(vals)
         return f'*argv=0x{args.argv:x} ("{s}")'
 
     def print_envp(args):
-        vals = get_pchar_array(sm.z, args.envp)
+        vals = get_pchar_array(k.z, args.envp)
         s = " ".join(vals)
         return f'*envp=0x{args.envp:x} ("{s}")'
 
-    args = sm.get_args(
+    args = k.get_args(
         [
             ("const char*", "pathname"),
             ("char *const", "argv"),
@@ -1399,11 +1399,11 @@ def sys_execve(sm, p):
         arg_string_overrides={"argv": print_argv, "envp": print_envp},
     )
 
-    argv = get_pchar_array(sm.z, args.argv)
-    envp = get_pchar_array(sm.z, args.envp)
+    argv = get_pchar_array(k.z, args.argv)
+    envp = get_pchar_array(k.z, args.envp)
     pathname = p.memory.read_string(args.pathname)
 
-    sm.logger.debug("Replacing first argument with pathname")
+    k.logger.debug("Replacing first argument with pathname")
     if len(argv) > 0:
         argv[0] = pathname
 
@@ -1429,12 +1429,12 @@ def sys_execve(sm, p):
         return SysError.EACCES
 
     try:
-        file = sm.z.parse_file(pathname)
-        sm.z.files.add_file(pathname)
+        file = k.z.parse_file(pathname)
+        k.z.files.add_file(pathname)
     except ZelosLoadException:
         return SysError.ENOENT
 
-    sm.z.os_plugins.load(file, sm.z.current_process)
+    k.z.os_plugins.load(file, k.z.current_process)
 
     # If this is successful, this thread essentially ends.
     # TODO: we should have a list of things that can be execve'd, to
@@ -1445,14 +1445,14 @@ def sys_execve(sm, p):
     return
 
 
-def sys_exit(sm, p):
-    return sys_exit_group(sm, p)
+def sys_exit(k, p):
+    return sys_exit_group(k, p)
 
 
-def sys_exit_group(sm, p):
-    args = sm.get_args([("int", "status")])
+def sys_exit_group(k, p):
+    args = k.get_args([("int", "status")])
 
-    sm.z.processes.handles.close_all(p.pid)
+    k.z.processes.handles.close_all(p.pid)
 
     def exit_thread():
         if args.status == 0:
@@ -1465,15 +1465,15 @@ def sys_exit_group(sm, p):
     p.scheduler.stop_and_exec("exit thread", exit_thread)
 
     if p.parent_pid is not None:
-        parent = sm.z.processes.get_process(p.parent_pid)
-        sm.child_state_changes[parent.pid].append(p.pid)
+        parent = k.z.processes.get_process(p.parent_pid)
+        k.child_state_changes[parent.pid].append(p.pid)
         # parent.signals.handle_signal(17)
 
 
-def sys_time(sm, p):
-    args = sm.get_args([("time_t*", "tloc")])
+def sys_time(k, p):
+    args = k.get_args([("time_t*", "tloc")])
     current_time = time.mktime(
-        datetime.datetime.strptime(sm.z.date, "%Y-%m-%d").timetuple()
+        datetime.datetime.strptime(k.z.date, "%Y-%m-%d").timetuple()
     )
     current_time = round(current_time)
     if args.tloc != 0:
@@ -1481,12 +1481,12 @@ def sys_time(sm, p):
     return current_time
 
 
-def sys_gettimeofday(sm, p):
-    args = sm.get_args([("struct timeval*", "tv"), ("struct timezone*", "tz")])
+def sys_gettimeofday(k, p):
+    args = k.get_args([("struct timeval*", "tv"), ("struct timezone*", "tz")])
     if not args.tv:
         return 0
     current_time = time.mktime(
-        datetime.datetime.strptime(sm.z.date, "%Y-%m-%d").timetuple()
+        datetime.datetime.strptime(k.z.date, "%Y-%m-%d").timetuple()
     )
     second, microsecond = str(current_time).split(".")
     try:
@@ -1499,10 +1499,10 @@ def sys_gettimeofday(sm, p):
     return -1
 
 
-def sys_clock_gettime(sm, p):
-    args = sm.get_args([("clockid_t", "clk_id"), ("struct timespec *", "res")])
+def sys_clock_gettime(k, p):
+    args = k.get_args([("clockid_t", "clk_id"), ("struct timespec *", "res")])
     current_time = time.mktime(
-        datetime.datetime.strptime(sm.z.date, "%Y-%m-%d").timetuple()
+        datetime.datetime.strptime(k.z.date, "%Y-%m-%d").timetuple()
     )
     second, microsecond = str(current_time).split(".")
     try:
@@ -1514,28 +1514,28 @@ def sys_clock_gettime(sm, p):
     return -1
 
 
-def sys_set_robust_list(sm, p):
-    sm.get_args([("struct robust_list_head *", "head"), ("size_t", "len")])
+def sys_set_robust_list(k, p):
+    k.get_args([("struct robust_list_head *", "head"), ("size_t", "len")])
     return 0
 
 
-def sys_set_tid_address(sm, p):
-    sm.get_args([("int*", "tidptr")])
+def sys_set_tid_address(k, p):
+    k.get_args([("int*", "tidptr")])
     return p.current_thread.id
 
 
-def sys_getpid(sm, p):
-    sm.get_args([])
+def sys_getpid(k, p):
+    k.get_args([])
     return p.pid
 
 
-def sys_getppid(sm, p):
-    sm.get_args([])
+def sys_getppid(k, p):
+    k.get_args([])
     return p.parent_pid
 
 
-def sys_times(sm, p):
-    sm.get_args([("struct tms*", "buf")])
+def sys_times(k, p):
+    k.get_args([("struct tms*", "buf")])
     #    struct tms {
     #        clock_t tms_utime;  /* user time */
     #        clock_t tms_stime;  /* system time */
@@ -1557,9 +1557,9 @@ class __SYSCTL_ARGS(ctypes.Structure):
     ]
 
 
-def sys__sysctl(sm, p):
-    args = sm.get_args([("struct __sysctl_args*", "sys_args")])
-    __sysctl_args = ptr2struct(sm.z, args.sys_args, __SYSCTL_ARGS)
+def sys__sysctl(k, p):
+    args = k.get_args([("struct __sysctl_args*", "sys_args")])
+    __sysctl_args = ptr2struct(k.z, args.sys_args, __SYSCTL_ARGS)
     dumpstruct(__sysctl_args)
     return 0
 
@@ -1573,19 +1573,19 @@ class IOCTLS(enum.IntEnum):
     FIONREAD = 0x541B
 
 
-def sys_ioctl(sm, p):
-    args = sm.get_args(
+def sys_ioctl(k, p):
+    args = k.get_args(
         [("int", "fd"), ("unsigned long", "request"), ("void *", "data")]
     )
 
-    sm.z.handles.get(args.fd)
+    k.z.handles.get(args.fd)
     if args.data == 0:
         return -1
 
     data = p.memory.read_uint32(args.data)
-    sm.print(f"IOCTL: {data}")
+    k.print(f"IOCTL: {data}")
 
-    handle = sm.z.handles.get(args.fd)
+    handle = k.z.handles.get(args.fd)
     if isinstance(handle, handles.SocketHandle):
         FIONBIO = 0x5421
         FIONREAD = 0x541B
@@ -1601,8 +1601,8 @@ def sys_ioctl(sm, p):
     return -1
 
 
-def sys_arch_prctl(sm, p):
-    args = sm.get_args(
+def sys_arch_prctl(k, p):
+    args = k.get_args(
         [("int_ARCH_PRCTL", "option"), ("unsigned long", "addr")]
     )
     if args.option == 0x1001:
@@ -1613,8 +1613,8 @@ def sys_arch_prctl(sm, p):
     return 0
 
 
-def sys_prctl(sm, p):
-    args = sm.get_args(
+def sys_prctl(k, p):
+    args = k.get_args(
         [
             ("int", "option"),
             ("unsigned long", "arg2"),
@@ -1626,18 +1626,18 @@ def sys_prctl(sm, p):
 
     if args.option == PRCTL.PR_SET_NAME:
         proc_name = p.memory.read_string(args.arg2)
-        sm.print(f"PRCTL[PR_SET_NAME]: setting process name to [{proc_name}]")
+        k.print(f"PRCTL[PR_SET_NAME]: setting process name to [{proc_name}]")
 
     return 0
 
 
-def sys_umask(sm, p):
-    sm.get_args([("mode_t", "mask")])
+def sys_umask(k, p):
+    k.get_args([("mode_t", "mask")])
     return 0o777
 
 
-def sys_statfs(sm, p):
-    args = sm.get_args([("const char*", "path"), ("struct statfs *", "buf")])
+def sys_statfs(k, p):
+    args = k.get_args([("const char*", "path"), ("struct statfs *", "buf")])
     statfs = structs.STATFS()
     statfs.f_bsize = 0x1000
     statfs.f_frsize = 0x1000
@@ -1646,13 +1646,13 @@ def sys_statfs(sm, p):
     return 0
 
 
-def sys_alarm(sm, p):
-    args = sm.get_args([("unsigned int", "seconds")])
+def sys_alarm(k, p):
+    args = k.get_args([("unsigned int", "seconds")])
     return args.seconds
 
 
-def sys_rt_sigaction(sm, p):
-    args = sm.get_args(
+def sys_rt_sigaction(k, p):
+    args = k.get_args(
         [
             ("int", "signum"),
             ("const sigaction*", "act"),
@@ -1665,8 +1665,8 @@ def sys_rt_sigaction(sm, p):
     return 0
 
 
-def sys_rt_sigprocmask(sm, p):
-    args = sm.get_args(
+def sys_rt_sigprocmask(k, p):
+    args = k.get_args(
         [
             ("int", "how"),
             ("const kernel_sigset_t*", "set"),
@@ -1698,8 +1698,8 @@ class RLIMIT(ctypes.Structure):
     _fields_ = [("rlim_cur", ctypes.c_uint32), ("rlim_max", ctypes.c_uint32)]
 
 
-def sys_ugetrlimit(sm, p):
-    args = sm.get_args([("int", "resource"), ("struct rlimit*", "rlim")])
+def sys_ugetrlimit(k, p):
+    args = k.get_args([("int", "resource"), ("struct rlimit*", "rlim")])
     rlimit = RLIMIT()
     RLIM_INFINITY = 0xFFFFFFFF
     rlimit.rlim_cur = RLIM_INFINITY
@@ -1709,13 +1709,13 @@ def sys_ugetrlimit(sm, p):
     return 0
 
 
-def sys_setrlimit(sm, p):
-    sm.get_args([("int", "resource"), ("const struct rlimit *", "rlim")])
+def sys_setrlimit(k, p):
+    k.get_args([("int", "resource"), ("const struct rlimit *", "rlim")])
     return 0
 
 
-def sys_prlimit64(sm, p):
-    sm.get_args(
+def sys_prlimit64(k, p):
+    k.get_args(
         [
             ("pid_t", "pid"),
             ("int", "resource"),
@@ -1726,7 +1726,7 @@ def sys_prlimit64(sm, p):
     return 0
 
 
-def _read_fd_set(sm, p, fd_set_ptr):
+def _read_fd_set(k, p, fd_set_ptr):
     if fd_set_ptr == 0:
         return []
     fds = []
@@ -1738,7 +1738,7 @@ def _read_fd_set(sm, p, fd_set_ptr):
     return fds
 
 
-def _write_fd_set(sm, p, fd_set_ptr, fds):
+def _write_fd_set(k, p, fd_set_ptr, fds):
     if fd_set_ptr == 0:
         return
     for i in range(0, 1024 // 8, 32 // 8):
@@ -1750,12 +1750,12 @@ def _write_fd_set(sm, p, fd_set_ptr, fds):
         p.memory.write_uint32(fd_set_ptr + i, val)
 
 
-def sys_select(sm, p):
-    return sys__newselect(sm, p)
+def sys_select(k, p):
+    return sys__newselect(k, p)
 
 
-def sys__newselect(sm, p):
-    args = sm.get_args(
+def sys__newselect(k, p):
+    args = k.get_args(
         [
             ("int", "nfds"),
             ("fd_set*", "readfds"),
@@ -1765,53 +1765,49 @@ def sys__newselect(sm, p):
         ]
     )
     # Get the set(s) of FDs requested
-    readfds = _read_fd_set(sm, p, args.readfds)
-    writefds = _read_fd_set(sm, p, args.writefds)
-    exceptfds = _read_fd_set(sm, p, args.exceptfds)
+    readfds = _read_fd_set(k, p, args.readfds)
+    writefds = _read_fd_set(k, p, args.writefds)
+    exceptfds = _read_fd_set(k, p, args.exceptfds)
 
     # Dump FD sets
     if len(readfds) > 0:
-        sm.print(f"readfds: {', '.join([hex(x) for x in readfds])}")
+        k.print(f"readfds: {', '.join([hex(x) for x in readfds])}")
     if len(writefds) > 0:
-        sm.print(f"writefds: {', '.join([hex(x) for x in writefds])}")
+        k.print(f"writefds: {', '.join([hex(x) for x in writefds])}")
     if len(exceptfds) > 0:
-        sm.print(f"exceptfds: {', '.join([hex(x) for x in exceptfds])}")
+        k.print(f"exceptfds: {', '.join([hex(x) for x in exceptfds])}")
 
     # Select is only supported on sockets right now. Always
     # return 'ready' for all other types of FDs
-    sockets = sm.z.network.handles.get_by_type(handles.SocketHandle)
+    sockets = k.z.network.handles.get_by_type(handles.SocketHandle)
     if len(sockets) == 0:
         return len(readfds) + len(writefds) + len(exceptfds)
 
     # Perform the select implemented by socket
-    (in_ready, out_ready, ex_ready) = sm.z.network.select.select(
+    (in_ready, out_ready, ex_ready) = k.z.network.select.select(
         readfds, writefds, exceptfds, timeout=0.1
     )
 
     # Dump FD sets that were signalled
     if len(in_ready) > 0:
-        sm.print(f"signaled readfds: {', '.join([hex(x) for x in in_ready])}")
+        k.print(f"signaled readfds: {', '.join([hex(x) for x in in_ready])}")
     if len(out_ready) > 0:
-        sm.print(
-            f"signaled writefds: {', '.join([hex(x) for x in out_ready])}"
-        )
+        k.print(f"signaled writefds: {', '.join([hex(x) for x in out_ready])}")
     if len(ex_ready) > 0:
-        sm.print(
-            f"signaled exceptfds: {', '.join([hex(x) for x in ex_ready])}"
-        )
+        k.print(f"signaled exceptfds: {', '.join([hex(x) for x in ex_ready])}")
 
     # Selectively set only the FDs that were signalled
-    _write_fd_set(sm, p, args.readfds, in_ready)
-    _write_fd_set(sm, p, args.writefds, out_ready)
-    _write_fd_set(sm, p, args.exceptfds, ex_ready)
+    _write_fd_set(k, p, args.readfds, in_ready)
+    _write_fd_set(k, p, args.writefds, out_ready)
+    _write_fd_set(k, p, args.exceptfds, ex_ready)
 
     count = len(in_ready) + len(out_ready) + len(ex_ready)
 
     return count
 
 
-def sys_futex(sm, p):
-    args = sm.get_args(
+def sys_futex(k, p):
+    args = k.get_args(
         [
             ("int*", "uaddr"),
             ("int", "futex_op"),
@@ -1836,57 +1832,57 @@ def sys_futex(sm, p):
     return 0
 
 
-def sys_nanosleep(sm, p):
-    sm.get_args(
+def sys_nanosleep(k, p):
+    k.get_args(
         [("const struct timespec*", "req"), ("struct timespec *", "rem")]
     )
     return 0
 
 
-def sys_chmod(sm, p):
-    sm.get_args([("const char*", "pathname"), ("mode_t", "mode")])
+def sys_chmod(k, p):
+    k.get_args([("const char*", "pathname"), ("mode_t", "mode")])
     return 0
 
 
-def sys_chown(sm, p):
-    sm.get_args(
+def sys_chown(k, p):
+    k.get_args(
         [("const char*", "pathname"), ("uid_t", "owner"), ("gid_t", "group")]
     )
     return 0
 
 
-def sys_chdir(sm, p):
-    sm.get_args([("const char*", "pathname")])
+def sys_chdir(k, p):
+    k.get_args([("const char*", "pathname")])
     return 0
 
 
-def sys_mkdir(sm, p):
-    sm.get_args([("const char*", "pathname"), ("mode_t", "mode")])
+def sys_mkdir(k, p):
+    k.get_args([("const char*", "pathname"), ("mode_t", "mode")])
     return 0
 
 
-def sys_rmdir(sm, p):
-    sm.get_args([("const char*", "pathname")])
+def sys_rmdir(k, p):
+    k.get_args([("const char*", "pathname")])
     return 0
 
 
 # technically, single-threaded process should return pid
 
 
-def sys_gettid(sm, p):
-    sm.get_args([])
+def sys_gettid(k, p):
+    k.get_args([])
     return p.current_thread.id
 
 
-def sys_mincore(sm, p):
-    sm.get_args(
+def sys_mincore(k, p):
+    k.get_args(
         [("void*", "addr"), ("size_t", "length"), ("unsigned char*", "vec")]
     )
     return -1
 
 
-def sys_fadvise64(sm, p):
-    sm.get_args(
+def sys_fadvise64(k, p):
+    k.get_args(
         [
             ("int", "fd"),
             ("off_t", "offset"),
@@ -1897,17 +1893,17 @@ def sys_fadvise64(sm, p):
     return 0
 
 
-def sys_sigaltstack(sm, p):
-    sm.get_args([("stack_t*", "ss"), ("stack_t*", "oldss")])
+def sys_sigaltstack(k, p):
+    k.get_args([("stack_t*", "ss"), ("stack_t*", "oldss")])
     return 0
 
 
-def sys_kill(sm, p):
-    args = sm.get_args([("pid_t", "pid"), ("int", "sig")])
+def sys_kill(k, p):
+    args = k.get_args([("pid_t", "pid"), ("int", "sig")])
     if args.pid in [-1, 0xFFFFFFFF, 0, 1]:
         # TODO handle these cases.
         return -1
-    process = sm.z.processes.get_process(args.pid)
+    process = k.z.processes.get_process(args.pid)
     if process is None:
         return SysError.ESRCH
 
@@ -1923,12 +1919,12 @@ def sys_kill(sm, p):
     #     for child in p.threads.get_child_threads(current_tid):
     #         p.threads.kill_thread(child.id)
     # if 0 < args.pid and args.pid <= 0xffff:
-    #     sm.z.processes.kill_process(args.pid)
+    #     k.z.processes.kill_process(args.pid)
     return 0
 
 
-def sys_tgkill(sm, p):
-    sm.get_args([("int", "tgid"), ("int", "tid"), ("int", "sig")])
+def sys_tgkill(k, p):
+    k.get_args([("int", "tgid"), ("int", "tid"), ("int", "sig")])
     return 0
 
 
@@ -1961,8 +1957,8 @@ class POLLFD(ctypes.Structure):
     ]
 
 
-def sys_poll(sm, p):
-    args = sm.get_args(
+def sys_poll(k, p):
+    args = k.get_args(
         [("struct pollfd *", "fds"), ("nfds_t", "nfds"), ("int", "timeout")]
     )
     # parse the file descriptors of interest
@@ -1978,12 +1974,12 @@ def sys_poll(sm, p):
     fds_poll = [(v.fd, v.events) for k, v in fds.items()]
 
     e = ", ".join([f"fd={x[0]:x} events={repr(POLL(x[1]))}" for x in fds_poll])
-    sm.print("polled_fds: " + e)
+    k.print("polled_fds: " + e)
 
-    revents = sm.z.network.select.poll(fds_poll, timeout=0.1)
+    revents = k.z.network.select.poll(fds_poll, timeout=0.1)
 
     e = ", ".join([f"fd={x[0]:x} events={repr(POLL(x[1]))}" for x in revents])
-    sm.print("signaled_fds: " + e)
+    k.print("signaled_fds: " + e)
 
     # commit pollfd struct changes
     ready_fds = 0

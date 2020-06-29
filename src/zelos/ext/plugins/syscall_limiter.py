@@ -109,14 +109,14 @@ class SyscallLimiter(IPlugin):
             and self.rep_syscall_print_limit > 0
         ):
             rep_print_limit = self.rep_syscall_print_limit
-            syscall_manager = zelos.internal_engine.zos.syscall_manager
+            kernel = zelos.internal_engine.kernel
             if sysname == self._last_syscall:
                 self._last_syscall_count += 1
             else:
                 self._last_syscall = sysname
                 if self._last_syscall_count > rep_print_limit:
                     self.logger.info(f"Syscall printing reenabled")
-                    syscall_manager.should_print_syscalls = True
+                    kernel.should_print_syscalls = True
                 self._last_syscall_count = 1
 
             if self._last_syscall_count == rep_print_limit:
@@ -124,4 +124,4 @@ class SyscallLimiter(IPlugin):
                     f"Syscall {self._last_syscall} called over "
                     f"{rep_print_limit} times. No longer printing syscalls"
                 )
-                syscall_manager.should_print_syscalls = False
+                kernel.should_print_syscalls = False
