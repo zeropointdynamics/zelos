@@ -161,6 +161,8 @@ class Trace(IPlugin):
         thread = zelos.thread
         if not self.should_print_thread(thread):
             return
+        if not self.zelos.internal_engine.kernel.should_print_syscalls:
+            return
 
         retstr = "void" if retval is None else f"{retval:x}"
 

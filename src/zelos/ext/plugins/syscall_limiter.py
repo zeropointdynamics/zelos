@@ -104,24 +104,21 @@ class SyscallLimiter(IPlugin):
             zelos.swap_thread("syscall limit thread swap")
 
         # Disable syscall printing if lots of repetitions occur
-        if (
-            self._last_syscall_count <= self.rep_syscall_print_limit
-            and self.rep_syscall_print_limit > 0
-        ):
+        if self.rep_syscall_print_limit > 0:
             rep_print_limit = self.rep_syscall_print_limit
             kernel = zelos.internal_engine.kernel
             if sysname == self._last_syscall:
                 self._last_syscall_count += 1
             else:
                 self._last_syscall = sysname
-                if self._last_syscall_count > rep_print_limit:
+                if not kernel.should_print_syscalls:
                     self.logger.info(f"Syscall printing reenabled")
                     kernel.should_print_syscalls = True
                 self._last_syscall_count = 1
 
             if self._last_syscall_count == rep_print_limit:
                 self.logger.info(
-                    f"Syscall {self._last_syscall} called over "
+                    f"Syscall {self._last_syscall} called "
                     f"{rep_print_limit} times. No longer printing syscalls"
                 )
                 kernel.should_print_syscalls = False

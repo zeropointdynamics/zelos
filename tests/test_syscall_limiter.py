@@ -14,10 +14,11 @@
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
 
-# import io
+import io
 import unittest
 
 from os import path
+from unittest.mock import patch
 
 from zelos import Zelos
 
@@ -44,15 +45,50 @@ class SyscallLimiterTest(unittest.TestCase):
         z.start()
         self.assertEqual(z.plugins.syscalllimiter.syscall_cnt, 5)
 
-    # def test_syscall_limit_plugin(self):
+    def test_syscall_callback(self):
+        z = Zelos(
+            path.join(DATA_DIR, "data", "static_elf_helloworld"),
+            rep_syscall_print_limit=5,
+        )
+        syscall_name = "brk"
+        args = None
+        retval = None
 
-    #     filepath = path.join(DATA_DIR, "data", "static_elf_helloworld")
-    #     z = ZelosCmdline(f"--syscall_limit 5 {filepath}")
-    #     z.start()
+        for _ in range(4):
+            z.plugins.syscalllimiter._syscall_callback(
+                z, syscall_name, args, retval
+            )
+        self.assertTrue(z.internal_engine.kernel.should_print_syscalls)
 
-    #     self.assertEqual(
-    #         z.plugins.syscalllimiter.syscall_cnt, 5
-    #     )
+        z.plugins.syscalllimiter._syscall_callback(
+            z, syscall_name, args, retval
+        )
+        self.assertFalse(z.internal_engine.kernel.should_print_syscalls)
+
+        with patch("sys.stdout", new=io.StringIO()) as stdout:
+            z.internal_engine.kernel.print("Test")
+            z.plugins.trace.trace_syscalls(z, syscall_name, args, retval)
+            self.assertEqual(stdout.getvalue(), "")
+
+        different_syscall_name = "mmap"
+        z.plugins.syscalllimiter._syscall_callback(
+            z, different_syscall_name, args, retval
+        )
+        self.assertTrue(z.internal_engine.kernel.should_print_syscalls)
+
+    def test_syscall_callback_rep_0(self):
+        z = Zelos(
+            path.join(DATA_DIR, "data", "static_elf_helloworld"),
+            rep_syscall_print_limit=0,
+        )
+        syscall_name = "brk"
+        args = None
+        retval = None
+
+        z.plugins.syscalllimiter._syscall_callback(
+            z, syscall_name, args, retval
+        )
+        self.assertTrue(z.internal_engine.kernel.should_print_syscalls)
 
 
 def main():

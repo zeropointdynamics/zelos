@@ -47,7 +47,10 @@ def generate_config(
         return _generate_without_binary(**kwargs)
     flags = []
     for k, v in kwargs.items():
-        if v in [False, True]:
+        # For bools, we just assume setting it means adjust from
+        # default so we don't have to analyze the flag to figure out
+        # what the default is.
+        if isinstance(v, bool):
             flags.append(f"--{k}")
         elif type(v) is list:
             for item in v:
