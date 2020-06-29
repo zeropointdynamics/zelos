@@ -441,12 +441,12 @@ class ArmCommentGenerator:
         """
         Returns the syscall name
         """
-        sm = self.zelos.internal_engine.zos.syscall_manager
+        k = self.zelos.internal_engine.kernel
         if insn.insn_name() == "svc" and insn.operands[0].imm != 0:
             syscall_num = insn.operands[0].imm - 0x900000
         else:
-            syscall_num = sm.get_syscall_number()
-        syscall_name = sm.find_syscall_name_by_number(syscall_num)
+            syscall_num = k.get_syscall_number()
+        syscall_name = k.find_syscall_name_by_number(syscall_num)
         return f"{syscall_name}"
 
     def _dst_comment(self, insn):

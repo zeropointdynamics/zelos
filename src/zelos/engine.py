@@ -69,14 +69,6 @@ class Engine:
         if isinstance(config, str):
             config = generate_config(config)
         self.config = config
-        # OS plugins place OS-specific, system-wide, functionality
-        # in engine.zos
-
-        class ZOS(object):
-            def __init__(self):
-                pass
-
-        self.zos = ZOS()
 
         binary = config.filename
 
@@ -550,7 +542,7 @@ class Engine:
                     break
                 self.processes.swap_with_next_thread()
 
-        return self.zos.syscall_manager.generate_break_state()
+        return self.kernel.generate_break_state()
 
     def _run(self, p):
         t = p.current_thread

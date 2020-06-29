@@ -24,28 +24,28 @@ from termcolor import colored
 
 from zelos import HookType
 from zelos.exceptions import ZelosException
-from zelos.plugin import ArgFactory, SyscallManager
+from zelos.plugin import ArgFactory, IKernel
 
 from .syscalls import syscall_utils as sys_utils
 from .syscalls.arg_strings import get_arg_string
 
 
-def construct_syscall_manager(arch, z):
-    sm_class = {
-        "x86": X86SyscallManager,
-        "x86_64": X86_64SyscallManager,
-        "arm": ARMSyscallManager,
-        "mips": MIPSSyscallManager,
+def construct_kernel(arch, z):
+    kernel_class = {
+        "x86": X86Kernel,
+        "x86_64": X86_64Kernel,
+        "arm": ARMKernel,
+        "mips": MIPSKernel,
     }.get(arch, None)
 
-    if sm_class is None:
+    if kernel_class is None:
         return None
-    return sm_class(z)
+    return kernel_class(z)
 
 
-class LinuxSyscallManager(SyscallManager):
+class LinuxKernel(IKernel):
     def __init__(self, arch, engine):
-        super(LinuxSyscallManager, self).__init__(engine)
+        super(LinuxKernel, self).__init__(engine)
         self.arch = arch
         self.call_map = self.__load_linux_syscall_maps(arch)
         self._name2syscall_func = self._load_linux_syscall_funcs()
@@ -130,7 +130,7 @@ class LinuxSyscallManager(SyscallManager):
                 [("int", "call"), ("unsigned long *", "callargs")],
                 sys_num=sys_num,
             )
-        status = super(LinuxSyscallManager, self).handle_syscall(process)
+        status = super(LinuxKernel, self).handle_syscall(process)
         if sys_name == "socketcall":
             socketcall = self.socketcall_dict.get(args.call, None)
             if socketcall is not None:
@@ -193,9 +193,9 @@ class LinuxSyscallManager(SyscallManager):
         return args
 
 
-class X86SyscallManager(LinuxSyscallManager):
+class X86Kernel(LinuxKernel):
     def __init__(self, engine):
-        super(X86SyscallManager, self).__init__("x86", engine)
+        super(X86Kernel, self).__init__("x86", engine)
 
         def syscall_handler_wrapper(current_process, *args, **kwargs):
             self.handle_syscall(current_process)
@@ -225,7 +225,7 @@ class X86SyscallManager(LinuxSyscallManager):
         t = self.z.current_process.current_thread
         addr = t.getIP()
 
-        super(X86SyscallManager, self).handle_syscall(*args, **kwargs)
+        super(X86Kernel, self).handle_syscall(*args, **kwargs)
 
         if self.syscall_break_name is None:
 
@@ -239,9 +239,9 @@ class X86SyscallManager(LinuxSyscallManager):
         return True
 
 
-class X86_64SyscallManager(LinuxSyscallManager):
+class X86_64Kernel(LinuxKernel):
     def __init__(self, engine):
-        super(X86_64SyscallManager, self).__init__("x86_64", engine)
+        super(X86_64Kernel, self).__init__("x86_64", engine)
 
         def handle_syscall_callback(zelos):
             current_process = engine.current_process
@@ -307,9 +307,9 @@ class X86_64SyscallManager(LinuxSyscallManager):
         return
 
 
-class ARMSyscallManager(LinuxSyscallManager):
+class ARMKernel(LinuxKernel):
     def __init__(self, engine):
-        super(ARMSyscallManager, self).__init__("arm", engine)
+        super(ARMKernel, self).__init__("arm", engine)
 
         def syscall_handler_wrapper(current_process, *args, **kwargs):
             self.handle_syscall(current_process)
@@ -395,9 +395,9 @@ class ARMSyscallManager(LinuxSyscallManager):
         self.emu.setIP(self.emu.get_reg("lr"))
 
 
-class MIPSSyscallManager(LinuxSyscallManager):
+class MIPSKernel(LinuxKernel):
     def __init__(self, engine):
-        super(MIPSSyscallManager, self).__init__("mips", engine)
+        super(MIPSKernel, self).__init__("mips", engine)
 
         def syscall_handler_wrapper(current_process, *args, **kwargs):
             self.handle_syscall(current_process)
@@ -412,7 +412,7 @@ class MIPSSyscallManager(LinuxSyscallManager):
     _REG_RETURN_2 = "v1"
 
     def handle_syscall(self, *args, **kwargs):
-        super(MIPSSyscallManager, self).handle_syscall(*args, **kwargs)
+        super(MIPSKernel, self).handle_syscall(*args, **kwargs)
 
         # Mimicking qemu user behavior (specifically -1133)
         # github.com/qemu/qemu/blob/master/linux-user/mips/cpu_loop.c

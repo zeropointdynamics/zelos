@@ -70,10 +70,10 @@ class LinuxMode:
 
         if self.z.state.arch == "arm":
             arm_private_syscall = {
-                0xFFFF0F60: self.z.zos.syscall_manager._kuser_cmpxchg64,
-                0xFFFF0FA0: self.z.zos.syscall_manager._kuser_memory_barrier,
-                0xFFFF0FC0: self.z.zos.syscall_manager._kuser_cmpxchg,
-                0xFFFF0FE0: self.z.zos.syscall_manager._kuser_get_tls,
+                0xFFFF0F60: self.z.kernel._kuser_cmpxchg64,
+                0xFFFF0FA0: self.z.kernel._kuser_memory_barrier,
+                0xFFFF0FC0: self.z.kernel._kuser_cmpxchg,
+                0xFFFF0FE0: self.z.kernel._kuser_get_tls,
             }.get(p.current_thread.getIP(), None)
             if arm_private_syscall is not None:
                 arm_private_syscall()
@@ -87,9 +87,7 @@ class LinuxMode:
         self.z.processes.handles.close_all(self.z.current_process.pid)
 
     def _attempt_to_handle_syscall(self):
-        syscall_action = self.z.zos.syscall_manager.handle_syscall(
-            self.z.current_process
-        )
+        syscall_action = self.z.kernel.handle_syscall(self.z.current_process)
         was_handled = syscall_action is not None
         return was_handled
 
