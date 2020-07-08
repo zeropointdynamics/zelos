@@ -162,13 +162,13 @@ def xopen(k, p, args):
     # O_NONBLOCK = 0x800
 
     pathname_s = p.memory.read_string(args.pathname)
-    path = k.z.files.find_library(pathname_s)
+    path = k.get_host_path(pathname_s)
     k.z.triggers.tr_file_open(pathname_s)
     if path is not None:
-        handle_num = k.z.handles.new_file(pathname_s)
+        handle_num = k.new_file(pathname_s)
         retval = handle_num
     elif args.flags & 0x200 != 0 or args.flags & 0x40 != 0:
-        handle_num = k.z.handles.new_file(pathname_s)
+        handle_num = k.new_file(pathname_s)
         retval = handle_num
     else:
         return SysError.ENOENT
@@ -327,27 +327,29 @@ def mmapx(k, p, syscall_name, args, offset):
 
     addr = args.addr
     if addr == 0:
-        addr = p.memory.find_free_space(args.length)
+        addr = p.memory.find_free_space(args.length, alignment=0x1000)
     prot = ProtType(args.prot)
     length = align(args.length)
 
     data = b""
+    module_name = ""
     if handle is not None:
         f = k.z.files.open_library(handle.Name)
         if f is not None:
             f.seek(offset)
             data = f.read(args.length)
             f.close()
+            module_name = handle.Name
 
     data += b"\0" * (args.length - len(data))
     shared = args.flags & MAP_SHARED != 0
-
     try:
         p.memory.map(
             addr,
             length,
             name=memory_region_name,
             kind=syscall_name,
+            module_name=module_name,
             shared=shared,
             prot=prot,
         )
@@ -368,9 +370,7 @@ def mmapx(k, p, syscall_name, args, offset):
                 kind=syscall_name,
                 shared=shared,
             )
-
     p.memory.write(addr, data)
-
     return addr
 
 
@@ -619,6 +619,9 @@ def xlseek(k, fd, offset, whence) -> int:
     handle = k.z.handles.get(fd)
     if handle is None:
         return
+    if handle.is_dir:
+        handle.data["dents"] = False
+        return 0
     return handle.seek(offset, whence)
 
 
@@ -688,7 +691,7 @@ def sys_faccessat(k, p):
     pathname_s = p.memory.read_string(args.pathname)
     k.z.triggers.tr_file_check(pathname_s)
     retval = -1
-    if k.z.files.find_library(pathname_s) is not None:
+    if k.get_host_path(pathname_s) is not None:
         retval = 0
     return retval
 
@@ -698,7 +701,7 @@ def sys_access(k, p):
     pathname_s = p.memory.read_string(args.pathname)
     k.z.triggers.tr_file_check(pathname_s)
     retval = -1
-    if k.z.files.find_library(pathname_s) is not None:
+    if k.get_host_path(pathname_s) is not None:
         retval = 0
 
     return retval
@@ -779,7 +782,7 @@ def _statx(k, p, struct):
     )
     pathname_s = p.memory.read_string(args.pathname)
 
-    library_path = k.z.files.find_library(pathname_s)
+    library_path = k.get_host_path(pathname_s)
     if library_path is None or not path.exists(library_path):
         return -1
 
@@ -811,7 +814,7 @@ def _fstatx(k, p, struct):
             k.logger.notice("Invalid handle")
             return -1
 
-        library_path = k.z.files.find_library(handle.Name)
+        library_path = k.get_host_path(handle.Name)
         if library_path is None or not path.exists(library_path):
             return -1
 
@@ -850,16 +853,6 @@ def _fill_out_stat_struct(statinfo, stat_struct):
 
 run_once = None
 
-# class DIRENT64(ctypes.Structure):
-#     _fields_ = [
-#         ('d_ino', ctypes.c_uint64),
-#         ('d_off', ctypes.c_uint64),
-#         ('d_reclen', ctypes.c_uint16),
-#         ('d_type', ctypes.c_ubyte),
-#         ('d_name', ctypes.c_char_p), # Unsure how to handle this since
-# # its actually a char array, not a pointer to a char array
-#     ]
-
 
 def sys_getdents(k, p):
     args = k.get_args(
@@ -874,20 +867,26 @@ def sys_getdents(k, p):
     if handle is None:
         return -1
 
-    folder_contents = handle.data.get("dents", None)
-    if folder_contents is None:
-        # Get the dents and run this function
-        folder_contents = k.z.files.list_dir(handle.Name)
-    if len(folder_contents) == 0:
-        handle.data["dents"] = folder_contents
+    # Get the dents and run this function
+    dents = handle.data.get("dents", False)
+    if dents:
         return 0
+    folder_contents = k.list_dir(handle.Name)
+    if len(folder_contents) == 0:
+        return 0
+    handle.data["dents"] = True
+
+    if k.arch == "x86_64":
+        write_dirent = _write_dirent_x86_64
+    else:
+        write_dirent = _write_dirent_x86
 
     prev_struct_start = None
     struct_start = args.dirp
     total_bytes_written = 0
     while len(folder_contents) > 0:
         full_name = os.path.join(handle.Name, folder_contents[-1])
-        bytes_written = _write_dirent_x86_64(
+        bytes_written = write_dirent(
             k,
             p,
             full_name,
@@ -904,8 +903,18 @@ def sys_getdents(k, p):
         prev_struct_start = struct_start
         struct_start = align(struct_start + bytes_written, alignment=0x4)
 
-    handle.data["dents"] = folder_contents
     return total_bytes_written
+
+
+# class DIRENT64(ctypes.Structure):
+#     _fields_ = [
+#         ('d_ino', ctypes.c_uint64),
+#         ('d_off', ctypes.c_uint64),
+#         ('d_reclen', ctypes.c_uint16),
+#         ('d_type', ctypes.c_ubyte),
+#         ('d_name', ctypes.c_char_p), # Unsure how to handle this since
+# # its actually a char array, not a pointer to a char array
+#     ]
 
 
 def _write_dirent_x86_64(
@@ -915,7 +924,7 @@ def _write_dirent_x86_64(
     if struct_start + struct_len > max_addr:
         return 0
 
-    library_path = k.z.files.find_library(full_name)
+    library_path = k.get_host_path(full_name)
     if library_path is None or not path.exists(library_path):
         return -1
 
@@ -931,6 +940,38 @@ def _write_dirent_x86_64(
 
     if prev_struct_start is not None:
         p.memory.write_uint64(prev_struct_start + 0x8, struct_start)
+
+    return struct_len
+
+
+# struct linux_dirent {
+#     unsigned long  d_ino; 32 4
+#     off_t          d_off; 32 4
+#     unsigned short d_reclen; 16 2
+#     char           d_name[];
+# };
+def _write_dirent_x86(
+    k, p, full_name, basename, struct_start, prev_struct_start, max_addr
+):
+    struct_len = align(len(basename) + 2 + 0xA, 4)
+    if struct_start + struct_len > max_addr:
+        return 0
+
+    library_path = k.get_host_path(full_name)
+    if library_path is None:
+        return -1
+
+    p.memory.write_uint32(struct_start, 1)
+    # This will be overridden in the next call to this func
+    p.memory.write_uint32(struct_start + 0x4, 0)  # next struct_start
+    p.memory.write_uint16(struct_start + 0x8, struct_len)
+    p.memory.write_string(
+        struct_start + 0xA, basename, terminal_null_byte=True
+    )
+    p.memory.write_uint8(struct_start + struct_len - 1, 8)  # regular
+
+    if prev_struct_start is not None:
+        p.memory.write_uint32(prev_struct_start + 0x4, struct_start)
 
     return struct_len
 
@@ -1203,6 +1244,31 @@ def sys_sendmmsg(k, p):
     return socketcall.sendmmsg(k, p, -1)
 
 
+class CLONE_FLAGS(enum.IntFlag):
+    CHILD_CLEARTID = 0x200000
+    CHILD_SETTID = 0x1000000
+    DETACHED = 0x400000
+    FILES = 0x400
+    FS = 0x200
+    IO = 0x80000000
+    NEWIPC = 0x8000000
+    NEWNET = 0x40000000
+    NEWNS = 0x20000
+    NEWPID = 0x20000000
+    NEWUSER = 0x10000000
+    NEWUTS = 0x4000000
+    PARENT = 0x8000
+    PARENT_SETTID = 0x100000
+    PTRACE = 0x2000
+    SETTLS = 0x80000
+    SIGHAND = 0x800
+    SYSVSEM = 0x40000
+    THREAD = 0x10000
+    UNTRACED = 0x800000
+    VFORK = 0x4000
+    VM = 0x100
+
+
 def sys_clone(k, p):
     if k.arch == "x86_64":
         args = k.get_args(
@@ -1224,9 +1290,27 @@ def sys_clone(k, p):
                 ("int*", "ctid"),
             ]
         )
+    flags = CLONE_FLAGS(args.flags)
+
+    if CLONE_FLAGS.VM in flags:
+        current_thread_priority = p.current_thread.priority
+        t = k.z.processes.new_thread_for_current_process(
+            k.return_addr(),
+            module_path=p.current_thread.module_path,
+            priority=current_thread_priority,
+        )
+
+        def thread_swap():
+            p.threads.swap_with_thread(tid=t.id)
+            t.setSP(args.child_stack)
+            k.set_return_value(0)
+
+        p.scheduler.stop_and_exec("thread swap", thread_swap)
+        return t.id
 
     child_process = _new_process(k, p)
     parent_handles = k.z.handles._all_handles(p.pid)
+    child_process.current_thread.setSP(args.child_stack)
     for num, h in parent_handles:
         k.z.handles.add_handle(h, handle_num=num, pid=child_process.pid)
     try:
@@ -1250,6 +1334,33 @@ def sys_fork(k, p):
 
     child_process = _new_process(k, p)
     return child_process.pid
+
+
+class PTRACE_REQUEST(enum.IntFlag):
+    PTRACE_TRACEME = 0
+    PTRACE_PEEKTEXT = 1
+    PTRACE_PEEKDATA = 2
+    PTRACE_PEEKUSR = 3
+    PTRACE_POKETEXT = 4
+    PTRACE_POKEDATA = 5
+    PTRACE_POKEUSR = 6
+    PTRACE_CONT = 7
+    PTRACE_KILL = 8
+    PTRACE_SINGLESTEP = 9
+    PTRACE_ATTACH = 0x10
+    PTRACE_DETACH = 0x11
+
+
+def sys_ptrace(k, p):
+    _ = k.get_args(
+        [
+            ("__ptrace_request", "request"),
+            ("pid_t*", "pid"),
+            ("void*", "addr"),
+            ("void*", "data"),
+        ]
+    )
+    return 0
 
 
 def _new_process(k, p):
@@ -1354,6 +1465,7 @@ def sys_wait4(k, p):
     # (V) If this thread waits on itself... uh... unsure what to do.
     # Reduce its priority so other threads finish before coming back.
     if target_thread.id == p.current_thread.id:
+        return args.pid
         target_thread.priority -= 1
         p.scheduler.stop_and_exec(
             "process swap", k.z.processes.swap_with_next_thread
@@ -1365,6 +1477,12 @@ def sys_wait4(k, p):
 
         p.threads.pause_current_thread(condition=unpause_when)
     return args.pid
+
+
+def sys_sched_yield(k, p):
+    k.get_args([])
+    p.scheduler.stop_and_exec("process swap", k.z.processes.schedule_next)
+    return 0
 
 
 def sys_sched_getscheduler(k, p):
@@ -1531,6 +1649,8 @@ def sys_getpid(k, p):
 
 def sys_getppid(k, p):
     k.get_args([])
+    if p.parent_pid is None:
+        return p.current_thread.parent_id
     return p.parent_pid
 
 

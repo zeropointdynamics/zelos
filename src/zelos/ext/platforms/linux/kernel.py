@@ -26,6 +26,7 @@ from zelos import HookType
 from zelos.exceptions import ZelosException
 from zelos.plugin import ArgFactory, IKernel
 
+from .proc_filesystem import ProcFilesystem
 from .syscalls import syscall_utils as sys_utils
 from .syscalls.arg_strings import get_arg_string
 
@@ -82,6 +83,8 @@ class LinuxKernel(IKernel):
         # can wait on them.
         # parent_pid -> child_pid
         self.child_state_changes = defaultdict(list)
+
+        self._proc_filesystem = ProcFilesystem(self)
 
     def _load_linux_syscall_funcs(
         self,
@@ -191,6 +194,27 @@ class LinuxKernel(IKernel):
         )
         self.last_syscall_args = args
         return args
+
+    def get_host_path(self, emulated_path: str) -> Optional[str]:
+        if self._proc_filesystem.is_handled(emulated_path):
+            return emulated_path
+        return self.z.files.find_library(emulated_path)
+
+    def new_file(self, emulated_path: str) -> int:
+        """
+        Returns the associated path in the host file system.
+        """
+        if emulated_path.startswith("/proc/"):
+            file = self._proc_filesystem.new_proc_file(emulated_path)
+            if file is not None:
+                return file
+        return self.z.handles.new_file(emulated_path)
+
+    def list_dir(self, emulated_path: str) -> int:
+        if emulated_path.startswith("/proc/"):
+            return self._proc_filesystem.list_dir(emulated_path)
+
+        return self.z.files.list_dir(emulated_path)
 
 
 class X86Kernel(LinuxKernel):

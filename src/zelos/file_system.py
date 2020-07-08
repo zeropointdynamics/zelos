@@ -181,6 +181,21 @@ class FileSystem(PathTranslator):
             except Exception:
                 pass
 
+    def get_module_base_by_name(self, path: str) -> int:
+        import os
+
+        path = os.path.abspath(path)
+        addrs = []
+        for mr in self.z.memory.get_regions():
+            host_path = self.emulated_path_to_host_path(mr.module_name)
+            if host_path is None:
+                continue
+            if os.path.abspath(host_path) == path:
+                addrs.append(mr.address)
+        if len(addrs) == 0:
+            return None
+        return min(addrs)
+
     def setup(self, file_prefix):
         PathTranslator.__init__(self, file_prefix)
         self.zelos_file_prefix = file_prefix

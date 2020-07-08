@@ -39,7 +39,18 @@ class LinuxMode:
         #       the binary. Stacks in linux should be allocated from the
         #       top-down to avoid this collision.
         # Set the stack address range
-        if arch != "mips":
+        if arch == "x86_64":
+
+            def set_stack_region(current_process):
+                current_process.threads.stack_min = 0x00007F0000000000
+                current_process.threads.stack_max = 0x00007FFF00000000
+
+            self.z.hook_manager.register_process_hook(
+                HookType.PROCESS.CREATE, set_stack_region
+            )
+        elif arch == "mips":
+            pass
+        else:
 
             def set_stack_region(current_process):
                 current_process.threads.stack_min = 0xFF000000

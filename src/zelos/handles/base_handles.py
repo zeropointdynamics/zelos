@@ -411,7 +411,7 @@ class Handles:
         file=None,
         pid=None,
         close_on_cleanup=True,
-    ):
+    ) -> int:
         parent_thread = self._current_thread_name()
         handle = FileHandle(
             name,

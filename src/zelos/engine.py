@@ -101,9 +101,7 @@ class Engine:
 
         self.zml_parser = ZmlParser(self.api)
         self.hook_manager = HookManager(self, self.api)
-        self.feeds = FeedManager(
-            self.config, self.zml_parser, self.hook_manager
-        )
+        self.feeds = FeedManager(self.config, self.hook_manager)
         self.breakpoints = BreakpointManager(self.hook_manager)
         self.interrupt_handler = InterruptHooks(self.hook_manager, self)
         self.exception_handler = ExceptionHooks(self)
@@ -130,6 +128,8 @@ class Engine:
         original_filename = tail or ntpath.basename(head)
         self.original_file_name = original_filename
         self.date = config.date
+
+        self.feeds.set_user_feed_level(config, self.zml_parser)
 
         if config.dns > 0:
             self.flags_dns = True

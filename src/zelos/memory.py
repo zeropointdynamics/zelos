@@ -31,7 +31,7 @@ import zelos.util as util
 
 from zelos.emulator.base import MemoryRegion
 from zelos.enums import ProtType
-from zelos.exceptions import OutOfMemoryException
+from zelos.exceptions import OutOfMemoryException, ZelosRuntimeException
 from zelos.hooks import HookType
 
 
@@ -139,6 +139,10 @@ class Memory:
         Returns:
             Number of bytes written.
         """
+        if not isinstance(data, bytes):
+            raise ZelosRuntimeException(
+                f"'write' expects bytes, given {type(data)}"
+            )
         self.emu.mem_write(addr, data)
         hooks = self._hook_manager._get_hooks(HookType.MEMORY.INTERNAL_WRITE)
         for hook in hooks:
@@ -640,6 +644,17 @@ class Memory:
             return None
         return region.address
 
+    def get_module_base(self, address: int) -> int:
+        region = self.get_region(address)
+        module_name = region.module_name
+        regions = [
+            mr for mr in self.get_regions() if mr.module_name == module_name
+        ]
+        return min([mr.address for mr in regions])
+
+    def get_module_offset(self, address: int) -> int:
+        return address - self.get_module_base(address)
+
     def get_perms(self, address: int) -> int:
         """
         Returns the permissions of the section containg the given
@@ -1005,7 +1020,7 @@ class Heap:
                 this value. Defaults to 4.
 
         Returns:
-            Address of the new heap boundary
+            Address of the old heap boundary
         """
         self.logger.debug(f"Allocating {size:x} bytes named {name}")
         ret = self.current_offset

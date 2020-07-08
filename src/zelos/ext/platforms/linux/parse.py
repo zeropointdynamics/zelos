@@ -82,6 +82,14 @@ class LiefELF(ParsedBinary):
         return (linker_path, linker_binary)
 
     def parse(self, path, binary):
+        # Get symbols
+        # TODO: These are relocated because the first mmap causes them
+        # to be assigned a new memory location.
+        self.elf_dynamic_import_addrs = {
+            x.symbol.name: x.address + 0x1000
+            for x in binary.pltgot_relocations
+        }
+
         interpreter = self._get_interpreter(binary)
         if interpreter is not None:
             # TODO: automatically do setup to run dynamic linux binaries

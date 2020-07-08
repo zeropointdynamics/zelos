@@ -63,7 +63,6 @@ from enum import IntEnum
 from typing import Any, Callable, Dict
 
 from zelos.hooks import HookManager, HookType
-from zelos.zml import ZmlParser
 
 
 class FeedLevel(IntEnum):
@@ -92,9 +91,7 @@ class FeedManager:
     functions.
     """
 
-    def __init__(
-        self, config, zml_parser: ZmlParser, hook_manager: HookManager
-    ):
+    def __init__(self, config, hook_manager: HookManager):
         self._hook_manager = hook_manager
 
         # _inst_hook_info is only present when the inst feed is active.
@@ -109,6 +106,7 @@ class FeedManager:
             FeedLevel.INST: {},
         }
 
+    def set_user_feed_level(self, config, zml_parser):
         # For initial setup, we want to respect the highest level set if
         # multiple are set to trigger immediately. We run them from
         # lowest to highest to achieve this goal

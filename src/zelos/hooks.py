@@ -290,6 +290,28 @@ class HookManager:
             )
         return self._add_zelos_hook(syscall_hook_type, callback, name)
 
+    def register_func_hook(self, name: str, callback) -> HookInfo:
+        address_ptr = self.z.main_module.elf_dynamic_import_addrs.get(
+            name, None
+        )
+        if address_ptr is None:
+            self.logger.notice(f"Couldn't find function {name}")
+            return None
+
+        def test(z, access, address, size, value):
+            callback(z)
+
+        self.register_mem_hook(
+            HookType.MEMORY.READ,
+            test,
+            mem_low=address_ptr,
+            mem_high=address_ptr + 4,
+        )
+        # addr = self.z.memory.read_int(address_ptr)
+        # self.register_exec_hook(
+        #     HookType.EXEC.INST, callback, ip_low=addr, ip_high=addr
+        # )
+
     def register_exception_hook(self, callback, name=None) -> HookInfo:
         self.z.exception_handler.register_exception_handler(callback)
         return HookInfo(HookType._OTHER.EXCEPTION, callback, None, name)

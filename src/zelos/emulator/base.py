@@ -256,7 +256,6 @@ class PageTable:
         if len(data) == 0:
             return
         page_addr = address & PageTable.PAGE_MASK
-
         # Fast path if all data is on one page.
         try:
             mr = self._pages[page_addr]
