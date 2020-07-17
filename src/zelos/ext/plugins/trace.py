@@ -85,8 +85,11 @@ class Trace(IPlugin):
 
         self._inst_feed_handle = None
         self._syscall_feed_handle = None
-        if not z.config.trace_off or z.config.trace_file is not None:
-            self.trace_on()
+
+        self.traceoff = z.config.trace_off
+        self.trace_on()
+        if z.config.trace_off:
+            self.trace_off()
 
         if self.state.arch in ["x86", "x86_64"]:
             self.comment_generator = x86CommentGenerator(z, self.modules)
@@ -94,6 +97,8 @@ class Trace(IPlugin):
             self.comment_generator = ArmCommentGenerator(z, self.modules)
         else:
             self.comment_generator = EmptyCommentGenerator()
+
+        self._cmt_callbacks = []
 
     def trace_on(self):
         feeds = self.zelos.internal_engine.feeds
@@ -105,16 +110,14 @@ class Trace(IPlugin):
             self._syscall_feed_handle = feeds.subscribe_to_syscall_feed(
                 self.trace_syscalls
             )
+        self.traceoff = False
 
     def trace_off(self):
         feeds = self.zelos.internal_engine.feeds
-        if self._inst_feed_handle is not None:
-            feeds.unsubscribe_from_feed(self._inst_feed_handle)
-            self._inst_feed_handle = None
-
         if self._syscall_feed_handle is not None:
             feeds.unsubscribe_from_feed(self._syscall_feed_handle)
             self._syscall_feed_handle = None
+        self.traceoff = True
 
     @property
     def cs(self):
@@ -133,6 +136,8 @@ class Trace(IPlugin):
         return self.comment_generator.functions_called
 
     def trace_insts(self, zelos, address, size):
+        if self.traceoff and len(self._cmt_callbacks) == 0:
+            return
         # TCG Dump example usage:
         # self.emu.get_tcg(0, 0)
         if self.should_print_last_instruction:
@@ -209,7 +214,8 @@ class Trace(IPlugin):
                 for insn in insns:
                     self.ins(insn)
         except MemoryReadUnmapped:
-            print("Unable to read instruction at address %x" % address)
+            if not self.traceoff:
+                print("Unable to read instruction at address %x" % address)
 
     def regs(self):
         """ Prints registers at the current address"""
@@ -321,19 +327,20 @@ class Trace(IPlugin):
         """ Prints the thread, address and instruction string """
         if not self.should_print_thread():
             return
-        sep = ""
-        if insn.address == self.zelos.regs.getIP():
-            sep = "*"
-        address = insn.address
         ins_string = self._get_insn_string(insn)
-        if address in self.zelos.main_binary.exported_functions:
-            function_name = self.zelos.main_binary.exported_functions[address]
-            if self.trace_file is not None:
-                s = f"<{function_name}>"
-            else:
-                s = colored(f"<{function_name}>", "white", attrs=["bold"])
-            self.print("INS", s, addr_str=f"{sep}{address:08x}")
-        self.print("INS", ins_string, addr_str=f"{sep}{address:08x}")
+        if not self.traceoff:
+            sep = ""
+            if insn.address == self.zelos.regs.getIP():
+                sep = "*"
+            addr = insn.address
+            if addr in self.zelos.main_binary.exported_functions:
+                fn_name = self.zelos.main_binary.exported_functions[addr]
+                if self.trace_file is not None:
+                    s = f"<{fn_name}>"
+                else:
+                    s = colored(f"<{fn_name}>", "white", attrs=["bold"])
+                self.print("INS", s, addr_str=f"{sep}{addr:08x}")
+            self.print("INS", ins_string, addr_str=f"{sep}{addr:08x}")
 
     def should_print_thread(self, t=None):
         """
@@ -357,14 +364,7 @@ class Trace(IPlugin):
 
     def _get_insn_string(self, insn):
         """ Gets the string to be printed for an instruction."""
-        cmt = ""
-        try:
-            cmt = self.comment_generator.get_comment(insn)
-        except Exception as e:
-            self.logger.notice(
-                f"Issue printing {insn.mnemonic} instruction comment: {e}"
-            )
-
+        cmt = self._get_comment(insn)
         result = ""
         insn_str = "{0}\t{1}".format(insn.mnemonic, insn.op_str)
         if len(cmt) > 0:
@@ -391,6 +391,30 @@ class Trace(IPlugin):
             result += insn_str
 
         return result
+
+    def _get_comment(self, insn):
+        cmt = ""
+        try:
+            cmt = self.comment_generator.get_comment(insn)
+        except Exception as e:
+            if not self.traceoff:
+                self.logger.notice(
+                    f"Issue printing {insn.mnemonic} instruction comment: {e}"
+                )
+        for cb in self._cmt_callbacks:
+            cb(cmt)
+        return cmt
+
+    def hook_comments(self, callback):
+        """
+        Registers a callback that is called when
+        comments are generated for an instruction.
+
+        Args:
+            callback: Called when a comment is generated. Takes a single
+                argument. The return value of `callback` is ignored
+        """
+        self._cmt_callbacks.append(callback)
 
 
 class EmptyCommentGenerator:

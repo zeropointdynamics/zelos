@@ -160,3 +160,33 @@ class TraceTest(unittest.TestCase):
         z.plugins.trace.trace_off()
         z.start()
         self.assertEqual(expected_comments, recieved_comments)
+
+    def test_hook_comments(self):
+        z = Zelos(
+            path.join(DATA_DIR, "static_elf_helloworld"),
+            inst=True,
+            trace_off=True,
+        )
+
+        expected_comments = [
+            "ebp = 0x0",  # xor ebp, ebp
+            "esi = 0x1",  # pop esi
+            "ecx = 0xff08eea4 -> ff08ef41",  # mov ecx, esp
+            "esp = 0xff08eea0 -> 1",  # and esp, 0xfffffff0
+            "push(0x0)",  # push eax
+            "push(0xff08ee98) -> ff08ee9c",  # push esp
+            "push(0x0)",  # push edx
+            "call(0x8048ba3)",  # call 0x8048ba3
+        ]
+
+        comments = []
+
+        def comment_hook(comment):
+            comments.append(comment)
+
+        # hook comment generation
+        z.plugins.trace.hook_comments(comment_hook)
+
+        z.start()
+
+        self.assertEqual(expected_comments, comments[:8])
