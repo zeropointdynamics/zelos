@@ -62,6 +62,7 @@ z.start(timeout=3)
 
 Zelos supports first- and third-party [plugins](https://zelos.readthedocs.io/en/latest/tutorials/04_writing_plugins.html). Some notable plugins thus far:
 
+- **crashd**: *(to be released Blackhat 2020)* crash analyzer combining execution trace, dataflow and memory sanitization.
 - [overlay (ida plugin)](https://zelos.readthedocs.io/en/latest/tutorials/06_snapshot_overlay.html): highlights `zelos` execution trace in IDA with instruction-level comments added.
 - [angr integration](https://github.com/zeropointdynamics/angr-zelos-target): enables symbolic execution in `zelos`.
 - [zdbserver](https://github.com/zeropointdynamics/zelos/tree/master/src/zelos/tools/zdbserver): remote control and debugging of emulated binaries.
