@@ -136,6 +136,14 @@ class FileSystemTest(unittest.TestCase):
         h.seek(100)
         self.assertEqual(100, h._file.tell())
 
+    def test_sandbox(self):
+        folder = tempfile.TemporaryDirectory()
+        z = Zelos(None, sandbox=folder.name)
+        file_system = z.internal_engine.files
+        self.assertFalse(path.exists(path.join(folder.name, "test_file1")))
+        _ = file_system.create_file("test_file1")
+        self.assertTrue(path.exists(path.join(folder.name, "test_file1")))
+
 
 def main():
     unittest.main()
