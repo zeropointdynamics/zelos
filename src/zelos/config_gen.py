@@ -242,6 +242,16 @@ def generate_parser():
         help="Enable logging of calls to exported functions. (default: off)",
     )
     group_fs.add_argument(
+        "--sandbox",
+        type=str,
+        default=None,
+        help="""Specifies a permanent root directory for files to be written
+        to. By default, files that are created while executing Zelos are
+        written to a temporary directory that is deleted when Zelos finishes
+        executing. Use this flag to retain files written during execution.
+        """,
+    )
+    group_fs.add_argument(
         "--mount",
         action="append",
         default=[],

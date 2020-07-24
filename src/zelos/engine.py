@@ -107,7 +107,7 @@ class Engine:
         self.breakpoints = BreakpointManager(self.hook_manager)
         self.interrupt_handler = InterruptHooks(self.hook_manager, self)
         self.exception_handler = ExceptionHooks(self)
-        self.files = FileSystem(self, self.hook_manager)
+        self.files = FileSystem(self, self.hook_manager, config.sandbox)
         self.processes = Processes(
             self.hook_manager,
             self.interrupt_handler,

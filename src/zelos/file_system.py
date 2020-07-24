@@ -21,6 +21,7 @@ import os
 import posixpath
 
 from collections import defaultdict
+from tempfile import TemporaryDirectory
 from typing import Optional
 
 from zelos.exceptions import ZelosException
@@ -158,14 +159,18 @@ class PathTranslator:
 class FileSystem(PathTranslator):
     # TODO: We need to allow /tmp directory to be accessed, otherwise
     # cloud stuff probably won't work.
-    def __init__(self, z, hook_manager):
+    def __init__(self, z, hook_manager, persistent_sandbox_path: str = None):
         self.directories = []
         self.z = z
         self._hook_manager = hook_manager
         self.logger = logging.getLogger(__name__)
 
         # Written files go into an isolated virtual file system
-        self.sandbox_path = "sandbox"
+        if persistent_sandbox_path:
+            self.sandbox_path = persistent_sandbox_path
+        else:
+            self._temp_dir_object = TemporaryDirectory()
+            self.sandbox_path = self._temp_dir_object.name
         self.sandboxed_files = dict()
 
         self.fds = []
