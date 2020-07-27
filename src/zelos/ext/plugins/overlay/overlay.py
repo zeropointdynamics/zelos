@@ -23,6 +23,10 @@ from os.path import abspath, basename
 from termcolor import colored
 
 from zelos import CommandLineOption, IPlugin, Zelos
+from zelos.ext.plugins.trace import Trace
+
+
+_ = Trace  # TODO: implicitly handle ordering in plugin creation
 
 
 CommandLineOption(
@@ -75,6 +79,20 @@ class Overlay(IPlugin):
                 )
 
             self.zelos.hook_close(closure)
+
+        self._comments = []
+        if self.export_trace:
+
+            def record_comment(zelos, addr, cmt):
+                self._comments.append(
+                    {
+                        "address": addr,
+                        "thread_id": self.zelos.thread.id,
+                        "text": cmt,
+                    }
+                )
+
+            self.zelos.plugins.trace.hook_comments(record_comment)
 
         self.max_section_size = 0x100000000
         self.max_pct_zero = 0.999999
@@ -202,12 +220,7 @@ class Overlay(IPlugin):
                     print(line)
 
         if trace:
-            for c in self.zelos.plugins.trace.comments:
-                cmt = {}
-                cmt["address"] = c.address
-                cmt["thread_id"] = c.thread_id
-                cmt["text"] = c.text
-                out_map["comments"].append(cmt)
+            out_map["comments"] = self._comments
 
             for addr in self.zelos.plugins.trace.functions_called.keys():
                 function = {}

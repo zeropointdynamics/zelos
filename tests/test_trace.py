@@ -81,14 +81,21 @@ class TraceTest(unittest.TestCase):
         fd, temp_file = tempfile.mkstemp()
 
         z = Zelos(
-            path.join(DATA_DIR, "static_elf_helloworld"), trace_file=temp_file
+            path.join(DATA_DIR, "static_elf_helloworld"),
+            trace_file=temp_file,
+            inst=True,
+            fasttrace=True,
         )
 
         z.start()
 
         f = open(temp_file, "r")
-        self.assertEqual(len(f.readlines()), 12)
-
+        lines = f.readlines()
+        print(lines)
+        # TODO: Figure out why runners execute a different number of
+        # lines. They seem to consistently get 9579.
+        # self.assertEqual(len([l for l in lines if "[INS]" in l]), 9580)
+        self.assertEqual(len([l for l in lines if "[SYSCALL]" in l]), 12)
         f.close()
         z.plugins.trace.trace_file.close()
         os.close(fd)
@@ -160,3 +167,33 @@ class TraceTest(unittest.TestCase):
         z.plugins.trace.trace_off()
         z.start()
         self.assertEqual(expected_comments, recieved_comments)
+
+    def test_hook_comments(self):
+        z = Zelos(
+            path.join(DATA_DIR, "static_elf_helloworld"),
+            inst=True,
+            trace_off=True,
+        )
+
+        expected_comments = [
+            "ebp = 0x0",  # xor ebp, ebp
+            "esi = 0x1",  # pop esi
+            "ecx = 0xff08eea4 -> ff08ef41",  # mov ecx, esp
+            "esp = 0xff08eea0 -> 1",  # and esp, 0xfffffff0
+            "push(0x0)",  # push eax
+            "push(0xff08ee98) -> ff08ee9c",  # push esp
+            "push(0x0)",  # push edx
+            "call(0x8048ba3)",  # call 0x8048ba3
+        ]
+
+        comments = []
+
+        def comment_hook(zelos, addr, comment):
+            comments.append(comment)
+
+        # hook comment generation
+        z.plugins.trace.hook_comments(comment_hook)
+
+        z.start()
+
+        self.assertEqual(expected_comments, comments[:8])

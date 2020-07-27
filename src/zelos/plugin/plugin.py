@@ -43,8 +43,10 @@ class IPlugin(IManager):
         self.zelos = zelos
 
     def __init_subclass__(cls, **kwargs):
-        Plugins.loaded_plugins.append(cls)
         super().__init_subclass__(**kwargs)
+        name = getattr(cls, "NAME", cls.__name__.lower())
+        file_and_name = inspect.getfile(cls) + "::" + name
+        Plugins.loaded_plugins[file_and_name] = cls
 
 
 plugins_loaded = set()
@@ -83,7 +85,7 @@ class Plugins:
     Plugins are set as attributes of this class for convenience.
     """
 
-    loaded_plugins = []
+    loaded_plugins = {}
 
     def __init__(self, zelos, paths):
         self.registered_plugins = {}
@@ -92,7 +94,7 @@ class Plugins:
         self._zelos = zelos
 
     def initialize(self):
-        for p in self.loaded_plugins:
+        for p in self.loaded_plugins.values():
             self.register_plugin(p)
         print(f"Plugins: {', '.join(self.registered_plugins.keys())}")
 
@@ -102,6 +104,14 @@ class Plugins:
         name = getattr(plugin_class, "NAME", plugin_class.__name__.lower())
         plugin = plugin_class(self._zelos)
         self.registered_plugins[name] = plugin
+        if hasattr(self, name):
+            self.logger.error(
+                (
+                    f'There are two plugins with the name "{name}"'
+                    "Trying to use these plugin will be difficult."
+                    "Consider renaming one of these plugins."
+                )
+            )
         setattr(self, name, plugin)
         self.logger.debug(f"Successfully registered plugin '{name}'")
 

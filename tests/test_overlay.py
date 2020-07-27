@@ -54,6 +54,7 @@ class OverlayTest(unittest.TestCase):
             inst=True,
             fasttrace=True,
             export_trace=True,
+            trace_off=True,
         )
 
         directory = tempfile.TemporaryDirectory()
@@ -71,7 +72,6 @@ class OverlayTest(unittest.TestCase):
 
         data = output.read()[len("DISAS\n") :]
         memdump = json.loads(data)
-
         self.assertGreaterEqual(len(memdump["comments"]), 8277)
 
         self.assertEqual(len(memdump["functions"]), 244)
