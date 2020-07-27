@@ -26,13 +26,6 @@ from zelos import CommandLineOption, IPlugin
 from zelos.exceptions import MemoryReadUnmapped
 
 
-class Comment:
-    def __init__(self, address, thread_id, text):
-        self.address = address
-        self.thread_id = thread_id
-        self.text = text
-
-
 CommandLineOption(
     "trace_off",
     action="store_true",
@@ -69,11 +62,6 @@ class Trace(IPlugin):
         self.current_function_name = "???"
         self.current_api_module = "???"
 
-        # Comments (to be dumped)
-        # We should save a lot of space by moving this to a grouping by
-        # thread, rather than keeping the thread with each comment.
-        # This will break compatibility with systems like Doppler.
-        self.comments = []
         self.MAX_INDENTS = 40
         self.threads_to_print = set()
 
@@ -85,7 +73,9 @@ class Trace(IPlugin):
 
         self._inst_feed_handle = None
         self._syscall_feed_handle = None
-        if not z.config.trace_off or z.config.trace_file is not None:
+
+        self._traceoff = z.config.trace_off
+        if not self._traceoff:
             self.trace_on()
 
         if self.state.arch in ["x86", "x86_64"]:
@@ -94,6 +84,8 @@ class Trace(IPlugin):
             self.comment_generator = ArmCommentGenerator(z, self.modules)
         else:
             self.comment_generator = EmptyCommentGenerator()
+
+        self._cmt_callbacks = []
 
     def trace_on(self):
         feeds = self.zelos.internal_engine.feeds
@@ -105,16 +97,20 @@ class Trace(IPlugin):
             self._syscall_feed_handle = feeds.subscribe_to_syscall_feed(
                 self.trace_syscalls
             )
+        self._traceoff = False
 
     def trace_off(self):
         feeds = self.zelos.internal_engine.feeds
-        if self._inst_feed_handle is not None:
+        if (
+            self._inst_feed_handle is not None
+            and len(self._cmt_callbacks) == 0
+        ):
             feeds.unsubscribe_from_feed(self._inst_feed_handle)
             self._inst_feed_handle = None
-
         if self._syscall_feed_handle is not None:
             feeds.unsubscribe_from_feed(self._syscall_feed_handle)
             self._syscall_feed_handle = None
+        self._traceoff = True
 
     @property
     def cs(self):
@@ -180,10 +176,9 @@ class Trace(IPlugin):
             )
             print(s)
         else:
-            ip = thread.getIP()
             s = (
                 f"[{thread.name}] "
-                f"[0x{ip:x}] {syscall_name} ( {args} ) -> {retstr}"
+                f"[SYSCALL] {syscall_name} ( {args} ) -> {retstr}"
             )
             print(s, file=self.trace_file, flush=True)
 
@@ -321,21 +316,27 @@ class Trace(IPlugin):
         """ Prints the thread, address and instruction string """
         if not self.should_print_thread():
             return
+        cmt = self._get_comment(insn)
+        for cb in self._cmt_callbacks:
+            cb(self.zelos, insn.address, cmt)
+
+        if self._traceoff:
+            return
+        ins_string = self._get_insn_string(insn, cmt)
         sep = ""
         if insn.address == self.zelos.regs.getIP():
             sep = "*"
-        address = insn.address
-        ins_string = self._get_insn_string(insn)
-        if address in self.zelos.main_binary.exported_functions:
-            function_name = self.zelos.main_binary.exported_functions[address]
+        addr = insn.address
+        if addr in self.zelos.main_binary.exported_functions:
+            fn_name = self.zelos.main_binary.exported_functions[addr]
             if self.trace_file is not None:
-                s = f"<{function_name}>"
+                s = f"<{fn_name}>"
             else:
-                s = colored(f"<{function_name}>", "white", attrs=["bold"])
-            self.print("INS", s, addr_str=f"{sep}{address:08x}")
-        self.print("INS", ins_string, addr_str=f"{sep}{address:08x}")
+                s = colored(f"<{fn_name}>", "white", attrs=["bold"])
+            self.print("INS", s, addr_str=f"{sep}{addr:08x}")
+        self.print("INS", ins_string, addr_str=f"{sep}{addr:08x}")
 
-    def should_print_thread(self, t=None):
+    def should_print_thread(self, t=None) -> bool:
         """
         Decides whether log statements should be printed for the given
         thread
@@ -355,42 +356,41 @@ class Trace(IPlugin):
             return True
         return t.name in self.threads_to_print
 
-    def _get_insn_string(self, insn):
+    def _get_insn_string(self, insn, cmt):
         """ Gets the string to be printed for an instruction."""
-        cmt = ""
+        result = f"{insn.mnemonic:8s} {insn.op_str}"
+        if len(cmt) > 0:
+            if self.trace_file is None:
+                cmt = colored("; " + cmt, "grey", attrs=["bold"])
+            else:
+                cmt = "; " + cmt
+            result = f"{result:60s} {cmt}"
+        return result
+
+    def _get_comment(self, insn) -> str:
         try:
-            cmt = self.comment_generator.get_comment(insn)
+            return self.comment_generator.get_comment(insn)
         except Exception as e:
             self.logger.notice(
                 f"Issue printing {insn.mnemonic} instruction comment: {e}"
             )
+        return ""
 
-        result = ""
-        insn_str = "{0}\t{1}".format(insn.mnemonic, insn.op_str)
-        if len(cmt) > 0:
-            padding = ""
-            padSize = 60 - len(insn_str)
-            if padSize < 0:
-                padSize = 1
-            for y in range(0, padSize):
-                padding += " "
-            if self.trace_file is not None:
-                result += insn_str + " " + padding + " ; " + cmt
-            else:
-                result += (
-                    insn_str
-                    + " "
-                    + padding
-                    + colored(" ; " + cmt, "grey", attrs=["bold"])
-                )
-            # Log comment for the dump
-            self.comments.append(
-                Comment(insn.address, self.zelos.thread.id, cmt)
+    def hook_comments(self, callback) -> None:
+        """
+        Registers a callback that is called when
+        comments are generated for an instruction.
+
+        Args:
+            callback: Called when a comment is generated. Takes a single
+                argument. The return value of `callback` is ignored
+        """
+        self._cmt_callbacks.append(callback)
+        if self._inst_feed_handle is None:
+            feeds = self.zelos.internal_engine.feeds
+            self._inst_feed_handle = feeds.subscribe_to_inst_feed(
+                self.trace_insts
             )
-        else:
-            result += insn_str
-
-        return result
 
 
 class EmptyCommentGenerator:
@@ -538,14 +538,11 @@ class x86CommentGenerator:
         Returns a string representing the data pointed to by 'ptr' if
         'ptr' is a valid pointer. Otherwise, reutrns an empty string.
         """
-        try:
-            s = self.zelos.memory.read_string(ptr, 8)
+        s = self.zelos.memory._memory.try_read_string(ptr, 8)
+        if s is not None and len(s) > 2:
             # Require a certain amount of valid characters to reduce
             # false positives for string identification.
-            if len(s) > 2:
-                return f' -> "{s}"'
-        except MemoryReadUnmapped:
-            pass  # Just checking whether the string exists.
+            return f' -> "{s}"'
 
         try:
             pointer_data = self.zelos.memory.read_int(ptr)

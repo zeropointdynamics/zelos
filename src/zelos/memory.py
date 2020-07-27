@@ -31,7 +31,7 @@ import zelos.util as util
 
 from zelos.emulator.base import MemoryRegion
 from zelos.enums import ProtType
-from zelos.exceptions import OutOfMemoryException
+from zelos.exceptions import MemoryReadUnmapped, OutOfMemoryException
 from zelos.hooks import HookType
 
 
@@ -196,26 +196,34 @@ class Memory:
         Returns:
             String read from memory.
         """
+        try:
+            return self._read_string(addr, size)
+        except Exception as e:
+            self.logger.debug(f"Couldn't read str at 0x{addr:x}: {e}")
+            return ""
+
+    def try_read_string(self, addr: int, size: int = 1024) -> Optional[str]:
+        """
+        Similar to read_string, however doesn't log on failure. Use for
+        when you are checking if a valid string exists.
+        """
+        try:
+            return self._read_string(addr, size)
+        except (MemoryReadUnmapped, UnicodeDecodeError):
+            pass
+        return None
+
+    def _read_string(self, addr: int, size: int = 1024) -> Optional[str]:
         if addr == 0:
             return ""
         data = b""
-        try:
-            for i in range(size):
-                byte = bytes(self.read(addr + i, 1))
-                if byte == b"\x00":
-                    break
-                data += byte
-            # TODO: Allow for different decodings.
-            return data.decode()
-        except Exception as e:
-            # TODO: We need to differentiate between attempts to check
-            # if a string exists or if expecting a string to exist. We
-            # shouldn't log an error if we aren't expecting the string
-            # to exist.
-            self.logger.debug(
-                "Couldn't read str at 0x{0:x}: {1}".format(addr + i, e)
-            )
-            return ""
+        for i in range(size):
+            byte = bytes(self.read(addr + i, 1))
+            if byte == b"\x00":
+                break
+            data += byte
+        # TODO: Allow for different decodings.
+        return data.decode()
 
     def read_wstring(self, addr: int, size: int = 1024) -> str:
         """
