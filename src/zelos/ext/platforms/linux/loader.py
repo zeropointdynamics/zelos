@@ -33,6 +33,13 @@ class LinuxMode:
         self.logger = z.logger
         self.z.hook_manager.register_exception_hook(self.handle_exception)
 
+        if arch == "x86_64":
+            stack_min = 0x00007F0000000000
+            stack_max = 0x00007FFF00000000
+        else:
+            stack_min = 0xFF000000
+            stack_max = 0xFFFF0000
+
         # TODO: removing this fails
         #       test.test_linux_arm.ZelosTest.test_dynamic_elf
         #       due to the stack being allocated at the same address as
@@ -42,8 +49,8 @@ class LinuxMode:
         if arch != "mips":
 
             def set_stack_region(current_process):
-                current_process.threads.stack_min = 0xFF000000
-                current_process.threads.stack_max = 0xFFFF0000
+                current_process.threads.stack_min = stack_min
+                current_process.threads.stack_max = stack_max
 
             self.z.hook_manager.register_process_hook(
                 HookType.PROCESS.CREATE, set_stack_region
