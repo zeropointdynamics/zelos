@@ -147,10 +147,7 @@ class HookManager:
 
         """
 
-        if hook_type in [
-            HookType.MEMORY.INTERNAL_READ,
-            HookType.MEMORY.INTERNAL_WRITE,
-        ]:
+        if self.is_internal_mem_hook(hook_type):
             return self._register_zelos_mem_hook(
                 hook_type, callback, mem_low, mem_high, name, end_condition
             )
@@ -374,10 +371,7 @@ class HookManager:
 
     def _is_unicorn_hook(self, hook_type):
         if isinstance(hook_type, HookType.MEMORY):
-            if hook_type in [
-                HookType.MEMORY.INTERNAL_READ,
-                HookType.MEMORY.INTERNAL_WRITE,
-            ]:
+            if self.is_internal_mem_hook(hook_type):
                 return False
             return True
 
@@ -476,10 +470,16 @@ class HookManager:
 
         return self._cross_process_hooks[handle]
 
+    def is_internal_mem_hook(self, hook_type):
+        return hook_type in [
+            HookType.MEMORY.INTERNAL_READ,
+            HookType.MEMORY.INTERNAL_WRITE,
+            HookType.MEMORY.INTERNAL_MAP,
+        ]
+
     def _get_hooks(self, hook_type):
         if (
-            hook_type
-            in [HookType.MEMORY.INTERNAL_READ, HookType.MEMORY.INTERNAL_WRITE]
+            self.is_internal_mem_hook(hook_type)
             and not self._internal_mem_hooks_enabled
         ):
             return []
