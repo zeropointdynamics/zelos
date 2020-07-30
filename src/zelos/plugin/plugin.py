@@ -70,9 +70,15 @@ def load(paths):
     if len(paths) == 0:
         return
 
+    modules_to_load = []
     for finder, name, _ in pkgutil.iter_modules(paths):
+        found_module = finder.find_module(name)
+        modules_to_load.append((name, found_module))
+
+    for (name, module) in sorted(modules_to_load, key=lambda x: x[0]):
         try:
-            _ = finder.find_module(name).load_module(name)
+            _ = module.load_module(name)
+
         except Exception as e:
             logging.getLogger(__name__).exception(
                 f"Could not load plugin at '{name}': {e}"
@@ -220,7 +226,8 @@ class CommandLineOption:
     """
 
     def __init__(self, name, **kwargs):
-        stack = inspect.stack()
-        frame = stack[1]
+        previous_stack_frame = inspect.currentframe().f_back
 
-        PluginCommands.registered_flags[frame.filename][name] = kwargs
+        filename = previous_stack_frame.f_globals["__file__"]
+
+        PluginCommands.registered_flags[filename][name] = kwargs
