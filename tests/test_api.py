@@ -85,9 +85,19 @@ class ZelosTest(unittest.TestCase):
         def zelos_write_hook(z, access, address, size, value):
             recorded_writes[address] = value
 
+        recorded_maps = {}
+
+        def zelos_map_hook(z, access, address, size, value):
+            recorded_maps[address] = size
+
         class TestPlugin(IPlugin):
             def __init__(self, z):
                 super().__init__(z)
+                z.hook_memory(
+                    HookType.MEMORY.INTERNAL_MAP,
+                    zelos_map_hook,
+                    name="test_zelos_map",
+                )
                 z.hook_memory(
                     HookType.MEMORY.INTERNAL_READ,
                     zelos_read_hook,
@@ -105,6 +115,16 @@ class ZelosTest(unittest.TestCase):
         z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
         self.assertEqual(recorded_reads, {})
         self.assertEqual(recorded_writes, {})
+
+        z.memory.map(0xC0BAF000, 0x1000)
+        self.assertEqual(recorded_maps, {0xC0BAF000: 0x1000})
+
+        z.memory._memory.map_file(
+            0xD0BAF000, path.join(DATA_DIR, "dynamic_elf_helloworld")
+        )
+        self.assertEqual(
+            recorded_maps, {0xC0BAF000: 0x1000, 0xD0BAF000: 0x2000}
+        )
 
         z.memory.read(0x08109A7E, 4)
 

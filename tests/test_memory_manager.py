@@ -20,6 +20,8 @@ from __future__ import absolute_import
 
 import unittest
 
+from unittest.mock import Mock
+
 from unicorn import UC_ARCH_X86, UC_MODE_32
 
 from zelos import Zelos
@@ -31,7 +33,8 @@ from zelos.state import State
 class MemoryTest(unittest.TestCase):
     def test_memory_manager_map_anywhere(self):
         state = State(None, None, None)
-        hook_manager = None
+        attrs = {"_get_hooks.return_value": []}
+        hook_manager = Mock(**attrs)
         m = Memory(
             create_emulator(UC_ARCH_X86, UC_MODE_32, state),
             hook_manager,
@@ -53,7 +56,8 @@ class MemoryTest(unittest.TestCase):
     def test_map_anywhere_bounded(self):
         # Check mapping when given bounds
         state = State(None, None, None)
-        hook_manager = None
+        attrs = {"_get_hooks.return_value": []}
+        hook_manager = Mock(**attrs)
 
         m = Memory(
             create_emulator(UC_ARCH_X86, UC_MODE_32, state),
@@ -76,7 +80,8 @@ class MemoryTest(unittest.TestCase):
 
     def test_map_anywhere_bounded_preexisting_sections(self):
         state = State(None, None, None)
-        hook_manager = None
+        attrs = {"_get_hooks.return_value": []}
+        hook_manager = Mock(**attrs)
         m = Memory(
             create_emulator(UC_ARCH_X86, UC_MODE_32, state),
             hook_manager,

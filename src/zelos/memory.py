@@ -540,6 +540,13 @@ class Memory:
             shared=shared,
             reserve=reserve,
         )
+        hooks = self._hook_manager._get_hooks(HookType.MEMORY.INTERNAL_MAP)
+
+        # We chose not to pass the data for the map in the hook because
+        # it drastically reduces performances.
+        # (some ltp tests went from 2.6 -> 3.6 seconds)
+        for hook in hooks:
+            hook(0, address, size, None)
 
     def map_file(
         self,
@@ -572,6 +579,14 @@ class Memory:
             prot=prot,
             shared=shared,
         )
+        mr = self.get_region(address)
+        hooks = self._hook_manager._get_hooks(HookType.MEMORY.INTERNAL_MAP)
+
+        # We chose not to pass the data for the map in the hook because
+        # it drastically reduces performances.
+        # (some ltp tests went from 2.6 -> 3.6 seconds)
+        for hook in hooks:
+            hook(0, address, mr.size, None)
 
     def protect(self, address: int, size: int, prot: int) -> None:
         """
