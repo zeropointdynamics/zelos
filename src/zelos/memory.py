@@ -648,6 +648,16 @@ class Memory:
             return None
         return region.address
 
+    def get_module_base(self, name: str) -> Optional[int]:
+        regions = [
+            mr
+            for mr in self.get_regions()
+            if os.path.basename(mr.module_name) == os.path.basename(name)
+        ]
+        if len(regions) == 0:
+            return None
+        return min([mr.address for mr in regions])
+
     def get_perms(self, address: int) -> int:
         """
         Returns the permissions of the section containg the given
