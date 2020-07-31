@@ -31,7 +31,7 @@ DATA_DIR = path.dirname(path.abspath(__file__))
 class SyscallLimiterTest(unittest.TestCase):
     def test_syscall_limit(self):
         z = Zelos(
-            path.join(DATA_DIR, "data", "static_elf_helloworld"),
+            path.join(DATA_DIR, "data", "dynamic_elf_helloworld"),
             syscall_limit=5,
         )
         z.start()
@@ -39,7 +39,7 @@ class SyscallLimiterTest(unittest.TestCase):
 
     def test_thread_limit(self):
         z = Zelos(
-            path.join(DATA_DIR, "data", "static_elf_helloworld"),
+            path.join(DATA_DIR, "data", "dynamic_elf_helloworld"),
             syscall_thread_limit=5,
         )
         z.start()
@@ -47,7 +47,7 @@ class SyscallLimiterTest(unittest.TestCase):
 
     def test_syscall_callback(self):
         z = Zelos(
-            path.join(DATA_DIR, "data", "static_elf_helloworld"),
+            path.join(DATA_DIR, "data", "dynamic_elf_helloworld"),
             rep_syscall_print_limit=5,
         )
         syscall_name = "brk"
@@ -78,7 +78,7 @@ class SyscallLimiterTest(unittest.TestCase):
 
     def test_syscall_callback_rep_0(self):
         z = Zelos(
-            path.join(DATA_DIR, "data", "static_elf_helloworld"),
+            path.join(DATA_DIR, "data", "dynamic_elf_helloworld"),
             rep_syscall_print_limit=0,
         )
         syscall_name = "brk"

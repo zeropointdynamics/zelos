@@ -29,7 +29,7 @@ DATA_DIR = path.join(path.dirname(path.abspath(__file__)), "data")
 
 class ProcessesTest(unittest.TestCase):
     def test_emu_swap(self):
-        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
+        z = Zelos(path.join(DATA_DIR, "dynamic_elf_helloworld"))
         z.process.threads.swap_with_next_thread()
 
         self.assertEqual(z.internal_engine.processes.num_active_processes(), 1)
@@ -49,7 +49,7 @@ class ProcessesTest(unittest.TestCase):
         self.assertEqual(z.thread.getIP(), 0x1000)
 
     def test_memory_swap(self):
-        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
+        z = Zelos(path.join(DATA_DIR, "dynamic_elf_helloworld"))
 
         self.assertEqual(z.internal_engine.processes.num_active_processes(), 1)
         pid1 = z.process.pid
@@ -66,7 +66,7 @@ class ProcessesTest(unittest.TestCase):
         self.assertEqual(z.memory.read(0xDEADB000, 0x4), b"\x05\x05\x05\x05")
 
     def test_sys_fork(self):
-        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
+        z = Zelos(path.join(DATA_DIR, "dynamic_elf_helloworld"))
         z.internal_engine.processes.swap_with_next_thread()
         self.assertEqual(z.internal_engine.processes.num_active_processes(), 1)
         p1 = z.process
