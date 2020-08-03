@@ -76,7 +76,7 @@ class SyscallConditionList(ConditionList):
         return hook_info
 
 
-class ApiConditionList(ConditionList):
+class FuncConditionList(ConditionList):
     """
     Used to trigger an action after a specific API.
     """
@@ -84,8 +84,18 @@ class ApiConditionList(ConditionList):
     def __init__(self, conditions: Dict[str, str]):
         super().__init__(conditions)
 
+    def is_satisfied(self, zelos):
+        return super().is_satisfied(zelos)
+
     def act_when_satisfied(self, zelos, action: Callable[[], Any]):
-        raise NotImplementedError
+        def trigger_when(zelos):
+            if self.is_satisfied(zelos):
+                action()
+
+        hook_info = zelos.internal_engine.hook_manager.register_func_hook(
+            self._conditions["func"], trigger_when
+        )
+        return hook_info
 
 
 class AddressConditionList(ConditionList):
@@ -160,8 +170,8 @@ class ZmlParser:
             + r"""
             condition : thread_cond|n_cond|retval_cond|arg_cond
 
-            event_condition : api_event|syscall_event|thread_event|addr_event
-            api_event : "api" equals CNAME
+            event_condition : func_event|syscall_event|thread_event|addr_event
+            func_event : "func" equals CNAME
             syscall_event : "syscall" equals CNAME
             thread_event : "thread" equals CNAME
             addr_event : "addr" equals NUMBER
@@ -220,9 +230,9 @@ class ZmlTransformer(Transformer):
         self._condition_list_type = ThreadConditionList
         self._conditions["thread"] = children[1]
 
-    def api_event(self, children):
-        self._condition_list_type = ApiConditionList
-        self._conditions["api"] = children[1]
+    def func_event(self, children):
+        self._condition_list_type = FuncConditionList
+        self._conditions["func"] = children[1]
 
     def syscall_event(self, children):
         self._condition_list_type = SyscallConditionList
