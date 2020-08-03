@@ -291,6 +291,44 @@ class HookManagerTest(unittest.TestCase):
         z.start()
         self.assertEqual(z.regs.getIP(), 0x8048B72)
 
+    def test_func_hook(self):
+        z = Zelos(path.join(DATA_DIR, "dynamic_elf_heap_overflow"))
+
+        malloc_addrs = []
+
+        def malloc_hook1(zelos: Zelos):
+            malloc_addrs.append((zelos.thread.getIP(), "hook1"))
+            zelos.stop()
+
+        z.internal_engine.hook_manager.register_func_hook(
+            "malloc", malloc_hook1, end_condition=lambda: True
+        )
+        z.start()
+
+        def malloc_hook2(zelos: Zelos):
+            malloc_addrs.append((zelos.thread.getIP(), "hook2"))
+
+        z.internal_engine.hook_manager.register_func_hook(
+            "malloc", malloc_hook2
+        )
+
+        z.start()
+
+        # Malloc is called once from the target module, and once from
+        # inside libc.
+        # The first time malloc is called, hook1 is called and then
+        # deleted. Hook2 is immediately registered, and since it starts
+        # at the addr that hook1 was deleted, hook2 also runs at that
+        # location, and then once more again at the next malloc call.
+
+        # The behavior where hooks are run again after stopping Zelos
+        # is out of convenience in developing Zelos, and not a behavior
+        # that we prefer.
+        self.assertEqual(
+            malloc_addrs,
+            [(2728048, "hook1"), (2728048, "hook2"), (2728048, "hook2")],
+        )
+
 
 def main():
     unittest.main()
