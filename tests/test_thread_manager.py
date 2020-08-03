@@ -149,7 +149,7 @@ class ThreadManagerTest(unittest.TestCase):
         self.assertEqual("thread_2", tman.current_thread.name)
 
     def test_save_after_edit(self):
-        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
+        z = Zelos(path.join(DATA_DIR, "dynamic_elf_helloworld"))
         tman = z.internal_engine.thread_manager
         tman.swap_with_next_thread()
 
@@ -175,7 +175,7 @@ class ThreadManagerTest(unittest.TestCase):
         self.assertEqual(tman.current_thread.state, ThreadState.RUNNING)
 
     def test_saveload(self):
-        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
+        z = Zelos(path.join(DATA_DIR, "dynamic_elf_helloworld"))
         tman = z.internal_engine.thread_manager
         tman._reset()
 
@@ -194,7 +194,7 @@ class ThreadManagerTest(unittest.TestCase):
         self.assertEqual("thread_3", tman.current_thread.name)
 
     def test_saveload_current_thread_none(self):
-        z = Zelos(path.join(DATA_DIR, "static_elf_helloworld"))
+        z = Zelos(path.join(DATA_DIR, "dynamic_elf_helloworld"))
         tman = z.internal_engine.thread_manager
         tman._reset()
 
