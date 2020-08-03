@@ -38,8 +38,8 @@ class ZmlTest(unittest.TestCase):
     def test_grammar(self):
         valid_rules = [
             "syscall=test",
-            "n=2,api=test",
-            "api=test,n=2",
+            "n=2,func=test",
+            "func=test,n=2",
             "thread=test,thread=test2",
             "n=2,thread=test",
             "thread=test,n=2",
@@ -52,9 +52,9 @@ class ZmlTest(unittest.TestCase):
             self.zml_parser._zml_parser.parse(r)
 
         invalid_rules = [
-            "api=test,syscall=test2",
-            "api=test,api=test2",
-            "api=test,addr=2",
+            "func=test,syscall=test2",
+            "func=test,func=test2",
+            "func=test,addr=2",
             "n=2",
             "n=test",
             "addr=test",

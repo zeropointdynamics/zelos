@@ -329,6 +329,29 @@ class HookManagerTest(unittest.TestCase):
             [(2728048, "hook1"), (2728048, "hook2"), (2728048, "hook2")],
         )
 
+    def test_zml_hook(self):
+        z = Zelos(path.join(DATA_DIR, "dynamic_elf_heap_overflow"))
+        malloc_addrs = []
+
+        def malloc_hook1():
+            malloc_addrs.append((z.thread.getIP(), "hook1"))
+
+        def malloc_hook2():
+            malloc_addrs.append((z.thread.getIP(), "hook2"))
+
+        z.internal_engine.hook_manager.register_zml_hook(
+            "func=malloc,n=1", malloc_hook1
+        )
+
+        z.internal_engine.hook_manager.register_zml_hook(
+            "func=malloc,n=2", malloc_hook2
+        )
+        z.start()
+
+        self.assertEqual(
+            malloc_addrs, [(2728048, "hook1"), (2728048, "hook2")]
+        )
+
 
 def main():
     unittest.main()
