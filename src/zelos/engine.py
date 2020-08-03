@@ -121,6 +121,7 @@ class Engine:
 
         if binary is not None and binary != "":
             self.load_executable(binary, entrypoint_override=config.startat)
+            self.hook_manager.on_entrypoint(self.hook_manager.setup_func_hooks)
         else:
             self._initialize_zelos()  # For testing purposes.
             # If no binary is passed, default to UNIX-style paths.

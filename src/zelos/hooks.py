@@ -107,6 +107,13 @@ class HookManager:
         # initialization has been completed.
         self._internal_mem_hooks_enabled = False
 
+        # In order to use function hooks, we need to know the base
+        # address of the target module. This is not immediately
+        # available for dynamic binaries. We will wait for the first
+        # time the target binary is mapped into memory.
+        self._func_hooks_enabled = False
+        self._func_hooks_to_register = []
+
     def register_mem_hook(
         self,
         hook_type: HookType.MEMORY,
@@ -173,13 +180,16 @@ class HookManager:
 
         def zelos_memhook_wrapper(access, address, size, value):
             nonlocal hook_info
-            if mem_low is not None and address + size <= mem_low:
-                return
-            if mem_high is not None and address > mem_high:
-                return
-            callback(self.api, access, address, size, value)
-            if end_condition is not None and end_condition():
-                self.delete_hook(hook_info)
+            try:
+                if mem_low is not None and address + size <= mem_low:
+                    return
+                if mem_high is not None and address > mem_high:
+                    return
+                callback(self.api, access, address, size, value)
+                if end_condition is not None and end_condition():
+                    self.delete_hook(hook_info)
+            except Exception as e:
+                self.logger.exception(f"Error running mem hook: {e}")
 
         hook_info = self._add_zelos_hook(
             hook_type, zelos_memhook_wrapper, name
@@ -286,6 +296,132 @@ class HookManager:
                 syscall_hook_type, syscall_callback_wrapper, name
             )
         return self._add_zelos_hook(syscall_hook_type, callback, name)
+
+    def setup_func_hooks(self):
+        """
+        This function must be called before function hooks are enabled.
+        It can only be called once the addresses of the imported
+        functions are known.
+        """
+        self._func_hooks_enabled = True
+        for registration_callback in self._func_hooks_to_register:
+            registration_callback()
+        self._func_hooks_to_register = None
+
+    def on_entrypoint(self, callback):
+        """
+        Run callback when the binary has reached it's entrypoint for
+        the first time.
+        """
+
+        def register_on_entrypoint_hook():
+            entrypoint = self._rebase_target_module_addr(
+                self.z.main_module._target_entrypoint
+            )
+
+            def exec_callback_wrapper(*args):
+                self.logger.info(f"Reached entrypoint 0x{entrypoint:x}")
+                callback()
+
+            self.register_exec_hook(
+                HookType.EXEC.BLOCK,
+                exec_callback_wrapper,
+                ip_low=entrypoint,
+                ip_high=entrypoint,
+                name="on_entrypoint",
+                end_condition=lambda: True,
+            )
+
+        self.on_main_module_load(register_on_entrypoint_hook)
+
+    def on_main_module_load(self, callback):
+        """
+        Run callback when the first part of the target module has been
+        loaded into memory.
+        """
+        base_address = self.z.memory.get_module_base(self.z.target_binary_path)
+        if base_address is not None:
+            callback()
+            return
+
+        # Wait for the main module to be loaded before setting up the
+        # function hooks
+        def main_module_is_loaded():
+            base_address = self.z.memory.get_module_base(
+                self.z.target_binary_path
+            )
+            return base_address is not None
+
+        def delayed_func_hook_setup(zelos, access, address, size, data):
+            if main_module_is_loaded():
+                callback()
+
+        self.register_mem_hook(
+            HookType.MEMORY.INTERNAL_MAP,
+            delayed_func_hook_setup,
+            name="on_main_module_load",
+            end_condition=main_module_is_loaded,
+        )
+
+    def _rebase_target_module_addr(self, addr: int):
+        """
+        Takes an address with the target binary's image base and
+        rebases it to the address that it was actually loaded at.
+        """
+        return (
+            addr
+            - self.z.main_module._target_imagebase
+            + self.z.memory.get_module_base(self.z.target_binary_path)
+        )
+
+    def register_func_hook(
+        self,
+        func_name: str,
+        callback: Callable[["Zelos"], Any],
+        end_condition=None,
+    ) -> HookInfo:
+        """
+        Registers a hook that should execute when an imported function
+        is called.
+
+        There are multiple assumptions embedded in this hook.
+        We assume that the pointers to the imported functions will be
+        set at the time the entrypoint is reached. There are certain
+        protections that can be put in place that will get around this,
+        and we may have to update how function hooks are registered for
+        those binaries.
+        """
+        address_ptr = self.z.main_module._elf_dynamic_import_addrs.get(
+            func_name, None
+        )
+        if address_ptr is None:
+            return None
+
+        if not self._func_hooks_enabled:
+            registration_callback = functools.partial(
+                self.register_func_hook,
+                func_name,
+                callback,
+                end_condition=end_condition,
+            )
+            self._func_hooks_to_register.append(registration_callback)
+            return
+
+        address_ptr = self._rebase_target_module_addr(address_ptr)
+
+        func_addr = self.z.memory.read_int(address_ptr)
+
+        def read_wrapper(z, address, size):
+            callback(z)
+
+        return self.register_exec_hook(
+            HookType.EXEC.BLOCK,
+            read_wrapper,
+            ip_low=func_addr,
+            ip_high=func_addr,
+            name=f"func_{func_name}",
+            end_condition=end_condition,
+        )
 
     def register_exception_hook(self, callback, name=None) -> HookInfo:
         self.z.exception_handler.register_exception_handler(callback)

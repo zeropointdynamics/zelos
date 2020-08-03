@@ -327,27 +327,29 @@ def mmapx(k, p, syscall_name, args, offset):
 
     addr = args.addr
     if addr == 0:
-        addr = p.memory.find_free_space(args.length)
+        addr = p.memory.find_free_space(args.length, alignment=0x1000)
     prot = ProtType(args.prot)
     length = align(args.length)
 
     data = b""
+    module_name = ""
     if handle is not None:
         f = k.z.files.open_library(handle.Name)
         if f is not None:
             f.seek(offset)
             data = f.read(args.length)
             f.close()
+            module_name = handle.Name
 
     data += b"\0" * (args.length - len(data))
     shared = args.flags & MAP_SHARED != 0
-
     try:
         p.memory.map(
             addr,
             length,
             name=memory_region_name,
             kind=syscall_name,
+            module_name=module_name,
             shared=shared,
             prot=prot,
         )
