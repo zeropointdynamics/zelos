@@ -48,7 +48,7 @@ INSTALL_REQUIRES = [
     "configargparse==0.15.1",
     "pypacker==4.9",
     "lief>=0.9.0",
-    "zebracorn==0.0.0",
+    "zebracorn==0.0.1",
     "lark-parser==0.7.8",
 ]
 EXTRAS_REQUIRE = {
