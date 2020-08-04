@@ -25,13 +25,13 @@ class Scheduler:
     """
     Handles the pausing and stopping of execution of threads in Zelos.
 
-    There are subtlties here due to how changing EIP prevents unicorn
+    There are subtlties here due to how changing EIP prevents zebracorn
     from stopping appropriately. Specifically, changing EIP while also
     calling stop may invalidate the stop.
     """
 
     # Each class has its own emu, since each process has its own
-    # instance of unicorn. However, we want the stop reasons to be
+    # instance of zebracorn. However, we want the stop reasons to be
     # universal, since there should only be one thread running.
     # This was to handle weird thread/process swapping errors. This is
     # why end_reasons was a class variable.
@@ -80,7 +80,7 @@ class Scheduler:
             t = self._threads.current_thread
             self._stop_addr[t.id] = t.getIP()
 
-    # This function is needed specifically for a bug in unicorn for ARM,
+    # This function is needed specifically for a bug in zebracorn for ARM,
     # where stopping in the middle of a block during a code hook results
     # in the ip address being reset to the beginning of the block.
 

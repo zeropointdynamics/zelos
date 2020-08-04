@@ -14,7 +14,7 @@
 # License along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
-import unicorn.x86_const as uc
+import zebracorn.x86_const as uc
 
 from zelos.emulator.base import IEmuHelper
 

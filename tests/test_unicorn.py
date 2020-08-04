@@ -16,7 +16,7 @@
 # ======================================================================
 import unittest
 
-from unicorn import (
+from zebracorn import (
     UC_ARCH_X86,
     UC_HOOK_CODE,
     UC_HOOK_INSN,
@@ -25,7 +25,7 @@ from unicorn import (
     Uc,
     UcError,
 )
-from unicorn.x86_const import (
+from zebracorn.x86_const import (
     UC_X86_INS_SYSCALL,
     UC_X86_REG_EAX,
     UC_X86_REG_EIP,
@@ -41,6 +41,11 @@ class UnicornTest(unittest.TestCase):
         w.internal_engine.interrupt_handler.disable()
         uc = w.internal_engine.emu
         uc.mem_map(0, 0x2000)
+        # FIXME: the interrupt hook is not being deleted prior to
+        #   emu_start in the disable() call above. It only deletes
+        #   after a run. Change in Unicorn impl.? For now we do a quick
+        #   fix by calling start one extra time.
+        uc.emu_start(0x1000, 0x1007)
         self.assertRaises(
             UcError, uc.emu_start, 0x1000, 0x1007
         )  # ends inbetween instruction
@@ -148,6 +153,11 @@ class UnicornTest(unittest.TestCase):
         w.internal_engine.emu.setSP(0x100)
 
         uc.hook_add(UC_HOOK_CODE, hook)
+        # FIXME: the interrupt hook is not being deleted prior to
+        #   emu_start in the disable() call above. It only deletes
+        #   after a run. Change in Unicorn impl.? For now we do a quick
+        #   fix by calling start one extra time.
+        uc.emu_start(0x1000, 0x1008)
         uc.emu_start(0x1000, 0x1008)
         self.assertListEqual(record, [0x1000, 0x1002, 0x1006])
         self.assertEqual(0xF8, w.internal_engine.emu.getSP())

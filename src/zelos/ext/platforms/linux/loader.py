@@ -19,7 +19,7 @@ import posixpath
 
 from os.path import basename
 
-from unicorn import UC_ERR_EXCEPTION
+from zebracorn import UC_ERR_EXCEPTION
 
 from zelos.exceptions import ZelosLoadException
 from zelos.hooks import HookType
