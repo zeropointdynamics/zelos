@@ -1025,7 +1025,7 @@ class Heap:
         self.current_offset -= size
         return self.current_offset
 
-    def alloc(self, size: int, name: str = None, align: int = 0x4) -> int:
+    def alloc(self, size: int, name: str = None, align: int = 0x10) -> int:
         """
         Allocates memory to the heap. These are rounded up to the size
         of the alignment.
