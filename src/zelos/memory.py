@@ -60,7 +60,7 @@ class Memory:
         self.clear()
         self.heap = Heap(self, self.HEAP_BASE, self.HEAP_MAX_SIZE)
 
-        from unicorn import UC_HOOK_MEM_READ_PROT
+        from zebracorn import UC_HOOK_MEM_READ_PROT
 
         self.emu.hook_add(UC_HOOK_MEM_READ_PROT, self._hook_read_prot)
         self.mem_hooks = dict()

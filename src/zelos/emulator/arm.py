@@ -14,7 +14,7 @@
 # License along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 # ======================================================================
-import unicorn.arm_const as uc
+import zebracorn.arm_const as uc
 
 from .base import IEmuHelper
 
@@ -178,8 +178,8 @@ class ArmEmuHelper(IEmuHelper):
         "fpexc",
     ]
 
-    def __init__(self, unicorn, state):
-        super().__init__(unicorn, state)
+    def __init__(self, zebracorn, state):
+        super().__init__(zebracorn, state)
         # Enables arm VFP:
         #   https://github.com/unicorn-engine/unicorn/pull/684
         tmp_val = self.get_reg("c1_c0_2")

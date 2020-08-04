@@ -36,7 +36,7 @@ class State:
 
         # Whether or not to implement our modification to Unicorn's TCG
         # generation. Extra speed, but hooking behavior is different.
-        self.patched_unicorn_enabled = False
+        self.patched_zebracorn_enabled = False
 
         self.endianness = self.__get_endianness(binary)
 

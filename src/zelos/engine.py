@@ -22,7 +22,7 @@ import os
 from collections import namedtuple
 from typing import Optional
 
-import unicorn
+import zebracorn
 import verboselogs
 
 from capstone import (
@@ -38,7 +38,7 @@ from capstone import (
     CS_MODE_MIPS32,
     Cs,
 )
-from unicorn import UcError
+from zebracorn import UcError
 
 from zelos import util
 from zelos.breakpoints import BreakpointManager, BreakState
@@ -372,7 +372,7 @@ class Engine:
         p.virtual_filename = self.config.virtual_filename
         p.virtual_path = self.config.virtual_path
 
-        if hasattr(unicorn.unicorn, "WITH_ZEROPOINT_PATCH"):
+        if hasattr(zebracorn.unicorn, "WITH_ZEROPOINT_PATCH"):
 
             def process_switch_wrapper(*args, **kwargs):
                 # Block count interrupt. Fires every 2^N blocks executed
@@ -424,20 +424,20 @@ class Engine:
 
     def step(self, count: int = 1) -> None:
         """ Steps one assembly level instruction """
-        # You might be tempted to use unicorn's "count" argument to
+        # You might be tempted to use zebracorn's "count" argument to
         # step. However, printing instruction comments relies on an
         # ad-hoc "post instruction" method.
         #
-        # Using unicorn's emu_start count argument
+        # Using zebracorn's emu_start count argument
         #   run INST hook
         #   run instruction
-        #   unicorn stops
+        #   zebracorn stops
         #
         # Current method:
         #   run INST hook (don't print)
         #   run instruction
         #   run INST hook (do print) then stop before next instruction
-        #   unicorn stops
+        #   zebracorn stops
         #
         # Of course, we can simplify when we get a post instruction
         # hook working properly.
@@ -554,7 +554,7 @@ class Engine:
         self.breakpoints._disable_breakpoints_on_start(t.getIP())
         if t.emu.is_running:
             self.logger.critical(
-                "Trying to run unicorn while unicorn is already running. "
+                "Trying to run zebracorn while zebracorn is already running. "
                 "You are entering untested waters"
             )
 
@@ -570,7 +570,7 @@ class Engine:
 
     def _should_continue(self):
         """
-        Takes the reasons for ending unicorn execution, and decides
+        Takes the reasons for ending zebracorn execution, and decides
         whether to continue or end execution
         """
 

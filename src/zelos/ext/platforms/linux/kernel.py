@@ -215,28 +215,28 @@ class X86Kernel(LinuxKernel):
     def set_return_value(self, value):
         self.emu.set_reg("eax", value)
 
-    def return_addr(self):
-        return self.emu.getIP() + 2
+    # def return_addr(self):
+    #     return self.emu.getIP() + 2
 
-    def handle_syscall(self, *args, **kwargs):
-        """
-        Calls the corresponding syscall with given name or number.
-        """
-        t = self.z.current_process.current_thread
-        addr = t.getIP()
+    # def handle_syscall(self, *args, **kwargs):
+    #     """
+    #     Calls the corresponding syscall with given name or number.
+    #     """
+    #     t = self.z.current_process.current_thread
+    #     addr = t.getIP()
 
-        super(X86Kernel, self).handle_syscall(*args, **kwargs)
+    #     super(X86Kernel, self).handle_syscall(*args, **kwargs)
 
-        if self.syscall_break_name is None:
+    #     # if self.syscall_break_name is None:
 
-            def set_ip():
-                t.setIP(addr + 2)
+    #     #     def set_ip():
+    #     #         t.setIP(addr + 2)
 
-            self.z.scheduler.stop_and_exec("handle_syscall", set_ip)
-        else:
-            self.pending_ip_change = addr + 2
+    #     #     self.z.scheduler.stop_and_exec("handle_syscall", set_ip)
+    #     # else:
+    #     #     self.pending_ip_change = addr + 2
 
-        return True
+    #     return True
 
 
 class X86_64Kernel(LinuxKernel):
@@ -248,7 +248,7 @@ class X86_64Kernel(LinuxKernel):
             """
             We need to execute a syscall at this point, however,
             certain syscalls may not be runnable within a hook (they
-            cause unicorn to execute code which is not allowed in a
+            cause zebracorn to execute code which is not allowed in a
             hook)
             """
             handle_syscall_closure = functools.partial(
@@ -424,16 +424,16 @@ class MIPSKernel(LinuxKernel):
         else:
             self.emu.set_reg("a3", 0)
 
-        return_address = self.emu.getIP() + 4
+        # return_address = self.emu.getIP() + 4
 
-        if self.syscall_break_name is None:
+        # if self.syscall_break_name is None:
 
-            def set_ip():
-                self.emu.setIP(return_address)
+        #     def set_ip():
+        #         self.emu.setIP(return_address)
 
-            self.z.scheduler.stop_and_exec("handle_syscall", set_ip)
-        else:
-            self.pending_ip_change = return_address
+        #     self.z.scheduler.stop_and_exec("handle_syscall", set_ip)
+        # else:
+        #     self.pending_ip_change = return_address
 
         return True
 

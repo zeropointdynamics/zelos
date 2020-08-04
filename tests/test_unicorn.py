@@ -16,7 +16,7 @@
 # ======================================================================
 import unittest
 
-from unicorn import (
+from zebracorn import (
     UC_ARCH_X86,
     UC_HOOK_CODE,
     UC_HOOK_INSN,
@@ -25,7 +25,7 @@ from unicorn import (
     Uc,
     UcError,
 )
-from unicorn.x86_const import (
+from zebracorn.x86_const import (
     UC_X86_INS_SYSCALL,
     UC_X86_REG_EAX,
     UC_X86_REG_EIP,
