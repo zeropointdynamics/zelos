@@ -22,8 +22,8 @@ import os
 from collections import namedtuple
 from typing import Optional
 
-import zebracorn
 import verboselogs
+import zebracorn
 
 from capstone import (
     CS_ARCH_ARM,

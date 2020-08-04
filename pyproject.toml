@@ -18,7 +18,7 @@ not_skip="__init__.py"
 use_parentheses=true
 
 known_first_party="zelos"
-known_third_party=["capstone", "colorama", "configargparse", "dnslib", "filelock", "hypothesis", "ida_kernwin", "idaapi", "idc", "lark", "lief", "mock", "pkg_resources", "pypacker", "pytest", "recommonmark", "setuptools", "sortedcontainers", "sphinx_rtd_theme", "termcolor", "unicorn", "verboselogs", "zelos"]
+known_third_party=["capstone", "colorama", "configargparse", "dnslib", "filelock", "hypothesis", "ida_kernwin", "idaapi", "idc", "lark", "lief", "mock", "pkg_resources", "pypacker", "pytest", "recommonmark", "setuptools", "sortedcontainers", "sphinx_rtd_theme", "termcolor", "verboselogs", "zebracorn", "zelos"]
 
 [tool.pytest]
 junit_family = "xunit2"
