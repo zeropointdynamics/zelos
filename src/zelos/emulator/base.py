@@ -744,7 +744,6 @@ def create_emulator(arch, mode, state) -> IEmuHelper:
     """
     from zebracorn import Uc, UC_ARCH_ARM, UC_ARCH_MIPS, UC_ARCH_X86
     from zebracorn import UcError
-
     try:
         uc = Uc(arch, mode)
         arch = uc._arch

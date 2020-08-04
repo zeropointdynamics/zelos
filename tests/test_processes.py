@@ -83,7 +83,7 @@ class ProcessesTest(unittest.TestCase):
         # never incremented.
         # This is just for this test, as during normal execution this
         # would not be the case.
-        self.assertEqual(p1.emu.getIP() + 2, p2.emu.getIP())
+        self.assertEqual(p1.emu.getIP(), p2.emu.getIP())
         self.assertEqual(p2.emu.get_reg("eax"), 0)
 
 
