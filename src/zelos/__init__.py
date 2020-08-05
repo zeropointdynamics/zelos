@@ -26,7 +26,7 @@ __author__ = "Zeropoint Dynamics"
 __email__ = "zelos@zeropointdynamics.com"
 
 __license__ = "AGPLv3"
-__copyright__ = "Copyright (c) 2019 Zeropoint Dynamics"
+__copyright__ = "Copyright (c) 2017-2020 Zeropoint Dynamics"
 
 import os
 import sys
