@@ -9,7 +9,7 @@
 # Zelos
 Zelos (**Z**eropoint **E**mulated **L**ightweight **O**perating **S**ystem) is a python-based binary emulation platform. One use of zelos is to quickly assess the dynamic behavior of binaries via command-line or python scripts. All syscalls are emulated to isolate the target binary. Linux x86_64 (32- and 64-bit), ARM and MIPS binaries are supported. [Unicorn](https://github.com/unicorn-engine/unicorn) provides CPU emulation.
 
-![Image](https://raw.githubusercontent.com/zeropointdynamics/zelos/master/docs/_static/hello_zelos.png)
+![Image](https://raw.githubusercontent.com/zeropointdynamics/zelos/master/docs/_static/demo.gif)
 
 [Full documentation](https://zelos.readthedocs.io/en/latest/index.html) is available [here](https://zelos.readthedocs.io/en/latest/index.html).
 
