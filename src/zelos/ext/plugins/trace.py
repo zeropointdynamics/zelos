@@ -43,8 +43,10 @@ CommandLineOption(
     "fasttrace",
     action="count",
     default=0,
-    help="Enable instruction-level tracing only the first time a memory "
-    "address is reached.",
+    help=(
+        "Enable instruction-level tracing only the first time a memory "
+        "address is reached."
+    ),
 )
 
 
@@ -394,6 +396,9 @@ class Trace(IPlugin):
 
 
 class EmptyCommentGenerator:
+    def __init__(self):
+        self.functions_called = {}
+
     def get_comment(self, insn):
         return ""
 
