@@ -444,6 +444,7 @@ class RawSocketSimulator:
                             packet[tcp.TCP].seq,
                         )
                     )
+            return len(payload)
         else:
             print("[RawSocketSimulator] Unsupported RAW scan packet:", packet)
 
