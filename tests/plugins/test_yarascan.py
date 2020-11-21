@@ -198,6 +198,25 @@ class TestYaraScanPlugin(unittest.TestCase):
             for expected in expected_yaml:
                 self.assertTrue(expected in yaml)
 
+    def test_yarascan_no_xrefs_issue_129(self):
+        # Create temp directory to store yarascan output files
+        # Init `zelos` and request yara scanning post-emulation.
+        z = Zelos(
+            path.join(DATA_DIR, "static_elf_helloworld"),
+            trace_off=True,
+            yara_rule=r"/hello\sworld!/nocase",
+        )
+        z.start(timeout=10)
+
+        yara = z.plugins.yarascan
+        yara.compile(rules=["Hello World"], files=[], glob_string=None)
+        matches = list(yara.matches(pid=z.process.pid, xrefs=False))
+        # Check whether we are handling the strings method correctly,
+        # specifically when xrefs is false.
+        matches[0].strings
+
+
+
 
 if __name__ == "__main__":
     unittest.main()

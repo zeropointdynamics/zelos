@@ -139,9 +139,9 @@ class YaraMatch:
         self._strings = yara_match.strings
         self._yara_strings = None
         self._count_xrefs = count_xrefs
+        self._xref_cnts = []
+        self._xref_total = 0
         if count_xrefs:
-            self._xref_cnts = []
-            self._xref_total = 0
             for s in self._strings:
                 cnt = self._do_xref_count(mr.start + s[0], process.memory)
                 self._xref_total += cnt
@@ -181,10 +181,17 @@ class YaraMatch:
     @property
     def strings(self) -> List[YaraString]:
         if self._yara_strings is None:
-            self._yara_strings = [
-                YaraString(self.region_address + s[0], s, self._xref_cnts[i])
-                for i, s in enumerate(self._strings)
-            ]
+            if self._count_xrefs:
+                self._yara_strings = [
+                    YaraString(self.region_address + s[0], s, xrefs= self._xref_cnts[i])
+                    for i, s in enumerate(self._strings)
+                ]
+            else:
+                self._yara_strings = [
+                    YaraString(self.region_address + s[0], s)
+                    for i, s in enumerate(self._strings)
+                ]
+
         return self._yara_strings
 
     def yaml(self, brief: bool = False) -> str:
