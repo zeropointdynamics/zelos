@@ -327,7 +327,7 @@ class MemoryApi:
         signed: bool = False,
     ) -> bytes:
         """
-        Unpacks an integer from a byte format. Defaults to the
+        Packs an integer into bytes. Defaults to the
         current architecture bytes and endianness.
         """
         return self._memory.emu.pack(
