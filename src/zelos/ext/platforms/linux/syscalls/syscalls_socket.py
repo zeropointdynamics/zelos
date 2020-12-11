@@ -33,6 +33,7 @@ from zelos.ext.platforms.linux.syscalls.syscalls_const import (
     SocketOptionsTcp,
     SocketProtocol,
 )
+from zelos.handles import SocketHandle
 from zelos.util import dumpstruct, str2struct, struct2str
 
 from . import syscall_structs as structs
@@ -205,6 +206,9 @@ def bind(k, p, args_addr):
     )
     _parse_sockaddr(p, args.addr, args.addrlen)
     socket_handle = k.z.handles.get(args.sockfd)
+    if not isinstance(socket_handle, SocketHandle):
+        k.logger.error("Invalid socket handle")
+        return -1
     sock = socket_handle.socket
     addr = bytes(p.memory.read(args.addr, args.addrlen))
     (host, port) = get_host_and_port(sock.domain, addr)
@@ -215,7 +219,7 @@ def bind(k, p, args_addr):
 def connect(k, p, args_addr):
     def print_addr(args):
         socket_handle = k.z.handles.get(args.sockfd)
-        if socket_handle is None:
+        if not isinstance(socket_handle, SocketHandle):
             return "{0}=0x{1:x}".format("addr", args.addr)
         sock = socket_handle.socket
         sockaddr = bytes(p.memory.read(args.addr, args.addrlen))
@@ -235,7 +239,7 @@ def connect(k, p, args_addr):
     )
     # _parse_sockaddr(p, args.addr, args.addrlen)
     socket_handle = k.z.handles.get(args.sockfd)
-    if socket_handle is None:
+    if not isinstance(socket_handle, SocketHandle):
         k.logger.error("Invalid socket handle")
         return -1
     socket = socket_handle.socket
@@ -256,7 +260,7 @@ def listen(k, p, args_addr):
     )
 
     socket_handle = k.z.handles.get(args.sockfd)
-    if socket_handle is None:
+    if not isinstance(socket_handle, SocketHandle):
         k.logger.error("Invalid socket handle")
         return -1
     socket = socket_handle.socket
@@ -279,7 +283,7 @@ def accept(k, p, args_addr):
     )
 
     socket_handle = k.z.handles.get(args.sockfd)
-    if socket_handle is None:
+    if not isinstance(socket_handle, SocketHandle):
         k.logger.error("Invalid socket handle")
         return -1
     socket = socket_handle.socket
@@ -360,7 +364,7 @@ def sendto(k, p, args_addr):
 
     def print_dst(args):
         socket_handle = k.z.handles.get(args.sockfd)
-        if socket_handle is None:
+        if not isinstance(socket_handle, SocketHandle):
             return "{0}=0x{1:x}".format("dest_addr", args.dest_addr)
         sock = socket_handle.socket
         sockaddr = bytes(p.memory.read(args.dest_addr, args.addrlen))
@@ -382,7 +386,7 @@ def sendto(k, p, args_addr):
         arg_string_overrides={"buf": print_buf, "dest_addr": print_dst},
     )
     socket_handle = k.z.handles.get(args.sockfd)
-    if socket_handle is None:
+    if not isinstance(socket_handle, SocketHandle):
         k.logger.notice(f"Could not find socket {args.sockfd}")
         return -1
     sock = socket_handle.socket
@@ -401,7 +405,7 @@ def sendto(k, p, args_addr):
 
 def _send(k, p, sockfd, payload, flags=0):
     socket_handle = k.z.handles.get(sockfd)
-    if socket_handle is None:
+    if not isinstance(socket_handle, SocketHandle):
         k.logger.notice(f"Invalid socket fd 0x{sockfd:x}")
         return -1
     sock = socket_handle.socket
@@ -446,6 +450,9 @@ def recvfrom(k, p, args_addr):
         ],
     )
     socket_handle = k.z.handles.get(args.sockfd)
+    if not isinstance(socket_handle, SocketHandle):
+        k.logger.error("Invalid socket handle")
+        return -1
     sock = socket_handle.socket
 
     try:
@@ -467,7 +474,7 @@ def recvfrom(k, p, args_addr):
 
 def _recv(k, p, sockfd, buf, _len, flags=0):
     socket_handle = k.z.handles.get(sockfd)
-    if socket_handle is None:
+    if not isinstance(socket_handle, SocketHandle):
         return -1
     sock = socket_handle.socket
     has_data = sock.peek()
@@ -497,7 +504,7 @@ def setsockopt(k, p, args_addr):
     args = k._get_socketcall_args(p, "setsockopt", args_addr, arg_list)
 
     socket_handle = k.z.handles.get(args.sockfd)
-    if socket_handle is None:
+    if not isinstance(socket_handle, SocketHandle):
         k.logger.error("Invalid socket handle")
         return -1
     socket = socket_handle.socket
