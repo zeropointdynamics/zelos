@@ -216,7 +216,5 @@ class TestYaraScanPlugin(unittest.TestCase):
         matches[0].strings
 
 
-
-
 if __name__ == "__main__":
     unittest.main()

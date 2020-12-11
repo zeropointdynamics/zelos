@@ -183,7 +183,9 @@ class YaraMatch:
         if self._yara_strings is None:
             if self._count_xrefs:
                 self._yara_strings = [
-                    YaraString(self.region_address + s[0], s, xrefs= self._xref_cnts[i])
+                    YaraString(
+                        self.region_address + s[0], s, xrefs=self._xref_cnts[i]
+                    )
                     for i, s in enumerate(self._strings)
                 ]
             else:
