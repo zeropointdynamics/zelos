@@ -34,6 +34,7 @@ from zelos.ext.platforms.linux.syscalls.syscalls_const import (
     SocketOptionsTcp,
     SocketProtocol,
 )
+from zelos.handles import SocketHandle
 from zelos.util import dumpstruct, str2struct, struct2str
 
 from . import syscall_structs as structs
