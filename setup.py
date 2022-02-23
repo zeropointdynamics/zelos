@@ -41,7 +41,7 @@ INSTALL_REQUIRES = [
     "capstone==4.0.1",
     "sortedcontainers==2.1.0",
     "verboselogs==1.7",
-    "dnslib==0.9.10",
+    "dnslib>=0.9.17",
     "hexdump==3.3",
     "dpkt==1.9.2",
     "coloredlogs==10.0",
@@ -53,6 +53,7 @@ INSTALL_REQUIRES = [
 ]
 EXTRAS_REQUIRE = {
     "docs": [
+        "docutils==0.16",
         "sphinx==2.4.4",
         "sphinx_rtd_theme",
         "sphinxcontrib-apidoc",
