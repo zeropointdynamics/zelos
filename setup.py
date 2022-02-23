@@ -53,6 +53,7 @@ INSTALL_REQUIRES = [
 ]
 EXTRAS_REQUIRE = {
     "docs": [
+        "docutils==0.16",
         "sphinx==2.4.4",
         "sphinx_rtd_theme",
         "sphinxcontrib-apidoc",
