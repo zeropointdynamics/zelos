@@ -1856,38 +1856,23 @@ def sys_futex(k, p):
         ]
     )
     operation = args.futex_op & 0xF
-    # print(f"OPERATION: {operation}")
     if operation == 1:
         # Futex wake
-        # This should be implemented through shared memory, but
-        # for now, we will just keep track of futexes in the kernel
+        # This should be implemented through shared memory?
+
         # TODO: The number of waiting threads that will be awoken is
         #       determined by args.val: How to communicate this to the
         #       waiting threads?
         # p.memory.write_uint32(args.uaddr, args.val)
-        # p.scheduler.stop_and_exec(
-        #   "process_swap",
-        #   k.z.processes.schedule_next
-        # )
+
         return 1  # Number of waiters woken
     if operation == 0:
         # Futex wait
         # Will resume when expected value changes
-        if k.futexes.get(args.uaddr, args.val) != args.val:
-            return 0
 
-        # def unpause_when():
-        #     # return p.memory.read_uint32(args.uaddr) != args.val
-        #     if k.futexes.get(args.uaddr, args.val) != args.val:
-        #         # k.futexes[args.uaddr] = args.val
-        #         return True
-        #     return False
-
-        # p.threads.pause_current_thread(condition=unpause_when)
         return 0
     if operation == 9:
         mem_val = p.memory.read_uint32(args.uaddr)
-        # print(mem_val, args.val)
         if mem_val == args.val:
             return 0
         return -1  # They need to be the same when this operation starts
