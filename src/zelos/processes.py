@@ -151,6 +151,7 @@ class Process:
             module_path=module_path,
             benign_code=benign_code,
         )
+        t.parent_id = self.pid
 
         current_thread = self.current_thread
         self.threads._swap_thread(t.id)
@@ -216,7 +217,7 @@ class Process:
 
 
 class Processes:
-    """ Exposes the processes that are on the virtual machine."""
+    """Exposes the processes that are on the virtual machine."""
 
     def __init__(
         self,

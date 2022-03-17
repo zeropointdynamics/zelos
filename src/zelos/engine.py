@@ -278,7 +278,7 @@ class Engine:
         )
 
     def _first_parse(self, module_path):
-        """ Function to parse an executable """
+        """Function to parse an executable"""
         self.logger.verbose("Parse Main Module")
 
         with open(module_path, "rb") as f:
@@ -423,7 +423,7 @@ class Engine:
         return [insn for insn in self.cs.disasm(bytes(code), address)]
 
     def step(self, count: int = 1) -> None:
-        """ Steps one assembly level instruction """
+        """Steps one assembly level instruction"""
         # You might be tempted to use zebracorn's "count" argument to
         # step. However, printing instruction comments relies on an
         # ad-hoc "post instruction" method.
@@ -587,7 +587,7 @@ class Engine:
         return True
 
     def close(self) -> None:
-        """ Handles the end of the run command """
+        """Handles the end of the run command"""
         for closure in self.hook_manager._get_hooks(HookType._OTHER.CLOSE):
             try:
                 closure()

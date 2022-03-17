@@ -1205,6 +1205,38 @@ def sys_sendmmsg(k, p):
     return socketcall.sendmmsg(k, p, -1)
 
 
+class CLONE(enum.IntEnum):
+    """
+    Cloning Flags
+    https://github.com/torvalds/linux/blob/master/include/uapi/linux/sched.h
+    """
+
+    VM = 0x00000100
+    FS = 0x00000200
+    FILES = 0x00000400
+    SIGHAND = 0x00000800
+    PIDFD = 0x00001000
+    PTRACE = 0x00002000
+    VFORK = 0x00004000
+    PARENT = 0x00008000
+    THREAD = 0x00010000
+    NEWNS = 0x00020000
+    SYSVSEM = 0x00040000
+    SETTLS = 0x00080000
+    PARENT_SETTID = 0x00100000
+    CHILD_CLEARTID = 0x00200000
+    DETACHED = 0x00400000
+    UNTRACED = 0x00800000
+    CHILD_SITTID = 0x01000000
+    NEWCGROUP = 0x02000000
+    NEWUTS = 0x04000000
+    NEWIPC = 0x08000000
+    NEWUSER = 0x10000000
+    NEWPID = 0x20000000
+    NEWNET = 0x40000000
+    IO = 0x80000000
+
+
 def sys_clone(k, p):
     if k.arch == "x86_64":
         args = k.get_args(
@@ -1227,40 +1259,43 @@ def sys_clone(k, p):
             ]
         )
 
-    child_process = _new_process(k, p)
-    parent_handles = k.z.handles._all_handles(p.pid)
-    for num, h in parent_handles:
-        k.z.handles.add_handle(h, handle_num=num, pid=child_process.pid)
+    child = _new_process(k, p, flags=args.flags)
     try:
-        child_process.memory.write_uint32(args.ctid, child_process.pid)
+        child.memory.write_uint32(args.ctid, child.pid)
     except Exception:
         pass
 
-    # if args.newtls != 0:
-    #     userdesc = ptr2struct(k.z, args.newtls, USERDESC)
-    #     # dumpstruct(userdesc)
+    # def swap():
+    #     k.z.processes.load_process(child.pid)
 
-    #     # k.z._add_tdata_before(userdesc.base_address)
-    #     # k.logger.error(f'ADDRESS: {userdesc.base_address}')
-    #     # child_process.current_thread.local_data_address =
-    #     #     userdesc.base_address
-    return child_process.pid
+    # p.scheduler.stop_and_exec("process swap", swap)
+    return child.pid
 
 
 def sys_fork(k, p):
     k.get_args([])
 
-    child_process = _new_process(k, p)
+    child_process = _new_process(k, p, CLONE.FILES)
     return child_process.pid
 
 
-def _new_process(k, p):
+def _new_process(k, p, flags=0x0):
     processes = k.z.processes
     child_pid = processes.new_process()
     child = processes.get_process(child_pid)
 
-    # duplicate the state of the target process.
-    child.memory.copy(p.memory)
+    if flags & CLONE.VM > 0:
+        # Share memory
+        # TODO: Why isn't this working?
+        # child.memory = p.memory
+        child.memory.copy(p.memory)
+    else:
+        # duplicate the state of the target process.
+        child.memory.copy(p.memory)
+
+    parent_handles = k.z.handles._all_handles(p.pid)
+    for num, h in parent_handles:
+        k.z.handles.add_handle(h, handle_num=num, pid=child.pid)
 
     # Create this same thread inside the process
     current_thread = p.current_thread
@@ -1821,13 +1856,38 @@ def sys_futex(k, p):
         ]
     )
     operation = args.futex_op & 0xF
-    print(operation)
+    # print(f"OPERATION: {operation}")
     if operation == 1:
         # Futex wake
-        return 0  # Number of waiters woken
+        # This should be implemented through shared memory, but
+        # for now, we will just keep track of futexes in the kernel
+        # TODO: The number of waiting threads that will be awoken is
+        #       determined by args.val: How to communicate this to the
+        #       waiting threads?
+        # p.memory.write_uint32(args.uaddr, args.val)
+        # p.scheduler.stop_and_exec(
+        #   "process_swap",
+        #   k.z.processes.schedule_next
+        # )
+        return 1  # Number of waiters woken
+    if operation == 0:
+        # Futex wait
+        # Will resume when expected value changes
+        if k.futexes.get(args.uaddr, args.val) != args.val:
+            return 0
+
+        # def unpause_when():
+        #     # return p.memory.read_uint32(args.uaddr) != args.val
+        #     if k.futexes.get(args.uaddr, args.val) != args.val:
+        #         # k.futexes[args.uaddr] = args.val
+        #         return True
+        #     return False
+
+        # p.threads.pause_current_thread(condition=unpause_when)
+        return 0
     if operation == 9:
         mem_val = p.memory.read_uint32(args.uaddr)
-        print(mem_val, args.val)
+        # print(mem_val, args.val)
         if mem_val == args.val:
             return 0
         return -1  # They need to be the same when this operation starts
