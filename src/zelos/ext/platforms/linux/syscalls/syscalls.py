@@ -1723,7 +1723,8 @@ def sys_rt_sigprocmask(k, p):
             new_signal_mask = old_signal_mask & ~sigset
         elif args.how == 2:  # SIG_SETMASK
             new_signal_mask = sigset
-
+        else: 
+            return SysError.EINVAL
         p.zos.signals.set_signal_mask(new_signal_mask)
 
     # TODO: Attempt to handle any signals that are no longer blocked.
