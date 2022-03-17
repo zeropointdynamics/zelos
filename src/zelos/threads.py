@@ -636,7 +636,7 @@ class Threads:
         return new_thread
 
     def change_thread_priority(self, thread_name, new_priority):
-        """ Change the priority of a thread"""
+        """Change the priority of a thread"""
         t = self.get_thread_by_name(thread_name)
         if t is None:
             print("Unable to find thread %s" % thread_name)
@@ -644,11 +644,11 @@ class Threads:
         t.priority = new_priority
 
     def get_all_threads(self) -> List[Thread]:
-        """ Returns all threads, whether active or stopped"""
+        """Returns all threads, whether active or stopped"""
         return self.thread_list[:]
 
     def get_thread_by_name(self, name: str) -> Optional[Thread]:
-        """ Returns the first thread with the given name """
+        """Returns the first thread with the given name"""
         threads = self.get_threads([name])
         return threads[0] if len(threads) > 0 else None
 
@@ -745,7 +745,7 @@ class Threads:
             hook(old_thread)
 
     def _load(self, thread):
-        """ Loads the specified thread into the emulator """
+        """Loads the specified thread into the emulator"""
         if thread is None:
             self.current_thread = None
             return

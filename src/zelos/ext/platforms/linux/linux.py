@@ -151,8 +151,23 @@ class Linux(OSPlugin):
             self.z.logger.warn("Falling back to default rootfs")
         self.z.files.mount_folder(self._get_arch_subfolder(arch))
 
+        # Return from attempted virtual system calls
+        def handle_vsyscall(zelos, address, size):
+            ra = zelos.regs.popstack()
+            zelos.regs.setIP(ra)
+
+        # https://github.com/torvalds/linux/blob/master/Documentation/x86/x86_64/mm.rst
+        self.z.hook_manager.register_exec_hook(
+            HookType.EXEC.INST,
+            handle_vsyscall,
+            ip_low=0xFFFFFFFFFF600000,
+            ip_high=0xFFFFFFFFFF601000,
+        )
+
     def _init_process(self, arch, p):
         p.zos.signals = Signals(arch, p)
+        # Map space for virtual system calls
+        p.memory.map(0xFFFFFFFFFF600000, 0x1000)
 
     def _init_thread(self, thread, stack_setup):
         # if self.z.state.arch != "mips":
@@ -165,7 +180,7 @@ class Linux(OSPlugin):
         thread.save_context()
 
     def populate_thread_stack(self, thread):
-        """ This populates the stack of a new thread"""
+        """This populates the stack of a new thread"""
         thread.setSP(thread.stack_base)
         thread.setFP(thread.stack_base)
 

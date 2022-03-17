@@ -151,7 +151,7 @@ class TestZdbServer(unittest.TestCase):
 
             # Test memory map list
             mappings = zdb.get_mappings()
-            self.assertEqual(len(mappings), 21)
+            self.assertEqual(len(mappings), 22)
             mr = mappings[0]
             self.assertTrue("start_address" in mr)
             self.assertTrue("end_address" in mr)

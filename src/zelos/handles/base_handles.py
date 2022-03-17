@@ -353,7 +353,7 @@ class Handles:
         )
 
     def add_handle(self, handle, handle_num=None, pid=None) -> int:
-        """ Returns the handle id for the handle"""
+        """Returns the handle id for the handle"""
         if pid is None:
             pid = self.processes.current_process.pid
         if handle_num is None:
@@ -484,36 +484,44 @@ class Handles:
         in_handle_num = self.add_handle(in_handle)
         return (out_handle_num, in_handle_num)
 
-    def get_by_name(self, name: str) -> Optional[int]:
+    def get_by_name(
+        self, name: str, pid: Optional[int] = None
+    ) -> Optional[int]:
         """
         Gets the numeric identifier for the first handle that has the
         specified name.
 
         Args:
             name: The name of the handle to retrieve.
+            pid: The id of the process to get the handle from. Defaults
+                 to None (all processes).
 
         Returns:
             The handle number corresponding to the specified name if one
             exists. If no such handle exists, returns None.
         """
-        for handle_num, h in self._all_handles(None):
+        for handle_num, h in self._all_handles(pid):
             if h.Name == name:
                 return handle_num
         return None
 
-    def get_by_type(self, class_type: type) -> List[Handle]:
+    def get_by_type(
+        self, class_type: type, pid: Optional[int] = None
+    ) -> List[Handle]:
         """
         Returns all handles of the given type.
 
         Args:
             class_type: Specifies the type that all returned handles
                 should be an instance of.
+            pid: The id of the process to get the handle from. Defaults
+                 to None (all processes).
 
         Returns:
             All handles that are an instance of the specified type.
         """
         return [
-            h for _, h in self._all_handles(None) if isinstance(h, class_type)
+            h for _, h in self._all_handles(pid) if isinstance(h, class_type)
         ]
 
     def get_by_parent_thread(

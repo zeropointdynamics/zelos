@@ -215,3 +215,5 @@ class Signal(enum.IntEnum):
     RTSIG29 = 60
     RTSIG30 = 61
     RTSIG31 = 62
+    RTSIG32 = 63
+    RTSIG33 = 64

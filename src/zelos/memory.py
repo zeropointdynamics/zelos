@@ -607,7 +607,9 @@ class Memory:
         # return
         if self.disableNX:
             prot = prot | ProtType.EXEC
-        aligned_address = address & 0xFFFFF000  # Address needs to align with
+        aligned_address = (
+            address & 0xFFFFFFFFFFFFF000
+        )  # Address needs to align with
         aligned_size = util.align((address & 0xFFF) + size)
         try:
             self.emu.mem_protect(aligned_address, aligned_size, prot)
@@ -748,11 +750,11 @@ class Memory:
         return mr.prot & ProtType.WRITE != 0
 
     def get_region(self, address: int) -> Optional[MemoryRegion]:
-        """ Gets the region that this address belongs to."""
+        """Gets the region that this address belongs to."""
         return self.emu.mem_region(address)
 
     def get_regions(self):
-        """ Returns a list of all mapped memory regions."""
+        """Returns a list of all mapped memory regions."""
         return self.emu.mem_regions()
 
     def read_ptr(self, addr: int) -> int:
@@ -911,7 +913,7 @@ class Memory:
 
 
 class _HeapObjInfo:
-    """ Information on a heap object. """
+    """Information on a heap object."""
 
     def __init__(
         self,
@@ -971,7 +973,7 @@ class _HeapObjInfo:
 
 
 class Heap:
-    """ Helper class to manage heap allocation."""
+    """Helper class to manage heap allocation."""
 
     def __init__(self, memory, heap_start, heap_max_size):
         self.memory = memory
