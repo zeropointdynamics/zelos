@@ -36,10 +36,11 @@ class LiefELF(ParsedBinary):
         return "ELF"
 
     def _get_interpreter(self, binary):
-        try:
-            return binary.interpreter
-        except Exception:
+        if not hasattr(binary, "interpreter"):
             return None
+        if binary.interpreter is None or binary.interpreter == "":
+            return None
+        return binary.interpreter
 
     def _find_interpreter(self, requested_interpreter, binary):
         if requested_interpreter == "":
